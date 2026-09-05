@@ -10,12 +10,12 @@
 
 # TEAM MEMBERS
 
-| # | Name |
-| :---: | :--- |
-| **i)** | Srijeeta Chatterjee |
-| **ii)** | Susmita Chatterjee |
-| **iii)** | Taiyebani Munsi |
-| **iv)** | Miranda Choudhury |
-| **v)** | Subhajit Palit |
+| # | Name | Roles |
+| :---: | :--- | :--- |
+| **i)** | Srijeet Chatterjee | Backend |
+| **ii)** | Susmit Chatterjee | Fronend |
+| **iii)** | Taiyeb Munsi | Full Stack |
+| **iv)** | Miranda Choudhury |  UI/UX Designer |
+| **v)** | Subhajit Palit | Presentation |
 
 ---
