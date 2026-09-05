@@ -15,7 +15,7 @@
 | **i)** | Srijeet Chatterjee | Backend |
 | **ii)** | Susmit Chatterjee | Frontend |
 | **iii)** | Taiyeb Munsi | Full Stack |
-| **iv)** | Miranda Choudhury |  UI/UX Designer |
+| **iv)** | Miranda Choudhuri |  UI/UX Designer |
 | **v)** | Subhajit Palit | Presentation |
 
 ---
