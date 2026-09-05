@@ -12,9 +12,9 @@
 
 | # | Name |
 | :---: | :--- |
-| **i)** | Srijeet Chatterjee |
-| **ii)** | Susmit Chatterjee |
-| **iii)** | Taiyeb Munsi |
+| **i)** | Srijeeta Chatterjee |
+| **ii)** | Susmita Chatterjee |
+| **iii)** | Taiyebani Munsi |
 | **iv)** | Miranda Choudhury |
 | **v)** | Subhajit Palit |
 
