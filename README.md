@@ -8,7 +8,7 @@
 
 <br/>
 
-## 👥 TEAM MEMBERS
+# TEAM MEMBERS
 
 | # | Name |
 | :---: | :--- |
