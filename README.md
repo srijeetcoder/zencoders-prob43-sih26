@@ -16,6 +16,6 @@
 | **ii)** | Susmit Chatterjee |
 | **iii)** | Taiyeb Munsi |
 | **iv)** | Miranda Choudhury |
-| **v)** | Subhojit Palit |
+| **v)** | Subhajit Palit |
 
 ---
