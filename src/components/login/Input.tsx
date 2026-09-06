@@ -7,9 +7,11 @@ function  Input({ type, name, placeHolder, value, onChange }) {
             placeholder={placeHolder}
             value={value}
             onChange={onChange}
-            className="outline-none border border-grey-400 rounded-[8px]  px-3 py-2
-              focus:border-b-green-500 focus:border-b-2
+            className="
+              outline-none border border-grey-200 rounded-[8px]  px-3 py-2
+              focus:border-b-green-500 focus:border-b-2 focus:outline-none
               transition-all duration-300
+              shadow-sm
             "
         />
     )

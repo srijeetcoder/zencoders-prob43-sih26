@@ -1,11 +1,14 @@
 import { useState } from "react"
 import Input from "./Input"
+import { Link } from "react-router-dom";
 
 function LoginForm() {
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
         email : "",
         password : ""
     });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     function handleChange(e) {
         setFormData({
@@ -16,6 +19,9 @@ function LoginForm() {
 
     function handleSubmit(e) {
         e.preventDefault();
+
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
         console.log(formData);
     }
@@ -36,7 +42,7 @@ function LoginForm() {
           <Input
             type="email"
             name="email"
-            placeholder="Please enter the email..."
+            placeHolder="Please enter the email"
             value={formData.email}
             onChange={handleChange}
           />
@@ -44,7 +50,7 @@ function LoginForm() {
           <Input
             type="password"
             name="password"
-            placeholder="Please enter the password..."
+            placeHolder="Please enter the password"
             value={formData.password}
             onChange={handleChange}
           />
@@ -62,7 +68,7 @@ function LoginForm() {
            "> Submit </button>
 
            <span className="whitespace-nowrap text-xs">
-              Don't have an account? <span className="text-green-500 font-bold">Sign up</span> <br/> 
+              Don't have an account? <Link to="/signup" className="text-green-500 font-bold">Sign up</Link> <br/> 
               <span className="text-green-500 font-bold">Forget Password</span>
            </span>
         </form>
