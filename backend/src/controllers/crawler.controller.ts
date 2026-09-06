@@ -124,3 +124,85 @@ export async function getKnowledgeStats(req: Request, res: Response, next: NextF
     next(error);
   }
 }
+
+/**
+ * Lists all saved training & innovation memory case studies from PostgreSQL with search & filtering.
+ * Endpoint: GET /api/crawler/memory
+ */
+export async function listInnovationMemory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { domain, search, limit = '50', offset = '0' } = req.query;
+
+    // Ensure columns exist safely in PostgreSQL
+    try {
+      await query(`
+        ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS source_url TEXT;
+        ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS raw_content TEXT;
+      `);
+    } catch (colErr: any) {}
+
+    let sql = `
+      SELECT 
+        id,
+        title,
+        problem_summary AS "problemSummary",
+        solution_summary AS "solutionSummary",
+        outcome,
+        domain,
+        source_url AS "sourceUrl",
+        raw_content AS "rawContent",
+        created_at AS "createdAt"
+      FROM innovation_memory
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (domain && typeof domain === 'string' && domain.trim() !== '') {
+      params.push(domain.trim());
+      sql += ` AND domain = $${params.length}`;
+    }
+
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      params.push(`%${search.trim()}%`);
+      sql += ` AND (title ILIKE $${params.length} OR problem_summary ILIKE $${params.length} OR solution_summary ILIKE $${params.length})`;
+    }
+
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2};`;
+    params.push(parseInt(limit as string, 10) || 50);
+    params.push(parseInt(offset as string, 10) || 0);
+
+    const result = await query(sql, params);
+
+    res.status(200).json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Deletes a trained innovation memory item by ID.
+ * Endpoint: DELETE /api/crawler/memory/:id
+ */
+export async function deleteInnovationMemory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const delResult = await query(`DELETE FROM innovation_memory WHERE id = $1 RETURNING id;`, [id]);
+
+    if (delResult.rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Memory item not found.' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Deleted knowledge memory record ${id}`,
+      deletedId: id,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
