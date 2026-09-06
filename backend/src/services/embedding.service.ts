@@ -1,51 +1,72 @@
-import OpenAI from 'openai';
 import { env } from '../config/env';
 
-const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
-});
+const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
 /**
- * Generates a 1536-dimensional semantic vector embedding using text-embedding-3-small.
+ * Generates a 768-dimensional semantic vector embedding using Google Gemini text-embedding-004.
  * Includes deterministic fallback for unit tests and offline development.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const sanitizedText = text.replace(/\n+/g, ' ').trim();
+  const cleanInput = text.replace(/\n+/g, ' ').trim();
+  if (!cleanInput) throw new Error('Input text is empty');
 
-  // If running in test or with mock key, generate a deterministic normalized 1536-dim vector
+  const currentKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY;
+
+  // If running in test or without a valid Gemini key, generate a deterministic normalized 768-dim vector
   if (
     env.NODE_ENV === 'test' ||
-    env.OPENAI_API_KEY === 'mock-api-key' ||
-    env.OPENAI_API_KEY === 'your-openai-api-key-here' ||
-    env.OPENAI_API_KEY === 'mock-api-key-or-replace-with-real'
+    !currentKey ||
+    currentKey === 'mock-api-key' ||
+    currentKey === 'AIzaSyYourCopiedKeyHere'
   ) {
-    return generateDeterministicMockVector(sanitizedText, 1536);
+    return generateDeterministicMockVector(cleanInput, 768);
   }
 
-  try {
-    const response = await openai.embeddings.create({
-      model: env.OPENAI_EMBEDDING_MODEL,
-      input: sanitizedText,
-      dimensions: 1536,
-      encoding_format: 'float',
-    });
+  const candidateModels = [
+    env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
+    'embedding-001',
+  ];
+  const candidateVersions = ['v1beta', 'v1'];
 
-    const vector = response.data[0].embedding;
-    if (vector.length !== 1536) {
-      throw new Error(`Invalid embedding dimensions: expected 1536, got ${vector.length}`);
+  for (const ver of candidateVersions) {
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:embedContent?key=${currentKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: `models/${model}`,
+            content: {
+              parts: [{ text: cleanInput }],
+            },
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json() as any;
+          const values = data?.embedding?.values;
+          if (values && Array.isArray(values)) {
+            return values;
+          }
+        } else if (res.status === 404) {
+          continue;
+        }
+      } catch (e) {
+        continue;
+      }
     }
-    return vector;
-  } catch (error: any) {
-    console.warn(`[EmbeddingService] OpenAI Embedding API failed (${error.message}). Falling back to local vectorizer.`);
-    return generateDeterministicMockVector(sanitizedText, 1536);
   }
+
+  console.warn(`[EmbeddingService] Remote embedding endpoints did not return valid vectors. Falling back to local vectorizer.`);
+  return generateDeterministicMockVector(cleanInput, 768);
 }
 
 /**
- * Generates a consistent, L2-normalized 1536-dimension float vector from a text hash.
+ * Generates a consistent, L2-normalized 768-dimension float vector from a text hash.
  * Useful for offline tests, CI environments, and graceful degraded modes.
  */
-export function generateDeterministicMockVector(input: string, dimensions: number = 1536): number[] {
+export function generateDeterministicMockVector(input: string, dimensions: number = 768): number[] {
   const vector: number[] = new Array(dimensions);
   let hash = 0;
 

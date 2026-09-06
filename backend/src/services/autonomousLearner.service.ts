@@ -1,16 +1,12 @@
-import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
 import { env } from '../config/env';
 import { query, formatVector } from '../config/database';
 import { generateEmbedding } from './embedding.service';
 import {
   ExtractedKnowledgeItem,
-  ExtractedKnowledgeItemSchema,
+  ExtractedKnowledgeSchema,
 } from '../schemas/crawler.schema';
 
-const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
-});
+const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
 export interface IngestResult {
   success: boolean;
@@ -22,10 +18,21 @@ export interface IngestResult {
   sourceUrlOrOrigin: string;
 }
 
+const EXTRACTION_SYSTEM_PROMPT = `You are an objective knowledge extraction system for the Government of Jharkhand.
+Extract structured data from the scraped document adhering strictly to the schema.
+
+RULES:
+1. STRICT GROUNDING: Extract ONLY facts directly stated in the text. Absolutely DO NOT infer, extrapolate, or invent technological or engineering solutions.
+2. NON-TECHNICAL ARTICLES: If the article covers socio-economic challenges, political unrest, recruitment exam paper leaks, or citizen protests without a concrete technical solution, classify as 'EMERGING_CHALLENGE', 'NEWS_EVENT', or 'PROBLEM_REPORT'.
+3. NULL ENFORCEMENT: If no intervention is described in the text, you MUST return null for solutionSummary.
+4. EMPTY ARRAYS: If no hardware, software, or digital frameworks are named, return [] for keyTechnologiesUsed. Do not fabricate IoT, solar, or healthcare equipment.
+5. ZERO SEMANTIC HALLUCINATION: When writing the 'problemSummary' or 'outcome', you must extract the EXACT causes, statistics, and context mentioned in the article. For example, if an article attributes poverty to 'administrative delays in mining auctions', you must state that exact reason. Absolutely DO NOT rely on your pre-trained knowledge to assume standard causes (like 'winter unemployment' or 'lack of agriculture') if they are not explicitly written in the scraped text.
+6. NOISE FILTERING & SYNTHESIS: Synthesize the provided text into a clean, grammatically correct, and professional summary. Do not verbatim copy-paste raw text strings. If any fragments of website navigation remain, ignore them entirely.`;
+
 /**
  * Autonomous Knowledge Learner & Vector Ingestion Engine
- * 1. Analyzes raw unstructured text / scraped web content with OpenAI structured outputs.
- * 2. Vectorizes the synthesized knowledge with 1536-dimension embeddings.
+ * 1. Analyzes raw unstructured text / scraped web content with Google Gemini structured outputs.
+ * 2. Vectorizes the synthesized knowledge with 768-dimension embeddings (text-embedding-004).
  * 3. Checks for near-duplicate knowledge in pgvector innovation_memory (similarity > 0.85).
  * 4. Automatically commits new knowledge into the live RAG memory base.
  */
@@ -34,11 +41,18 @@ export async function learnAndIngestKnowledge(
   sourceUrlOrOrigin: string,
   categoryHint?: string
 ): Promise<IngestResult> {
-  // Step 1: Extract structured knowledge using LLM
+  // Step 1: Extract structured knowledge using LLM with strict grounding
   const extracted = await extractStructuredKnowledge(rawText, sourceUrlOrOrigin, categoryHint);
 
-  // Step 2: Vectorize knowledge item
-  const vectorText = `Title: ${extracted.title}. Problem: ${extracted.problemSummary}. Solution: ${extracted.solutionSummary}. Outcome: ${extracted.outcome}. Domain: ${extracted.domain}. Tech: ${extracted.keyTechnologiesUsed.join(', ')}`;
+  // Step 2: Vectorize knowledge item (gracefully handle null solutions and empty tech arrays)
+  const techText = extracted.keyTechnologiesUsed && extracted.keyTechnologiesUsed.length > 0 
+    ? `Tech: ${extracted.keyTechnologiesUsed.join(', ')}` 
+    : 'Tech: None';
+  const solutionText = extracted.solutionSummary 
+    ? `Solution: ${extracted.solutionSummary}. ` 
+    : '';
+  const vectorText = `Title: ${extracted.title}. Problem: ${extracted.problemSummary}. ${solutionText}Outcome: ${extracted.outcome}. Domain: ${extracted.domain}. ${techText}`;
+  
   const vector = await generateEmbedding(vectorText);
   const vectorStr = formatVector(vector);
 
@@ -69,9 +83,10 @@ export async function learnAndIngestKnowledge(
       };
     }
 
-    // Ensure schema has source_url and raw_content columns
+    // Ensure table structure supports nullable solution_summary, source_url, raw_content
     try {
       await query(`
+        ALTER TABLE innovation_memory ALTER COLUMN solution_summary DROP NOT NULL;
         ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS source_url TEXT;
         ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS raw_content TEXT;
       `);
@@ -95,7 +110,7 @@ export async function learnAndIngestKnowledge(
     const insertRes = await query(insertSql, [
       extracted.title,
       extracted.problemSummary,
-      extracted.solutionSummary,
+      extracted.solutionSummary || null,
       extracted.outcome,
       extracted.domain,
       sourceUrlOrOrigin,
@@ -105,10 +120,10 @@ export async function learnAndIngestKnowledge(
 
     const insertedId = insertRes.rows[0]?.id || 'mock-inserted-id';
 
-    // If knowledge represents an institutional capability, also enrich ecosystem_entities
-    if (extracted.knowledgeType === 'INSTITUTION_CAPABILITY' && extracted.keyTechnologiesUsed.length > 0) {
+    // If knowledge represents an active entity capability, also enrich ecosystem_entities
+    if (extracted.keyTechnologiesUsed && extracted.keyTechnologiesUsed.length > 0 && extracted.solutionSummary) {
       try {
-        const entityVector = await generateEmbedding(`${extracted.title} in ${extracted.locationOrDistrict}. ${extracted.solutionSummary}`);
+        const entityVector = await generateEmbedding(`${extracted.title} in ${extracted.locationOrDistrict || 'Jharkhand'}. ${extracted.solutionSummary}`);
         await query(
           `INSERT INTO ecosystem_entities (name, entity_type, district, capabilities, embedding)
            VALUES ($1, 'Lab', $2, $3, $4::vector)
@@ -145,7 +160,7 @@ export async function learnAndIngestKnowledge(
 }
 
 /**
- * Uses gpt-4o-mini structured output to parse unstructured web/text content
+ * Uses Google Gemini structured output with strict anti-hallucination prompt
  */
 async function extractStructuredKnowledge(
   rawText: string,
@@ -154,66 +169,61 @@ async function extractStructuredKnowledge(
 ): Promise<ExtractedKnowledgeItem> {
   if (
     env.NODE_ENV === 'test' ||
-    env.OPENAI_API_KEY === 'mock-api-key' ||
-    env.OPENAI_API_KEY === 'your-openai-api-key-here' ||
-    env.OPENAI_API_KEY === 'mock-api-key-or-replace-with-real'
+    !apiKey ||
+    apiKey === 'mock-api-key' ||
+    apiKey === 'AIzaSyYourCopiedKeyHere'
   ) {
     return generateFallbackExtractedKnowledge(rawText, origin, categoryHint);
   }
 
   try {
-    const prompt = `
-You are the Autonomous Knowledge Ingestion Agent for the Societal Innovation Intelligence Engine (Government of Jharkhand).
-Analyze the following unstructured public text (scraped from web, journalistic report, government circular, technical paper, or citizen grievance).
-
-CRITICAL INSTRUCTIONS TO PREVENT HALLUCINATION:
-1. Do NOT hallucinate technical hardware (like drones, LiDAR, IoT, AI sensors) if the document discusses purely socio-economic, political, governance, poverty, migration, tribal rights, corruption, or legal issues.
-2. Classify knowledgeType accurately:
-   - "CASE_STUDY" if an active technical or community project was implemented.
-   - "POLICY_FRAMEWORK" if it relates to government schemes, PESA, Forest Rights Act, DBT, or administrative guidelines.
-   - "COMMUNITY_INITIATIVE" if led by Self-Help Groups, cooperatives, or grassroots collectives.
-   - "EMERGING_CHALLENGE" if the article primarily discusses an unresolved problem, grievance, corruption, or hardship without an established technical solution.
-   - "INSTITUTION_CAPABILITY" if detailing research or operational capability of a university, lab, or agency.
-3. If it is an EMERGING_CHALLENGE without an engineering solution, summarize the core issue, state "Proposed Policy / Administrative Intervention Required" for solutionSummary, and list administrative/policy mechanisms in keyTechnologiesUsed (e.g., ["Gram Sabha Resolution", "Social Audit", "Direct Benefit Transfer"]).
-4. Map to one of the standard Jharkhand domains:
-   - Socio-Economic & Tribal Welfare
-   - Governance & Public Delivery
-   - Mining & Geo-hazards
-   - Water Quality & Hydrology
-   - Agriculture & Minor Forest Produce
-   - Public Health & Sanitation
-   - Education & Skill Development
-   - Infrastructure & Renewable Energy
-
+    const userPrompt = `
 Source Origin: ${origin}
 Category Hint: ${categoryHint || 'None'}
 Raw Document Content:
 """
-${rawText.slice(0, 10000)}
+${rawText.slice(0, 20000)}
 """
 `;
 
-    const completion = await openai.beta.chat.completions.parse({
-      model: env.OPENAI_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: 'You extract authentic, hallucination-free societal and technical knowledge for government decision engines.',
+    const model = env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: EXTRACTION_SYSTEM_PROMPT }],
         },
-        { role: 'user', content: prompt },
-      ],
-      response_format: zodResponseFormat(ExtractedKnowledgeItemSchema, 'extracted_knowledge'),
-      temperature: 0.1,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: userPrompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: 'application/json',
+        },
+      }),
     });
 
-    const parsed = completion.choices[0]?.message?.parsed;
-    if (!parsed) {
-      throw new Error('OpenAI returned empty parsed knowledge structure');
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini API HTTP ${res.status}: ${errText}`);
     }
 
-    return parsed;
+    const data = await res.json() as any;
+    const rawJsonText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawJsonText) {
+      throw new Error('Gemini returned empty structured extraction');
+    }
+
+    const parsed = JSON.parse(rawJsonText);
+    return ExtractedKnowledgeSchema.parse(parsed);
   } catch (err: any) {
-    console.warn(`[AutonomousLearner] OpenAI structured extraction notice: ${err.message}. Using multi-domain contextual engine.`);
+    console.warn(`[AutonomousLearner] Gemini structured extraction notice: ${err.message}. Using strict grounded fallback engine.`);
     return generateFallbackExtractedKnowledge(rawText, origin, categoryHint);
   }
 }
@@ -252,6 +262,25 @@ function generateFallbackExtractedKnowledge(
     }
   }
 
+  // Dynamically extract genuine sentences from input text to ensure zero context leak between different articles
+  const cleanSentences = rawText
+    .replace(/\r\n|\r|\n/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (s.length < 25) return false;
+      const lowerS = s.toLowerCase();
+      if (lowerS.includes('copyright') || lowerS.includes('all rights reserved')) return false;
+      if (lowerS.includes('trending') || lowerS.includes('sign in') || lowerS.includes('subscribe')) return false;
+      if (lowerS.includes('follow us') || lowerS.includes('newsletter') || lowerS.includes('advertisement')) return false;
+      return true;
+    });
+
+  const dynamicSummary = cleanSentences.slice(0, 2).join(' ') || rawText.slice(0, 250).trim();
+  const dynamicOutcome = cleanSentences.length > 2 
+    ? cleanSentences[2] 
+    : `Documented status in ${detectedDistrict} recorded in state knowledge intelligence memory.`;
+
   // 1. SOCIO-ECONOMIC, MIGRATION, POVERTY & TRIBAL RIGHTS
   if (
     lower.includes('migration') ||
@@ -267,21 +296,15 @@ function generateFallbackExtractedKnowledge(
   ) {
     const isPovertyOrMigration = lower.includes('migration') || lower.includes('poverty') || lower.includes('labor') || lower.includes('labour');
     return {
-      knowledgeType: isPovertyOrMigration ? 'EMERGING_CHALLENGE' : 'POLICY_FRAMEWORK',
+      knowledgeType: isPovertyOrMigration ? 'EMERGING_CHALLENGE' : 'POLICY_ISSUE',
       title: extractedTitle.length > 20 ? extractedTitle : (isPovertyOrMigration ? 'Distress Seasonal Migration & Rural Poverty Assessment' : 'Tribal Land Rights & Community Forest Resource Governance'),
-      problemSummary: isPovertyOrMigration
-        ? `Socio-economic vulnerabilities and lack of non-farm winter employment triggering distress out-migration from rural habitations in ${detectedDistrict}.`
-        : `Historical land alienation and challenges in prompt recognition of Community Forest Rights (CFR) under Forest Rights Act & PESA in ${detectedDistrict}.`,
-      solutionSummary: isPovertyOrMigration
-        ? 'Proposed convergence of MGNREGA local asset creation, SHG micro-enterprise credit, and state interstate migrant registration desks.'
-        : 'Empowerment of Gram Sabhas with spatial boundary mapping, digital land record regularization, and direct community forest conservation stewardship.',
-      outcome: isPovertyOrMigration
-        ? 'Identified for targeted social security safety nets, rural livelihood incubation, and doorstep welfare entitlement delivery.'
-        : 'Strengthened tribal self-governance, preventing arbitrary eviction and legalizing minor forest produce stewardship.',
+      problemSummary: dynamicSummary,
+      solutionSummary: null,
+      outcome: dynamicOutcome,
       domain: 'Socio-Economic & Tribal Welfare',
       domainTags: ['Tribal Welfare', 'Migration Safety', 'Forest Rights Act', 'Livelihood Security', 'Gram Sabha'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Gram Sabha Resolution Protocols', 'Social Security Registry (DBT)', 'SHG Micro-Finance Networks', 'Participatory GIS Mapping'],
+      keyTechnologiesUsed: [],
     };
   }
 
@@ -294,18 +317,20 @@ function generateFallbackExtractedKnowledge(
     lower.includes('ration') ||
     lower.includes('bureaucracy') ||
     lower.includes('grievance') ||
-    lower.includes('leakage')
+    lower.includes('leakage') ||
+    lower.includes('paper leak') ||
+    lower.includes('protest')
   ) {
     return {
-      knowledgeType: 'POLICY_FRAMEWORK',
-      title: extractedTitle.length > 20 ? extractedTitle : 'Public Service Delivery & Anti-Corruption Transparency Mechanism',
-      problemSummary: `Administrative bottlenecks, middleman exploitation, and service delivery delays impacting citizen access to state entitlements in ${detectedDistrict}.`,
-      solutionSummary: 'Implementation of mandatory public social audits, unified grievance tracking escalation matrix, and Aadhaar-enabled DBT disbursement.',
-      outcome: 'Reduced leakage in public welfare disbursement, improved citizen trust, and time-bound statutory redressal.',
+      knowledgeType: 'PROBLEM_REPORT',
+      title: extractedTitle.length > 20 ? extractedTitle : 'Public Service Delivery & Governance Grievance Report',
+      problemSummary: dynamicSummary,
+      solutionSummary: null,
+      outcome: dynamicOutcome,
       domain: 'Governance & Public Delivery',
-      domainTags: ['Public Accountability', 'Anti-Corruption', 'Social Audit', 'Citizen Grievance Redressal', 'DBT Reform'],
+      domainTags: ['Public Accountability', 'Anti-Corruption', 'Citizen Grievance Redressal', 'Administrative Review'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Public Social Audits', 'Automated SMS Grievance Escalation', 'Direct Benefit Transfer (DBT)', 'Open Data Dashboard'],
+      keyTechnologiesUsed: [],
     };
   }
 
@@ -323,13 +348,13 @@ function generateFallbackExtractedKnowledge(
     return {
       knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Subsurface Coal-Fire Suppression & Mine Subsidence Safety Program',
-      problemSummary: `Severe underground coal seam combustion, surface subsidence, and hazardous gas emissions endangering miner settlements in ${detectedDistrict}.`,
-      solutionSummary: 'Inert nitrogen/nitrogen foam injection, thermal infrared borehole sensing, surface sealing, and planned rehabilitation colonies.',
-      outcome: 'Successfully stabilized high-risk subsidence zones and relocated affected families to safe pucca housing complexes.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('foam') || lower.includes('borehole') || lower.includes('relocation') ? 'Inert nitrogen/nitrogen foam injection, thermal infrared borehole sensing, surface sealing, and planned rehabilitation colonies.' : null,
+      outcome: dynamicOutcome,
       domain: 'Mining & Geo-hazards',
       domainTags: ['Mine Safety', 'Jharia Coalfield', 'Thermal Suppression', 'Subsidence Risk', 'Geo-Engineering'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Thermal Infrared Borehole Probing', 'Nitrogen Foam Grouting', 'InSAR Satellite Displacement Tracking', 'Mine Void Stowing'],
+      keyTechnologiesUsed: lower.includes('infrared') ? ['Thermal Infrared Borehole Probing', 'InSAR Satellite Tracking'] : [],
     };
   }
 
@@ -346,13 +371,13 @@ function generateFallbackExtractedKnowledge(
     return {
       knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Community Solar Water De-Fluoridation & Watershed Recharge Kiosk',
-      problemSummary: `High levels of endemic fluorosis and groundwater depletion causing debilitating skeletal illness in rural ${detectedDistrict}.`,
-      solutionSummary: 'Installed community-operated solar-powered activated alumina adsorption and electrocoagulation treatment units with check dam rainwater recharge.',
-      outcome: 'Reduced fluoride concentration below 1.0 mg/L (safe standard) across 22 habitations serving 14,000 residents.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('filter') || lower.includes('solar') || lower.includes('plant') ? 'Installed community-operated solar-powered activated alumina adsorption and electrocoagulation treatment units with check dam rainwater recharge.' : null,
+      outcome: dynamicOutcome,
       domain: 'Water Quality & Hydrology',
       domainTags: ['Water Security', 'Fluoride Remediation', 'Community Kiosk', 'Jal Jeevan Mission', 'Aquifer Recharge'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Activated Alumina Adsorption', 'Electrocoagulation', 'Solar Powered Filtration', 'IoT Purity Telemetry'],
+      keyTechnologiesUsed: lower.includes('filter') ? ['Activated Alumina Adsorption', 'Electrocoagulation', 'Solar Powered Filtration'] : [],
     };
   }
 
@@ -369,15 +394,15 @@ function generateFallbackExtractedKnowledge(
     lower.includes('soil')
   ) {
     return {
-      knowledgeType: 'COMMUNITY_INITIATIVE',
+      knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Tribal Minor Forest Produce (NTFP) Value Addition & Cooperative Network',
-      problemSummary: `Unorganized primary processing of lac, tendu leaves, and mahua forcing tribal gatherers to sell to intermediaries below Minimum Support Price in ${detectedDistrict}.`,
-      solutionSummary: 'Formed women-led primary processing cooperatives with scientific drying yards, solar dehydration units, and direct market linkage via TRIFED / JHAMCOFED.',
-      outcome: 'Increased household seasonal income by 42% for over 3,200 tribal forest-dwelling families.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('cooperative') || lower.includes('dry') || lower.includes('msp') ? 'Formed women-led primary processing cooperatives with scientific drying yards, solar dehydration units, and direct market linkage via TRIFED / JHAMCOFED.' : null,
+      outcome: dynamicOutcome,
       domain: 'Agriculture & Minor Forest Produce',
       domainTags: ['NTFP Processing', 'Lac Cultivation', 'Tribal Cooperatives', 'Value Addition', 'MSP Procurement'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Solar Dehydration Chambers', 'Scientific Lac Brood Rearing', 'Cooperative Digital Ledger', 'Quality Grading Equipment'],
+      keyTechnologiesUsed: lower.includes('solar') ? ['Solar Dehydration Chambers'] : [],
     };
   }
 
@@ -395,13 +420,13 @@ function generateFallbackExtractedKnowledge(
     return {
       knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Decentralized Primary Healthcare & Malnutrition Treatment Network',
-      problemSummary: `Geographical isolation of hilly forest villages resulting in maternal anemia, child malnutrition, and endemic cerebral malaria in ${detectedDistrict}.`,
-      solutionSummary: 'Deployed solar-powered Mobile Medical Units (MMUs), point-of-care rapid diagnostic kits, and Anganwadi fortified nutrition supplementation.',
-      outcome: 'Achieved 91% early diagnosis of malaria and 38% reduction in severe acute malnutrition across 60 tribal hamlets.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('mobile') || lower.includes('clinic') || lower.includes('diagnostic') ? 'Deployed solar-powered Mobile Medical Units (MMUs), point-of-care rapid diagnostic kits, and Anganwadi fortified nutrition supplementation.' : null,
+      outcome: dynamicOutcome,
       domain: 'Public Health & Sanitation',
       domainTags: ['Rural Healthcare', 'Malnutrition Eradication', 'Mobile Clinic', 'Diagnostic Screening', 'Tribal Health'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Point-of-Care Rapid Diagnostic Tests', 'Solar-Powered Mobile Clinics', 'Cold-Chain Vaccine Carriers', 'Digital Health Record App'],
+      keyTechnologiesUsed: lower.includes('diagnostic') ? ['Point-of-Care Rapid Diagnostic Tests'] : [],
     };
   }
 
@@ -418,13 +443,13 @@ function generateFallbackExtractedKnowledge(
     return {
       knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Decentralized Solar Microgrid & Remote Habitation Electrification',
-      problemSummary: `Hilly terrain and protected forest corridors preventing conventional high-tension grid extension to remote tribal habitations in ${detectedDistrict}.`,
-      solutionSummary: 'Installed decentralized 25kW solar PV microgrids with centralized LiFePO4 battery banks and smart prepayment energy meters.',
-      outcome: 'Provided 24x7 clean electricity to 380 off-grid households and powered local grain mills.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('microgrid') || lower.includes('battery') || lower.includes('panel') ? 'Installed decentralized 25kW solar PV microgrids with centralized LiFePO4 battery banks and smart prepayment energy meters.' : null,
+      outcome: dynamicOutcome,
       domain: 'Infrastructure & Renewable Energy',
       domainTags: ['Clean Energy', 'Rural Electrification', 'Solar Microgrid', 'Battery Storage', 'Energy Access'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Solar PV Arrays', 'LiFePO4 Energy Storage', 'Smart Prepayment Energy Meters', 'Remote Inverter Telemetry'],
+      keyTechnologiesUsed: lower.includes('battery') ? ['Solar PV Arrays', 'LiFePO4 Energy Storage'] : [],
     };
   }
 
@@ -439,15 +464,15 @@ function generateFallbackExtractedKnowledge(
     lower.includes('literacy')
   ) {
     return {
-      knowledgeType: 'COMMUNITY_INITIATIVE',
+      knowledgeType: 'CASE_STUDY',
       title: extractedTitle.length > 20 ? extractedTitle : 'Tribal Youth Vocational Skilling & Digital Learning Labs',
-      problemSummary: `High school dropout rates and lack of localized industry-aligned technical skilling for youth in ${detectedDistrict}.`,
-      solutionSummary: 'Established solar-powered digital smart classrooms and vocational training centers focused on green energy maintenance, drone piloting, and agri-processing.',
-      outcome: 'Successfully trained and placed 850 rural youths in state renewable energy and manufacturing hubs.',
+      problemSummary: dynamicSummary,
+      solutionSummary: lower.includes('lab') || lower.includes('classroom') || lower.includes('training') ? 'Established solar-powered digital smart classrooms and vocational training centers focused on green energy maintenance and agri-processing.' : null,
+      outcome: dynamicOutcome,
       domain: 'Education & Skill Development',
       domainTags: ['Vocational Skilling', 'Digital Literacy', 'Youth Employment', 'Smart Classroom'],
       locationOrDistrict: detectedDistrict,
-      keyTechnologiesUsed: ['Digital Smart Interactive Boards', 'Solar Off-grid Classroom Power', 'Hands-on Vocational Simulators'],
+      keyTechnologiesUsed: lower.includes('digital') ? ['Digital Smart Interactive Boards'] : [],
     };
   }
 
@@ -455,12 +480,12 @@ function generateFallbackExtractedKnowledge(
   return {
     knowledgeType: 'EMERGING_CHALLENGE',
     title: extractedTitle,
-    problemSummary: `Societal and development challenge documented from public records in ${detectedDistrict}.`,
-    solutionSummary: 'Identified for multi-departmental administrative review, participatory stakeholder consultations, and contextual intervention blueprinting.',
-    outcome: 'Ingested into state innovation memory to facilitate cross-departmental coordination and policy planning.',
+    problemSummary: dynamicSummary,
+    solutionSummary: null,
+    outcome: dynamicOutcome,
     domain: categoryHint || 'Governance & Public Delivery',
     domainTags: ['Public Information Ingestion', 'Knowledge Base', 'Policy Planning'],
     locationOrDistrict: detectedDistrict,
-    keyTechnologiesUsed: ['Public Consultation Framework', 'Multi-Stakeholder Taskforce', 'Direct Benefit Transfer'],
+    keyTechnologiesUsed: [],
   };
 }

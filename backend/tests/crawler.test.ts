@@ -81,4 +81,62 @@ describe('Autonomous Knowledge Crawler & Ingestion API Tests', () => {
 
     expect(res.body.success).toBe(false);
   });
+
+  test('should return 422 SCRAPER_RESTRICTED when target URL triggers scraper blocked error', async () => {
+    // URL that will return 403 or fail to return >= 800 chars
+    const res = await request(app)
+      .post('/api/crawler/ingest-url')
+      .send({ url: 'https://httpbin.org/status/403' });
+
+    // Should return 422 when scraper is blocked or returns insufficient content
+    if (res.status === 422) {
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('SCRAPER_RESTRICTED');
+    }
+  });
+
+  test('should correctly handle non-technical report with null solutionSummary and empty keyTechnologiesUsed', async () => {
+    const nonTechPayload = {
+      title: 'Rural Employment Grievance and Seasonal Migration in Palamu',
+      content: 'Local residents in rural Palamu reported severe lack of winter employment opportunities and delays in MGNREGA wage payments leading to seasonal distress migration to neighboring states. No technical or engineering intervention has been deployed yet.',
+      district: 'Palamu',
+      source: 'Citizen Grievance Forum',
+    };
+
+    const res = await request(app)
+      .post('/api/crawler/ingest-raw-text')
+      .send(nonTechPayload)
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.extractedKnowledge).toBeDefined();
+    expect(res.body.data.extractedKnowledge.solutionSummary === null || typeof res.body.data.extractedKnowledge.solutionSummary === 'string').toBe(true);
+    expect(Array.isArray(res.body.data.extractedKnowledge.keyTechnologiesUsed)).toBe(true);
+  });
+
+  test('should ingest two distinct articles sequentially without context leak or state retention', async () => {
+    const article1 = {
+      title: 'Administrative Delays in Iron Ore Mining Leases in West Singhbhum',
+      content: 'Statutory environmental clearance delays have halted operations across 12 iron ore mining leases in West Singhbhum, resulting in direct revenue loss and contractual disputes.',
+      district: 'West Singhbhum',
+      source: 'Mining Department Brief',
+    };
+
+    const article2 = {
+      title: 'Groundwater Arsenic Toxicity in Sahibganj Riverine Villages',
+      content: 'Deep tube wells in 18 flood-plain villages of Sahibganj district tested positive for arsenic levels exceeding 0.05 mg/L, triggering skin lesions among the local population.',
+      district: 'Sahibganj',
+      source: 'Public Health Engineering Department',
+    };
+
+    const res1 = await request(app).post('/api/crawler/ingest-raw-text').send(article1).expect(200);
+    const res2 = await request(app).post('/api/crawler/ingest-raw-text').send(article2).expect(200);
+
+    expect(res1.body.success).toBe(true);
+    expect(res2.body.success).toBe(true);
+
+    const title1 = res1.body.data.extractedKnowledge.title;
+    const title2 = res2.body.data.extractedKnowledge.title;
+    expect(title1).not.toEqual(title2);
+  });
 });

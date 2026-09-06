@@ -25,7 +25,7 @@ CREATE TABLE problems (
     priority VARCHAR(20) NOT NULL DEFAULT 'STANDARD',
     detected_dialect VARCHAR(100),
     translated_problem TEXT,
-    embedding vector(1536) NOT NULL,
+    embedding vector(768) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -41,14 +41,14 @@ WITH (m = 16, ef_construction = 64);
 
 -- 4. Ecosystem Entities Table
 -- Stores academic institutions, research labs, centers of excellence, and startups in Jharkhand
--- with institutional capabilities and 1536-dim semantic profile embeddings.
+-- with institutional capabilities and 768-dim semantic profile embeddings.
 CREATE TABLE ecosystem_entities (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('University', 'Startup', 'Lab', 'R&D Center', 'Government Agency')),
     district VARCHAR(100) NOT NULL,
     capabilities TEXT[] NOT NULL DEFAULT '{}',
-    embedding vector(1536) NOT NULL,
+    embedding vector(768) NOT NULL,
     contact_email VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -68,12 +68,12 @@ CREATE TABLE innovation_memory (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     problem_summary TEXT NOT NULL,
-    solution_summary TEXT NOT NULL,
+    solution_summary TEXT,
     outcome TEXT NOT NULL,
     domain VARCHAR(100) NOT NULL,
     source_url TEXT,
     raw_content TEXT,
-    embedding vector(1536) NOT NULL,
+    embedding vector(768) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
