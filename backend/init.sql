@@ -71,6 +71,8 @@ CREATE TABLE innovation_memory (
     solution_summary TEXT NOT NULL,
     outcome TEXT NOT NULL,
     domain VARCHAR(100) NOT NULL,
+    source_url TEXT,
+    raw_content TEXT,
     embedding vector(1536) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

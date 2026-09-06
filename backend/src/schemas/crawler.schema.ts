@@ -22,16 +22,16 @@ export type IngestRawTextInput = z.infer<typeof IngestRawTextInputSchema>;
  */
 export const ExtractedKnowledgeItemSchema = z.object({
   knowledgeType: z
-    .enum(['CASE_STUDY', 'INSTITUTION_CAPABILITY', 'EMERGING_CHALLENGE'])
+    .enum(['CASE_STUDY', 'INSTITUTION_CAPABILITY', 'EMERGING_CHALLENGE', 'POLICY_FRAMEWORK', 'COMMUNITY_INITIATIVE'])
     .describe('Type of knowledge extracted from the public document'),
-  title: z.string().describe('Precise title of the innovation case or project'),
+  title: z.string().describe('Precise title of the innovation, report, challenge, or policy'),
   problemSummary: z.string().describe('Summary of the societal issue or challenge addressed'),
-  solutionSummary: z.string().describe('Technical or operational solution implemented or proposed'),
-  outcome: z.string().describe('Measurable outcome, impact, or status of the intervention'),
-  domain: z.string().describe('Primary domain (e.g. Water Security, Mining & Geo-hazards, Agriculture, Public Health, Infrastructure, Renewable Energy)'),
+  solutionSummary: z.string().describe('Technical intervention, administrative reform, or policy framework (or "Identified Societal Challenge — Requires Cross-Departmental Intervention" if purely a problem/grievance)'),
+  outcome: z.string().describe('Measurable outcome, socio-economic impact, or documented status'),
+  domain: z.string().describe('Primary domain (e.g. Socio-Economic & Tribal Welfare, Governance & Public Delivery, Mining & Geo-hazards, Water Quality & Hydrology, Agriculture & Minor Forest Produce, Public Health & Sanitation, Education & Skill Development, Infrastructure & Renewable Energy)'),
   domainTags: z.array(z.string()).describe('Tags related to this knowledge item'),
   locationOrDistrict: z.string().describe('Mentioned district, state, or location context'),
-  keyTechnologiesUsed: z.array(z.string()).describe('Key hardware, software, or scientific methodologies identified'),
+  keyTechnologiesUsed: z.array(z.string()).describe('Key methodologies, administrative mechanisms, policy tools, or technologies used'),
 });
 
 export type ExtractedKnowledgeItem = z.infer<typeof ExtractedKnowledgeItemSchema>;
