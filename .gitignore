@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Internal Dev & AI Training UI (Hidden from Git)
+internal-trainer/
+trainer.html
+*.internal.*
