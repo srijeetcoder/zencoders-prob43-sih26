@@ -2,10 +2,10 @@ import { useState } from "react"
 import Input from "./Input"
 import { Link } from "react-router-dom";
 
-function LoginForm() {
+function ForgetPassword() {
   const [formData, setFormData] = useState({
         email : "",
-        password : ""
+        otp : "",
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,17 +28,13 @@ function LoginForm() {
     
     return (
         <form onSubmit={handleSubmit} className="
-          flex w-full max-w-md flex-col gap-5
+          flex gap-5
           rounded-xl
           border border-gray-200
           bg-white
-          px-8 py-10
+          px-5 py-5
           shadow-[0_8px_30px_rgba(0,0,0,0.08)]
         ">
-          <span className="whitespace-nowrap font-bold text-sm">
-            Please enter your <span className="text-green-500">credentials</span>
-          </span>
-
           <Input
             type="email"
             name="email"
@@ -47,32 +43,19 @@ function LoginForm() {
             onChange={handleChange}
           />
 
-          <Input
-            type="password"
-            name="password"
-            placeHolder="Please enter the password"
-            value={formData.password}
-            onChange={handleChange}
-          />
-
            <button type="submit" className="
             bg-green-500
             shadow-sm
             transition-all duration-200 ease-in-out
-            mx-6 my-3 py-2 px-3
+            my-3 px-5 py-2
             text-white font-bold font-[14px]
             hover:bg-white hover:text-green-500 
             active:scale-95
             ring-2 ring-green-400
             rounded-[8px]
            "> Submit </button>
-
-           <span className="whitespace-nowrap text-xs">
-              Don't have an account? <Link to="/signup" className="text-green-500 font-bold">Sign up</Link> <br/> 
-              <Link to="/forgetpassword" className="text-green-500 font-bold">Forget Password</Link>
-           </span>
         </form>
     );
 }
 
-export default LoginForm
+export default ForgetPassword
