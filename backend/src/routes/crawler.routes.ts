@@ -5,9 +5,10 @@ import {
   getKnowledgeStats,
   listInnovationMemory,
   deleteInnovationMemory,
+  queryKnowledge,
 } from '../controllers/crawler.controller';
 import { validateBody } from '../middleware/validateRequest';
-import { IngestUrlInputSchema, IngestRawTextInputSchema } from '../schemas/crawler.schema';
+import { IngestUrlInputSchema, IngestRawTextInputSchema, QueryKnowledgeInputSchema } from '../schemas/crawler.schema';
 
 const router = Router();
 
@@ -16,6 +17,9 @@ router.post('/ingest-url', validateBody(IngestUrlInputSchema), ingestUrl);
 
 // POST /api/crawler/ingest-raw-text - Ingests unstructured technical reports/articles
 router.post('/ingest-raw-text', validateBody(IngestRawTextInputSchema), ingestRawText);
+
+// POST /api/crawler/query-knowledge - Interactive Q&A Engine over pgvector Innovation Memory
+router.post('/query-knowledge', validateBody(QueryKnowledgeInputSchema), queryKnowledge);
 
 // GET /api/crawler/knowledge-stats - Returns live statistics of self-learned memory base
 router.get('/knowledge-stats', getKnowledgeStats);

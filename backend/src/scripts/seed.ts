@@ -1,4 +1,4 @@
-import { query, formatVector, pool } from '../config/database';
+import { query, formatVector, pool, ensurePgvectorSchema768 } from '../config/database';
 import { generateEmbedding } from '../services/embedding.service';
 
 /**
@@ -9,6 +9,8 @@ export async function seedDatabase(): Promise<void> {
   console.log('🌱 Starting Seeding Process for Jharkhand Societal Innovation Intelligence Engine...');
 
   try {
+    await ensurePgvectorSchema768();
+
     // -------------------------------------------------------------------------
     // 1. Seed Ecosystem Entities (Jharkhand Universities, Labs, Startups, Agencies)
     // -------------------------------------------------------------------------
@@ -158,6 +160,13 @@ export async function seedDatabase(): Promise<void> {
         problem_summary: 'Groundwater in 70+ villages across Palamu and Garhwa districts exhibited hazardous fluoride levels exceeding 4.5 mg/L (WHO limit: 1.5 mg/L), causing widespread skeletal and dental fluorosis among rural children.',
         solution_summary: 'Implemented solar-powered community filtration kiosks utilizing locally sourced activated alumina and electro-coagulation reactors, paired with continuous optical fluoride ISE telemetry and automated backwash.',
         outcome: 'Brought treated potable water fluoride levels down to 0.7 mg/L across 85,000 beneficiaries, with 100% operational uptime maintained through local Village Water Sanitation Committees (VWSC).',
+        domain: 'Water Quality & Hydrology',
+      },
+      {
+        title: 'WaterWatch Rural Canal Automation & Leakage Control',
+        problem_summary: '14 villages in Palamu suffered 42% irrigation canal water loss due to undetected underground breached pipelines and lack of real-time monitoring.',
+        solution_summary: 'Integrated ultrasonic clamp-on flow meters, piezoresistive pressure transducers, automated solar pinch-valves, and a bilingual GIS telemetry dashboard for the local Pani Samiti.',
+        outcome: 'Achieved 38% reduction in canal water loss, reduced leak detection time from 4 days to 15 minutes, and boosted seasonal crop yields by 24%.',
         domain: 'Water Quality & Hydrology',
       },
     ];

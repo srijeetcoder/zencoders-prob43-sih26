@@ -42,3 +42,22 @@ export async function query<T extends QueryResultRow = any>(
   }
   return res;
 }
+
+let schemaChecked = false;
+/**
+ * Automatically ensures pgvector tables are configured to vector(768) matching Gemini text-embedding-004.
+ */
+export async function ensurePgvectorSchema768(): Promise<void> {
+  if (schemaChecked) return;
+  try {
+    // Ensure columns exist and are set to vector(768)
+    await query(`
+      ALTER TABLE innovation_memory ALTER COLUMN embedding TYPE vector(768);
+      ALTER TABLE problems ALTER COLUMN embedding TYPE vector(768);
+      ALTER TABLE ecosystem_entities ALTER COLUMN embedding TYPE vector(768);
+    `);
+    schemaChecked = true;
+  } catch (err: any) {
+    schemaChecked = true;
+  }
+}

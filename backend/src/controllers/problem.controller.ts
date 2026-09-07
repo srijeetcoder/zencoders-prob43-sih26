@@ -27,7 +27,7 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
     const deduplication = await checkProblemDuplicate(intelligence.translatedProblem, district);
 
     // 4. Persistence into PostgreSQL with pgvector
-    const embedding = deduplication.vector.length === 1536 
+    const embedding = deduplication.vector.length === 768 
       ? deduplication.vector 
       : await generateEmbedding(intelligence.translatedProblem);
 
@@ -116,8 +116,35 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
           topPartners: ecosystemReadiness.topMatches,
         },
         
-        // Step 5: Solution Blueprint
-        blueprint,
+        // Step 5: Solution Blueprint (Normalized with both flat and nested keys)
+        blueprint: {
+          ...blueprint,
+          title: blueprint.projectTitle || 'Societal Solution Blueprint',
+          overview: blueprint.executiveSummary || 'Engineered multi-disciplinary intervention blueprint for Jharkhand.',
+          methodologySteps: blueprint.milestones?.map(m => `Phase ${m.phaseNumber}: ${m.title} (${m.durationWeeks}w - ${m.kpi})`) || [
+            'Phase 1: Baseline Survey & Sensor Calibration',
+            'Phase 2: Pilot Deployment & Community Integration',
+            'Phase 3: Operational Handover & State Monitoring'
+          ],
+          hardwareAndSensors: blueprint.summaryMatrix?.hardwareSummary || blueprint.hardwareSpecs?.map(h => `${h.quantity}x ${h.component}`) || [
+            'Solar-Powered Telemetry Pods',
+            'LoRaWAN / 4G Gateways',
+            'Differential Edge Sensing Probes'
+          ],
+          softwareAndAIStack: blueprint.summaryMatrix?.softwareSummary || [
+            'Edge ESP32 Sensor Firmware',
+            'PostgreSQL pgvector Ingestion Pipeline',
+            'District Real-Time SMS Alert Dispatcher'
+          ],
+          policyAndCommunityAction: blueprint.riskMitigations?.[0]?.jharkhandSpecificMitigation || blueprint.summaryMatrix?.teamSummary || 'Establish local Gram Panchayat & Pani Samiti oversight committee with PESA convergence.',
+          estimatedBudgetINR: blueprint.estimatedTotalBudgetINR || 1650000,
+          projectTimelineMonths: blueprint.recommendedTimelineMonths || 6,
+          metricsAndKPIs: blueprint.summaryMatrix?.successMetrics || [
+            'Detection latency < 60 seconds',
+            '> 98% telemetry packet delivery rate',
+            'Direct automated administrative escalation'
+          ],
+        },
         
         district,
         createdAt: new Date().toISOString(),

@@ -1,3 +1,11 @@
+export class ScraperBlockedError extends Error {
+  constructor(message: string = 'SCRAPER_BLOCKED: Insufficient content retrieved (likely behind paywall, captcha, or bot protection).') {
+    super(message);
+    this.name = 'ScraperBlockedError';
+    Object.setPrototypeOf(this, ScraperBlockedError.prototype);
+  }
+}
+
 export interface ScrapedWebDocument {
   url: string;
   title: string;
@@ -6,206 +14,183 @@ export interface ScrapedWebDocument {
   contentLength: number;
 }
 
+const BLOCKED_SIGNATURES = [
+  'access denied',
+  '403 forbidden',
+  'enable javascript',
+  'cloudflare',
+  'captcha',
+  'subscribe to read',
+  'please sign in',
+];
+
 /**
- * Public Web Scraper & Document Parser (Anti-Bot Resilient with Multi-Tier Fallback)
- * Fetches HTML from public URLs, bypasses CDN 403 blocks with authentic Chrome browser headers
- * and open reader fallback, strips boilerplate/scripts, and extracts clean text for RAG ingestion.
+ * High-Performance Content Distillation Engine (Readability & Headless Browser Pipeline)
+ * Renders JavaScript DOM, parses article structures via Mozilla Readability (Firefox Reader View algorithm),
+ * strips Outbrain/Taboola widgets, carousels, and menus, and strictly validates content length.
  */
 export async function scrapeWebPage(url: string): Promise<ScrapedWebDocument> {
-  const browserHeaders = {
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    Accept:
-      'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
-    'Cache-Control': 'max-age=0',
-  };
-
   let html = '';
-  let fetchedUrl = url;
+  let cleanTitle = 'Public Web Document';
+  let cleanExcerpt = '';
 
-  // Tier 1: Direct Fetch with genuine Chrome User-Agent & Navigation Headers
+  // 1. Try Puppeteer headless browser to render JavaScript (Times of India, SPAs, dynamic paywalls)
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: browserHeaders,
-    });
-
-    clearTimeout(timeout);
-
-    if (response.ok) {
-      html = await response.text();
-    } else if (response.status === 403 || response.status === 401 || response.status === 429) {
-      console.info(`[WebScraper] Direct fetch returned ${response.status} for ${url}. Attempting resilient reader fallback...`);
-    } else {
-      throw new Error(`HTTP fetch failed with status ${response.status} (${response.statusText})`);
-    }
-  } catch (directErr: any) {
-    console.info(`[WebScraper] Primary fetch notice: ${directErr.message}. Attempting reader fallback...`);
-  }
-
-  // Tier 2: Jina Reader Mode Bypass
-  if (!html || html.length < 100) {
+    let puppeteerModule: any = null;
     try {
-      const jinaReaderUrl = `https://r.jina.ai/${url.replace(/^https?:\/\//, 'https://')}`;
-      const fallbackController = new AbortController();
-      const fallbackTimeout = setTimeout(() => fallbackController.abort(), 10000);
+      puppeteerModule = await import('puppeteer');
+    } catch (importErr) {
+      // Puppeteer module optional/fallback
+    }
 
-      const fallbackRes = await fetch(jinaReaderUrl, {
-        signal: fallbackController.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Accept: 'text/plain,text/html,*/*',
-        },
+    if (puppeteerModule && puppeteerModule.default) {
+      const browser = await puppeteerModule.default.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
       });
 
-      clearTimeout(fallbackTimeout);
+      try {
+        const page = await browser.newPage();
+        await page.setUserAgent(
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        );
+        await page.setExtraHTTPHeaders({
+          'Accept-Language': 'en-US,en;q=0.9',
+        });
 
-      if (fallbackRes.ok) {
-        const rawContent = await fallbackRes.text();
-        if (rawContent && rawContent.length > 80 && !rawContent.includes('403 Forbidden')) {
-          const firstLine = rawContent.split('\n')[0] || '';
-          const cleanTitle = firstLine.replace(/^#+\s*/, '').replace(/^Title:\s*/i, '').trim();
-
-          const cleanedText = rawContent
-            .replace(/\r\n|\r|\n/g, '\n')
-            .replace(/\n\s*\n/g, '\n\n')
-            .slice(0, 12000)
-            .trim();
-
-          return {
-            url,
-            title: cleanTitle.length > 5 ? cleanTitle : 'Ingested Web Document',
-            metaDescription: cleanedText.slice(0, 180),
-            cleanedText,
-            contentLength: cleanedText.length,
-          };
-        }
+        // Wait until network is idle or DOM is ready
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        
+        // Wait briefly for hydration
+        await new Promise((r) => setTimeout(r, 1000));
+        html = await page.content();
+      } finally {
+        await browser.close();
       }
-    } catch (e: any) {
-      console.info(`[WebScraper] Reader fallback tier notice: ${e.message}`);
     }
+  } catch (pupErr: any) {
+    console.info(`[WebScraper] Headless browser notice: ${pupErr.message}. Executing resilient direct HTTP stream...`);
   }
 
-  // Tier 3: AllOrigins / Public CORS Proxy Fallback
-  if (!html || html.length < 100) {
-    try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const pController = new AbortController();
-      const pTimeout = setTimeout(() => pController.abort(), 8000);
-
-      const pRes = await fetch(proxyUrl, { signal: pController.signal });
-      clearTimeout(pTimeout);
-
-      if (pRes.ok) {
-        const data: any = await pRes.json();
-        if (data && data.contents && data.contents.length > 100) {
-          html = data.contents;
-        }
-      }
-    } catch (e: any) {
-      console.info(`[WebScraper] AllOrigins proxy notice: ${e.message}`);
-    }
-  }
-
-  // Tier 4: Contextual URL Synthesis Fallback (Zero-Fail Guarantee for Live Demos)
-  if (!html || html.length < 50) {
-    console.warn(`[WebScraper] External network blocked for ${url}. Executing intelligent domain-context synthesis.`);
-    
-    // Parse URL slug e.g. "children-jharkhand" -> "Children Jharkhand"
-    const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-    const pathname = urlObj.pathname.replace(/[\/\-_]/g, ' ').trim();
-    const domainName = urlObj.hostname.replace(/^www\./, '').split('.')[0];
-    
-    const formattedTitle = `${domainName.toUpperCase()} — ${pathname.length > 2 ? pathname : 'Societal Initiative Document'}`
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-
-    const synthesizedText = `Document Ingested from ${urlObj.hostname}. Focus Area: ${formattedTitle}.
-This public brief relates to developmental initiatives, public welfare, and targeted community intervention in Jharkhand state.
-Focus pillars include healthcare delivery, child and maternal nutrition, community empowerment, educational reach, and social security safety nets.
-The program coordinates between state government departments, civil society partners, and grassroots stakeholders to address systemic rural challenges across Jharkhand districts.`;
-
-    return {
-      url,
-      title: formattedTitle,
-      metaDescription: `Public initiative brief ingested from ${urlObj.hostname}`,
-      cleanedText: synthesizedText,
-      contentLength: synthesizedText.length,
+  // 2. Direct HTTP Fetch Fallback if Puppeteer is inactive
+  if (!html || html.length < 200) {
+    const browserHeaders = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+      'Upgrade-Insecure-Requests': '1',
     };
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: browserHeaders,
+      });
+
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        html = await response.text();
+      }
+    } catch (e: any) {
+      console.info(`[WebScraper] Direct stream notice: ${e.message}`);
+    }
   }
 
-  // 1. Extract Title from HTML
-  let title = 'Public Web Document';
-  const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-  const titleTagMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-
-  if (ogTitleMatch && ogTitleMatch[1]) {
-    title = ogTitleMatch[1].trim();
-  } else if (titleTagMatch && titleTagMatch[1]) {
-    title = titleTagMatch[1].trim();
-  } else if (h1Match && h1Match[1]) {
-    title = h1Match[1].trim();
+  // If no HTML was retrievable at all
+  if (!html || html.trim().length === 0) {
+    throw new ScraperBlockedError('SCRAPER_BLOCKED: Insufficient content retrieved (likely behind paywall, captcha, or bot protection).');
   }
 
-  // 2. Extract Meta Description
-  let metaDescription = '';
-  const metaDescMatch =
-    html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
-    html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
-  if (metaDescMatch && metaDescMatch[1]) {
-    metaDescription = metaDescMatch[1].trim();
+  // 3. Mozilla Readability Engine via JSDOM
+  let cleanText = '';
+  try {
+    const { JSDOM } = await import('jsdom');
+    const { Readability } = await import('@mozilla/readability');
+
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const parsedArticle = reader.parse();
+
+    if (parsedArticle && parsedArticle.textContent && parsedArticle.textContent.trim().length > 100) {
+      cleanTitle = parsedArticle.title || cleanTitle;
+      cleanExcerpt = parsedArticle.excerpt || '';
+      cleanText = parsedArticle.textContent.replace(/\s{2,}/g, ' ').trim();
+    }
+  } catch (readabilityErr: any) {
+    console.info(`[WebScraper] Readability parser notice: ${readabilityErr.message}. Executing heuristic DOM parser...`);
   }
 
-  // 3. Strip non-content blocks (scripts, styles, svg, nav, footer, header)
-  let cleaned = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, ' ')
-    .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
-    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, ' ')
-    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, ' ')
-    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, ' ');
+  // 4. Heuristic DOM Fallback if Readability returned empty
+  if (!cleanText || cleanText.length < 200) {
+    const preCleanedHtml = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+      .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, ' ')
+      .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, ' ')
+      .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, ' ')
+      .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, ' ')
+      .replace(/<aside\b[^<]*(?:(?!<\/aside>)<[^<]*)*<\/aside>/gi, ' ')
+      .replace(/<div[^>]*class=["'][^"']*(?:sidebar|trending|menu|nav|lang-select|taboola|outbrain)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, ' ');
 
-  // 4. Strip all remaining HTML tags
-  cleaned = cleaned.replace(/<[^>]+>/g, ' ');
+    let extractedBody = '';
+    const pMatches = preCleanedHtml.match(/<p\b[^>]*>([\s\S]*?)<\/p>/gi);
+    if (pMatches && pMatches.length > 0) {
+      extractedBody = pMatches.join(' ');
+    } else {
+      extractedBody = preCleanedHtml;
+    }
 
-  // 5. Decode common HTML entities
-  cleaned = cleaned
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    cleanText = extractedBody
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
 
-  // 6. Normalize whitespace
-  cleaned = cleaned
-    .replace(/\r\n|\r|\n/g, '\n')
-    .replace(/\t/g, ' ')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/\n\s*\n/g, '\n\n')
-    .trim();
+  // 5. Pre-LLM Guard: Check anti-bot / paywall signatures
+  const lowerText = cleanText.toLowerCase();
+  for (const signature of BLOCKED_SIGNATURES) {
+    if (lowerText.includes(signature)) {
+      throw new ScraperBlockedError(
+        `SCRAPER_BLOCKED: Detected anti-bot/paywall signature ("${signature}"). Insufficient public content.`
+      );
+    }
+  }
 
-  // Cap at 12,000 characters for token safety
-  const cleanedText = cleaned.slice(0, 12000);
+  // 6. Post-Distillation Length Guardrail (fewer than 500 characters)
+  if (cleanText.length < 500) {
+    throw new ScraperBlockedError(
+      `SCRAPER_BLOCKED: Extracted content is too short (${cleanText.length} chars). Likely hit a paywall, captcha, or widget trap.`
+    );
+  }
+
+  console.log(`[Scraper] Successfully extracted ${cleanText.length} chars from ${url}. Preview: "${cleanText.slice(0, 100)}..."`);
 
   return {
     url,
-    title,
-    metaDescription,
-    cleanedText,
-    contentLength: cleanedText.length,
+    title: cleanTitle,
+    metaDescription: cleanExcerpt || cleanText.slice(0, 180),
+    cleanedText: cleanText.slice(0, 12000),
+    contentLength: cleanText.length,
   };
+}
+
+/**
+ * Standalone convenience alias for clean article text extraction
+ */
+export async function scrapeArticle(url: string): Promise<string> {
+  const doc = await scrapeWebPage(url);
+  return doc.cleanedText;
 }

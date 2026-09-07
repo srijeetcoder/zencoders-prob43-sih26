@@ -61,3 +61,12 @@ export const InnovationBlueprintSchema = z.object({
 });
 
 export type InnovationBlueprint = z.infer<typeof InnovationBlueprintSchema>;
+
+// Re-export extracted knowledge schemas for pipeline consumers
+export {
+  ExtractedKnowledgeItemSchema,
+  ExtractedKnowledgeSchema,
+  type ExtractedKnowledgeItem,
+  type ExtractedKnowledge,
+} from './crawler.schema';
+

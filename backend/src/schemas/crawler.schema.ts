@@ -22,19 +22,29 @@ export type IngestRawTextInput = z.infer<typeof IngestRawTextInputSchema>;
  */
 export const ExtractedKnowledgeItemSchema = z.object({
   knowledgeType: z
-    .enum(['CASE_STUDY', 'INSTITUTION_CAPABILITY', 'EMERGING_CHALLENGE', 'POLICY_FRAMEWORK', 'COMMUNITY_INITIATIVE'])
+    .enum(['CASE_STUDY', 'PROBLEM_REPORT', 'POLICY_ISSUE', 'EMERGING_CHALLENGE', 'NEWS_EVENT'])
     .describe('Type of knowledge extracted from the public document'),
   title: z.string().describe('Precise title of the innovation, report, challenge, or policy'),
-  problemSummary: z.string().describe('Summary of the societal issue or challenge addressed'),
-  solutionSummary: z.string().describe('Technical intervention, administrative reform, or policy framework (or "Identified Societal Challenge — Requires Cross-Departmental Intervention" if purely a problem/grievance)'),
+  problemSummary: z.string().describe("CRITICAL: Synthesize a professional, concise 1-3 sentence summary of the core issue. DO NOT copy-paste raw text, menus, or unrelated news tickers. Filter out any website navigation noise."),
+  solutionSummary: z
+    .string()
+    .nullable()
+    .describe(
+      'Only fill if the source explicitly describes a deployed or proposed intervention. If the article is purely about a problem, protest, or unresolved issue, this MUST be null.'
+    ),
   outcome: z.string().describe('Measurable outcome, socio-economic impact, or documented status'),
   domain: z.string().describe('Primary domain (e.g. Socio-Economic & Tribal Welfare, Governance & Public Delivery, Mining & Geo-hazards, Water Quality & Hydrology, Agriculture & Minor Forest Produce, Public Health & Sanitation, Education & Skill Development, Infrastructure & Renewable Energy)'),
   domainTags: z.array(z.string()).describe('Tags related to this knowledge item'),
-  locationOrDistrict: z.string().describe('Mentioned district, state, or location context'),
-  keyTechnologiesUsed: z.array(z.string()).describe('Key methodologies, administrative mechanisms, policy tools, or technologies used'),
+  locationOrDistrict: z.string().nullable().describe('Mentioned district, state, or location context, or null if unspecified'),
+  keyTechnologiesUsed: z
+    .array(z.string())
+    .default([])
+    .describe('Only list specific technologies, methodologies, or digital systems explicitly named. Return an empty array if none are discussed.'),
 });
 
+export const ExtractedKnowledgeSchema = ExtractedKnowledgeItemSchema;
 export type ExtractedKnowledgeItem = z.infer<typeof ExtractedKnowledgeItemSchema>;
+export type ExtractedKnowledge = ExtractedKnowledgeItem;
 
 export const KnowledgeStatsResponseSchema = z.object({
   totalLearnedCases: z.number(),
@@ -52,3 +62,12 @@ export const KnowledgeStatsResponseSchema = z.object({
 });
 
 export type KnowledgeStatsResponse = z.infer<typeof KnowledgeStatsResponseSchema>;
+
+export const QueryKnowledgeInputSchema = z.object({
+  question: z.string().min(2, 'Question must be at least 2 characters'),
+  district: z.string().optional(),
+  limit: z.number().optional().default(0),
+});
+
+export type QueryKnowledgeInput = z.infer<typeof QueryKnowledgeInputSchema>;
+
