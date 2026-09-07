@@ -9,10 +9,6 @@ import { generateProjectBlueprint } from '../services/blueprint.service';
 import { query, formatVector } from '../config/database';
 import { generateEmbedding } from '../services/embedding.service';
 
-/**
- * Full Master Orchestration Pipeline conforming to SIH PS-43 "Killer Workflow"
- * Endpoint: POST /api/problems/process
- */
 export async function processProblem(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = ProcessProblemInputSchema.parse(req.body);
@@ -28,6 +24,7 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       '';
     const district = input.district || 'Ranchi';
     const fieldContext = input.fieldContext || input.context || '';
+    const problemTitle = input.problemTitle || input.title || '';
 
     // 1. Unified Gemini Translation & Thematic Domain Grouping FIRST
     const processed = await processAndGroupInput(userProblemInput, district);
@@ -42,11 +39,11 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       normalizedFieldContext = fieldProcessed.translatedEnglishText;
     }
 
-    // 2. Local Zero-API Master ONNX Domain & Priority Routing on clean English
+    // 2. Pass clean normalized English to ONNX Master Orchestrator
     const routing = await onnxMasterOrchestrator.routeProblem(normalizedProblem, district);
     routing.domain = classifiedDomain || routing.domain;
 
-    // 3. Problem Intelligence (Problem DNA, Root Causes, 2-3 Candidate Solutions)
+    // 3. Problem Intelligence Analysis on clean normalized English
     const intelligence = await analyzeProblemIntelligence(normalizedProblem, district);
     intelligence.detectedDialect = detectedLanguage || intelligence.detectedDialect;
     intelligence.translatedProblem = normalizedProblem;
@@ -54,13 +51,12 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       intelligence.domainTags = [classifiedDomain, ...intelligence.domainTags];
     }
 
-    // 4. Vector Deduplication Check (Cosine Distance > 0.82 in same district) on clean normalized English
-    const deduplication = await checkProblemDuplicate(intelligence.translatedProblem, district);
+    // 4. Semantic Deduplication & Vector Embedding on clean normalized English (text-embedding-004)
+    const deduplication = await checkProblemDuplicate(normalizedProblem, district);
 
-    // 5. Persistence into PostgreSQL with pgvector (text-embedding-004)
     const embedding = deduplication.vector.length === 768 
       ? deduplication.vector 
-      : await generateEmbedding(intelligence.translatedProblem);
+      : await generateEmbedding(normalizedProblem);
 
     let problemId: string;
 
@@ -94,12 +90,11 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
           formatVector(embedding),
         ]);
         problemId = insertRes.rows[0].id;
-      } catch (dbErr: any) {
+      } catch {
         problemId = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
       }
     }
 
-    // 6. Ecosystem Matcher & Readiness Evaluator
     const combinedTags = [...intelligence.domainTags, ...intelligence.requiredDisciplines];
     const ecosystemReadiness = await matchEcosystemWithReadiness(
       intelligence.translatedProblem,
@@ -108,7 +103,6 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       { limit: 5 }
     );
 
-    // 7. Blueprint Engine (RAG past cases + domain-bound structured blueprint generation)
     const recommendedSol = intelligence.candidateSolutions.find((s) => s.isRecommended)?.title;
     const blueprint = await generateProjectBlueprint(
       intelligence.translatedProblem,
@@ -120,7 +114,6 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       normalizedFieldContext
     );
 
-    // 8. Assemble Unified Response matching SIH PS-43 Specification
     res.status(200).json({
       success: true,
       data: {
@@ -132,56 +125,33 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
         classifiedDomain,
         detectedLanguage,
         rootCauseSummary: processed.rootCauseSummary,
-        
-        // Step 1: Problem DNA & Dialect
         problemDNA: intelligence.problemDNA,
         detectedDialect: intelligence.detectedDialect,
         translatedProblem: intelligence.translatedProblem,
-        
-        // Step 2: Root Causes
         rootCauses: intelligence.rootCauses,
-        
-        // Step 3: Candidate Solutions
         candidateSolutions: intelligence.candidateSolutions,
-        
-        // Step 4: Ecosystem Readiness & Partners
         ecosystemReadiness: {
           projectReadinessPercentage: ecosystemReadiness.projectReadinessPercentage,
           requirementsChecklist: ecosystemReadiness.requirementsChecklist,
           missingCapabilities: ecosystemReadiness.missingCapabilities,
           topPartners: ecosystemReadiness.topMatches,
         },
-        
-        // Step 5: Solution Blueprint
         blueprint: {
           ...blueprint,
           title: blueprint.projectTitle || 'Societal Solution Blueprint',
-          overview: blueprint.executiveSummary || 'Engineered multi-disciplinary intervention blueprint for Jharkhand.',
+          overview: blueprint.executiveSummary || 'Engineered intervention blueprint for Jharkhand.',
           methodologySteps: blueprint.milestones?.map(m => `Phase ${m.phaseNumber}: ${m.title} (${m.durationWeeks}w - ${m.kpi})`) || [
             'Phase 1: Baseline Survey & Sensor Calibration',
             'Phase 2: Pilot Deployment & Community Integration',
             'Phase 3: Operational Handover & State Monitoring'
           ],
-          hardwareAndSensors: blueprint.summaryMatrix?.hardwareSummary || blueprint.hardwareSpecs?.map(h => `${h.quantity}x ${h.component}`) || [
-            'Solar-Powered Telemetry Pods',
-            'LoRaWAN / 4G Gateways',
-            'Differential Edge Sensing Probes'
-          ],
-          softwareAndAIStack: blueprint.summaryMatrix?.softwareSummary || [
-            'Edge ESP32 Sensor Firmware',
-            'PostgreSQL pgvector Ingestion Pipeline',
-            'District Real-Time SMS Alert Dispatcher'
-          ],
-          policyAndCommunityAction: blueprint.riskMitigations?.[0]?.jharkhandSpecificMitigation || blueprint.summaryMatrix?.teamSummary || 'Establish local Gram Panchayat & Pani Samiti oversight committee with PESA convergence.',
+          hardwareAndSensors: blueprint.summaryMatrix?.hardwareSummary || ['Solar Telemetry Pods', 'LoRaWAN Gateways'],
+          softwareAndAIStack: blueprint.summaryMatrix?.softwareSummary || ['Edge Sensor Firmware', 'pgvector Ingestion Pipeline'],
+          policyAndCommunityAction: blueprint.riskMitigations?.[0]?.jharkhandSpecificMitigation || 'Establish local Gram Panchayat oversight committee.',
           estimatedBudgetINR: blueprint.estimatedTotalBudgetINR || 1650000,
           projectTimelineMonths: blueprint.recommendedTimelineMonths || 6,
-          metricsAndKPIs: blueprint.summaryMatrix?.successMetrics || [
-            'Detection latency < 60 seconds',
-            '> 98% telemetry packet delivery rate',
-            'Direct automated administrative escalation'
-          ],
+          metricsAndKPIs: blueprint.summaryMatrix?.successMetrics || ['Detection latency < 60s'],
         },
-        
         district,
         createdAt: new Date().toISOString(),
       },
