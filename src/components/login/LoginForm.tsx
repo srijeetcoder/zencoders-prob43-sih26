@@ -84,8 +84,8 @@ function LoginForm() {
             "> Submit </button>
 
             <span className="whitespace-nowrap text-xs text-slate-600">
-              Don't have an account? <span className="text-green-600 font-bold cursor-pointer hover:underline">Sign up</span> <br/> 
-              <span className="text-green-600 font-bold cursor-pointer hover:underline">Forget Password</span>
+              Don't have an account? <Link to="/signup" className="text-green-600 font-bold cursor-pointer hover:underline">Sign up</Link> <br/> 
+              <Link to="/forgetpassword" className="text-green-600 font-bold cursor-pointer hover:underline">Forget Password</Link>
             </span>
           </div>
         </form>
