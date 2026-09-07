@@ -38,7 +38,6 @@ export async function handleIngest(req: Request, res: Response) {
     if (expandRelated) {
       const expandedResult = await ingestAndExpandRelatedSources(url, maxExpansion);
       return res.status(200).json({
-        success: true,
         ...expandedResult,
       });
     }
