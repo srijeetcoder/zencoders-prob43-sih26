@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { JHARKHAND_QUERIES, getRandomQueries, JharkhandQueryItem } from '../data/jharkhand_queries';
 import { scrapeWebPage, stripBoilerplateAndNoise, searchLiveWeb, ScraperBlockedError } from '../services/scraper.service';
 import { auditContentWithGemini } from '../services/curator.service';
@@ -23,7 +23,7 @@ export interface IngestionJobStats {
   errors: string[];
 }
 
-let activeCronTask: cron.ScheduledTask | null = null;
+let activeCronTask: ScheduledTask | null = null;
 let currentJobStats: IngestionJobStats = {
   jobId: 'init',
   startedAt: new Date().toISOString(),
