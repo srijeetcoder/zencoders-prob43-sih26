@@ -1,11 +1,14 @@
 import { useState } from "react"
 import Input from "./Input"
+import { Link } from "react-router-dom";
 
 function LoginForm() {
-    const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({
         email : "",
         password : ""
     });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     function handleChange(e) {
         setFormData({
@@ -16,6 +19,9 @@ function LoginForm() {
 
     function handleSubmit(e) {
         e.preventDefault();
+
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
         console.log(formData);
     }
