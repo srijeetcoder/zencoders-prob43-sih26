@@ -1,4 +1,16 @@
 import { MapPin, Clock, ArrowRight } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+L.Marker.prototype.options.icon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
 /* Dummy Data */
 const problems = [
@@ -43,14 +55,28 @@ function ProblemsNearYou() {
 
         <div className="relative h-[360px] overflow-hidden rounded-3xl border border-slate-200 bg-emerald-50">
 
-          <div className="flex h-full items-center justify-center">
-          </div>
+          <MapContainer
+            center={[22.5762, 88.3639]}
+            zoom={13}
+            zoomControl={false}
+            className="h-full w-full"
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            <Marker position={[22.5762, 88.3639]}>
+            <Popup>
+              Pothole on Main Road
+            </Popup>
+            </Marker>
+          </MapContainer>
 
           <button
             className="
               absolute bottom-4 right-4
               rounded-xl bg-white
-              px-4 py-2
+              px-4 py-2 z-[1000]
               text-sm font-medium
               text-[#10245e]
               shadow-sm

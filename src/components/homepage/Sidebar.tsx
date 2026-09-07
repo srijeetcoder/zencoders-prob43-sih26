@@ -32,7 +32,7 @@ function Sidebar() {
     <aside
       className={`
         left-0 top-0 z-50
-        flex h-screen flex-col
+        flex min-h-screen flex-col
         ${isOpen ? "w-[230px]" : "w-[70px]"}
         border-r border-slate-200 bg-white px-4 py-4
         transition-[width] duration-300 ease-in-out
