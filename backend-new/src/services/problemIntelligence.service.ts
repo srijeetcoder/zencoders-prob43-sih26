@@ -276,7 +276,7 @@ function generateFallbackIntelligence(rawText: string, district: string): Proble
     lower.includes('silk') ||
     lower.includes('forest produce') ||
     rawText.includes('লাহ') ||
-    rawText.includes('লাহ') ||
+    rawText.includes('लाह') ||
     rawText.includes('तसर');
 
   if (isForestProduce) {
