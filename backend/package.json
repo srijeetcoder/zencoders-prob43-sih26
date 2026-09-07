@@ -1,18 +1,48 @@
 {
-  "name": "backend",
+  "name": "societal-innovation-intelligence-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Societal Innovation Intelligence Engine (SIH PS-43) for Government of Jharkhand",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:init": "tsx src/scripts/initDb.ts",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "test": "jest --config jest.config.js --runInBand --detectOpenHandles",
+    "test:e2e": "tsx tests/e2e-test-runner.ts"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "sih",
+    "jharkhand",
+    "pgvector",
+    "openai",
+    "onnxruntime",
+    "express",
+    "typescript"
+  ],
+  "author": "SIH Team",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "onnxruntime-node": "^1.19.2",
+    "openai": "^4.56.0",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.12",
+    "@types/pg": "^8.11.6",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.3",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
   }
 }

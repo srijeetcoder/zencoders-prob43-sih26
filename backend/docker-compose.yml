@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # PostgreSQL Database with pgvector extension (Official image)
+  # ============================================================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: jharkhand_pgvector_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-jharkhand_innovation_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Mount initialization SQL into docker-entrypoint so pgvector & schema init automatically on startup
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-jharkhand_innovation_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - jharkhand_net
+
+  # ============================================================================
+  # Express.js & TypeScript API Backend Service
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jharkhand_innovation_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-jharkhand_innovation_db}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-jharkhand_innovation_db}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-mock-api-key}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      ONNX_MODEL_PATH: models/master_router.onnx
+    ports:
+      - "${PORT:-5000}:5000"
+    networks:
+      - jharkhand_net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  jharkhand_net:
+    driver: bridge
