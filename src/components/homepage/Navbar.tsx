@@ -1,11 +1,11 @@
 import { Search, Bell, ChevronDown } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function Navbar() {
   return (
     <header className="h-16 border-b border-slate-200 bg-white px-6">
       <div className="flex h-full items-center justify-between">
 
-        {/* Search */}
         <div className="relative w-80">
           <Search
             size={19}
@@ -27,7 +27,6 @@ function Navbar() {
           />
         </div>
 
-        {/* Right side */}
         <div className="flex items-center gap-5">
           <button
             className="
@@ -46,7 +45,7 @@ function Navbar() {
             />
           </button>
 
-          <button className="flex items-center gap-3">
+          <Link to="/dashboard" className="flex items-center gap-3">
             <div className="
               flex h-9 w-9
               items-center justify-center
@@ -68,7 +67,7 @@ function Navbar() {
             </div>
 
             <ChevronDown size={17} className="text-slate-400" />
-          </button>
+          </Link>
 
         </div>
       </div>

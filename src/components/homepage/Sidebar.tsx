@@ -10,10 +10,12 @@ import {
   HelpCircle,
   Menu,
 } from "lucide-react";
+
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const menuItems = [
-  { name: "Home", icon: Home },
+  { name: "Home", icon: Home, path: "/main" },
   { name: "Report a Problem", icon: FilePlus2 },
   { name: "Explore Problems", icon: Search },
   { name: "My Submissions", icon: ClipboardList },
@@ -73,7 +75,7 @@ function Sidebar() {
             const active = activeItem === item.name;
 
             return (
-              <button
+              <Link to={item.path}
                 key={item.name}
                 onClick={() => setActiveItem(item.name)}
                 className={`flex w-full items-center gap-4 rounded-xl px-3 py-3 text-left transition-colors ${
@@ -93,7 +95,7 @@ function Sidebar() {
                 >
                   {item.name}
                 </span>
-              </button>
+              </Link>
             );
           })}
         </div>
