@@ -1,0 +1,7 @@
+{
+  "plugins": ["react", "react_hooks"],
+  "categories": {
+    "correctness": "warn"
+  },
+  "ignorePatterns": ["dist"]
+}

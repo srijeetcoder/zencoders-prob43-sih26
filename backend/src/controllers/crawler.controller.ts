@@ -9,80 +9,66 @@ import { learnAndIngestKnowledge } from '../services/autonomousLearner.service';
 import { query, formatVector } from '../config/database';
 import { generateEmbedding } from '../services/embedding.service';
 import { synthesizeRagAnswer } from '../services/blueprint.service';
+import { processAndGroupInput } from '../services/translationAndGrouping.service';
 import { env } from '../config/env';
+import { runKnowledgeCurator } from '../services/curator.service';
 
 /**
- * Ingests a public website URL, auto-scrapes content, and extracts knowledge into pgvector memory.
- * Endpoint: POST /api/crawler/ingest-url
+ * Headless Automated Knowledge Ingestion Endpoint
+ * POST /api/crawler/ingest
  */
-export async function ingestUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function handleIngest(req: Request, res: Response) {
   try {
-    const input = IngestUrlInputSchema.parse(req.body);
-    const { url, categoryHint } = input;
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, error: "URL is required" });
+    }
 
-    // Step 1: Scrape and parse HTML with Pre-LLM Anti-Bot Guard
-    const scraped = await scrapeWebPage(url);
+    const curationResult = await runKnowledgeCurator(url);
 
-    // Step 2: Extract structured knowledge & auto-ingest into pgvector Innovation Memory
-    const result = await learnAndIngestKnowledge(
-      scraped.cleanedText,
-      url,
-      categoryHint
-    );
+    if (!curationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Source rejected by Knowledge Curator Agent",
+        reason: curationResult.reason
+      });
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: result.isNew
-        ? 'Successfully scraped and autonomously ingested new knowledge into live RAG memory.'
-        : 'Scraped document matched an existing knowledge item in memory (duplicate prevented).',
-      data: {
-        scrapedDocument: {
-          url: scraped.url,
-          title: scraped.title,
-          contentLength: scraped.contentLength,
-        },
-        ingestion: result,
-      },
+      curatorVerdict: "Approved",
+      credibilityScore: curationResult.credibilityScore,
+      insertedId: curationResult.insertedId,
+      title: curationResult.title
     });
   } catch (error: any) {
-    if (error instanceof ScraperBlockedError || error?.name === 'ScraperBlockedError') {
-      res.status(422).json({
-        success: false,
-        error: 'SCRAPER_RESTRICTED',
-        message: 'The source website blocked automated extraction or requires authentication. Please try another public source.',
-      });
-      return;
-    }
-    next(error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
 
-/**
- * Directly ingests raw text, circulars, or press releases into the self-learning knowledge base.
- * Endpoint: POST /api/crawler/ingest-raw-text
- */
-export async function ingestRawText(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const input = IngestRawTextInputSchema.parse(req.body);
-    const combinedContent = `Title: ${input.title}\nDistrict Context: ${input.district || 'Jharkhand'}\nContent:\n${input.content}`;
-
-    const result = await learnAndIngestKnowledge(
-      combinedContent,
-      input.source || 'Raw Text Ingestion',
-      input.district
-    );
-
-    res.status(200).json({
-      success: true,
-      message: result.isNew
-        ? 'Successfully ingested new raw knowledge item into pgvector memory.'
-        : 'Knowledge item already recognized in memory.',
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
+/* --- DORMANT LEGACY API MODULE (POST-HACKATHON FALLBACK) ---
+ * The legacy direct crawling and raw text ingestion methods below are preserved
+ * as dormant fallbacks for post-hackathon reference.
+ *
+ * export async function legacyIngestUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
+ *   try {
+ *     const input = IngestUrlInputSchema.parse(req.body);
+ *     const { url, categoryHint } = input;
+ *     const scraped = await scrapeWebPage(url);
+ *     const result = await learnAndIngestKnowledge(scraped.cleanedText, url, categoryHint);
+ *     res.status(200).json({ success: true, data: result });
+ *   } catch (error: any) { next(error); }
+ * }
+ *
+ * export async function legacyIngestRawText(req: Request, res: Response, next: NextFunction): Promise<void> {
+ *   try {
+ *     const input = IngestRawTextInputSchema.parse(req.body);
+ *     const combinedContent = `Title: ${input.title}\nContent:\n${input.content}`;
+ *     const result = await learnAndIngestKnowledge(combinedContent, input.source || 'Raw Text Ingestion', input.district);
+ *     res.status(200).json({ success: true, data: result });
+ *   } catch (error) { next(error); }
+ * }
+ * --- END OF DORMANT LEGACY API MODULE --- */
 
 /**
  * Retrieves statistics on the autonomous self-learning knowledge base.
@@ -232,9 +218,13 @@ export async function queryKnowledge(req: Request, res: Response, next: NextFunc
   try {
     const input = QueryKnowledgeInputSchema.parse(req.body);
     const { question, district, limit = 0 } = input;
-    const queryText = question;
 
-    // 1. Vectorize the question
+    // 1. Unified Gemini Translation & Thematic Domain Grouping FIRST
+    const processed = await processAndGroupInput(question, district);
+    const queryText = processed.translatedEnglishText;
+    const classifiedDomain = processed.classifiedDomain;
+
+    // 1. Vectorize the clean English question
     const questionVector = await generateEmbedding(queryText);
     const vectorStr = formatVector(questionVector);
 
