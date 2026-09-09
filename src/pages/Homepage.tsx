@@ -1,16 +1,21 @@
 import { Routes, Route } from "react-router-dom"
 
+// Main page
 import Sidebar from "../components/homepage/Sidebar.tsx"
 import Navbar from "../components/homepage/Navbar.tsx"
 import Hero from "../components/homepage/Hero.tsx"
 import ProblemsNearYou from "../components/homepage/ProblemsNearYou.tsx"
 import OngoingProjects from "../components/homepage/OngoingProjects.tsx"
 
+// User dashboard
 import ProfileHero from "../components/user-dashboard/ProfileHero.tsx"
 import DashboardStats from "../components/user-dashboard/DashboardStats.tsx"
 import SubmissionBySector from "../components/user-dashboard/SubmissionBySector.tsx" 
 import ProjectProgress from "../components/user-dashboard/Projectprogress.tsx"
 import RecentSubmissions from "../components/user-dashboard/Recentsubmission.tsx"
+import Activeprojects from "../components/user-dashboard/Activeprojects.tsx"
+import Quickaction from "../components/user-dashboard/Quickaction.tsx"
+import Sustainablesolution from "../components/user-dashboard/Sustainablesolution.tsx"
 
 function MainContent() {
   return (
@@ -39,7 +44,11 @@ function DashBoard() {
           <RecentSubmissions />
         </div>
       </div>
-
+      <div className="flex flex-col">
+        <Activeprojects />
+        <Quickaction />
+        <Sustainablesolution />
+      </div>
     </>
   );
 }
