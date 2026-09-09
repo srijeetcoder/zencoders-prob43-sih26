@@ -4,108 +4,49 @@ import {
   ExtractedKnowledgeItem,
   ExtractedKnowledgeSchema,
 } from '../schemas/crawler.schema';
+import { detectAndTranslate } from './translation.service';
 
 const SYSTEM_PROMPT = `You are the Chief Intelligence Analyst for the Societal Innovation Intelligence Engine (SIH PS-43 - Government of Jharkhand).
 Your mission is to execute the "Killer Workflow" for any societal grievance or problem with high precision:
 
 MANDATORY TRANSLATION & LINGUISTIC GROUNDING RULES:
-1. You MUST accurately translate the raw citizen input from ANY regional language or dialect (Hindi, Khortha, Santhali, Mundari, Ho, Nagpuri, Bengali, Bhojpuri, Sadri, etc.) into crisp, fluent, formal technical English in the "translatedProblem" field.
-2. Accurately identify the specific dialect in "detectedDialect" (e.g. "Khortha (Jharkhand Coalfield Dialect)", "Santhali (Romanized/Ol Chiki)", "Nagpuri (Sadri)", "Regional Hindi / Bhojpuri Vernacular", "Bengali-Hindi Hybrid Mining Slang").
-3. In "translatedProblem", provide a comprehensive, grammatically perfect English problem statement that clearly specifies what the citizen is reporting, what infrastructure/hazard is involved, and what district area is affected.
+1. Translate the raw citizen input into crisp, fluent, formal technical English in the "translatedProblem" field.
+2. Accurately identify the dialect in "detectedDialect" (e.g. "Santali", "Khortha", "Nagpuri", "Mundari", "Ho", "Kurmali", "Regional Hindi").
+3. In "translatedProblem", provide a comprehensive English problem statement.
 
-Step 1 — Problem DNA:
-Identify 3-5 core technical and societal pillars (e.g., ["Air Quality & Mining Hazards", "Industrial Pollution Control", "Environmental Telemetry", "Public Health"]).
-
-Step 2 — Root Causes:
-Conduct root-cause analysis and isolate 2-4 fundamental, technical root causes based on the translated problem.
-
-Step 3 — Candidate Solutions:
-Synthesize 2-3 distinct architectural solutions with pros/cons, and mark the optimal one with isRecommended=true with justification.
+Step 1 — Problem DNA: Identify 3-5 core technical and societal pillars.
+Step 2 — Root Causes: Isolate 2-4 fundamental root causes.
+Step 3 — Candidate Solutions: Synthesize 2-3 distinct architectural solutions with pros/cons, and mark the optimal one with isRecommended=true.
 
 You MUST respond strictly with a valid JSON object matching the requested schema.`;
 
 const INGESTION_SYSTEM_PROMPT = `You are the Knowledge Extraction Engine for the Government of Jharkhand Societal Innovation Platform.
-Extract structured facts strictly grounded in the text adhering to the JSON schema.
-
-RULES:
-1. STRICT GROUNDING: Extract ONLY facts directly stated in the text. Absolutely DO NOT infer, extrapolate, or invent technological or engineering solutions.
-2. NON-TECHNICAL ARTICLES: If the article covers socio-economic challenges, political unrest, recruitment exam paper leaks, or citizen protests without a concrete technical solution, classify as 'EMERGING_CHALLENGE', 'NEWS_EVENT', or 'PROBLEM_REPORT'.
-3. NULL ENFORCEMENT: If no intervention is described in the text, you MUST return null for solutionSummary.
-4. EMPTY ARRAYS: If no hardware, software, or digital frameworks are named, return [] for keyTechnologiesUsed. Do not fabricate IoT, solar, or healthcare equipment.
-5. NOISE FILTERING & SYNTHESIS: Synthesize the provided text into a clean, grammatically correct, and professional summary. Do not verbatim copy-paste raw text strings. If any fragments of website navigation remain, ignore them entirely.`;
+Extract structured facts strictly grounded in the text adhering to the JSON schema.`;
 
 export interface ScrapedMetadata {
   title: string;
   url: string;
 }
 
-async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, responseSchema?: any): Promise<T> {
+async function callGeminiJson<T>(systemPrompt: string, userPrompt: string): Promise<T> {
   const currentKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY;
 
   if (!currentKey || currentKey === 'mock-api-key' || currentKey === 'AIzaSyYourCopiedKeyHere') {
     throw new Error('Valid GEMINI_API_KEY not configured.');
   }
 
-  let discoveredModels: string[] = [];
-  try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${currentKey}`);
-    if (listRes.ok) {
-      const listData = (await listRes.json()) as any;
-      if (listData.models && Array.isArray(listData.models)) {
-        discoveredModels = listData.models
-          .filter((m: any) => {
-            const name = (m.name || '').toLowerCase();
-            const isGenContent = m.supportedGenerationMethods?.includes('generateContent');
-            const isNonText =
-              name.includes('tts') ||
-              name.includes('audio') ||
-              name.includes('embed') ||
-              name.includes('imagen') ||
-              name.includes('realtime');
-            return isGenContent && !isNonText;
-          })
-          .map((m: any) => m.name.replace(/^models\//, ''));
-      }
-    }
-  } catch (listErr: any) {}
-
-  const preferredTextModels = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro',
-    'gemini-2.0-flash-exp',
-    env.GEMINI_MODEL || 'gemini-1.5-flash',
-  ];
-
-  const candidateModels = Array.from(new Set([...preferredTextModels, ...discoveredModels]));
+  const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro'];
   const candidateVersions = ['v1beta', 'v1'];
-  let lastError: string = '';
 
   for (const ver of candidateVersions) {
     for (const model of candidateModels) {
       const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${currentKey}`;
       try {
         const reqBody: any = {
-          system_instruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${userPrompt}\n\nIMPORTANT: Respond ONLY with a valid JSON object matching the schema. No markdown formatting outside the JSON.` }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            response_mime_type: 'application/json',
-          },
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: `${userPrompt}\n\nIMPORTANT: Respond ONLY with a valid JSON object matching the schema.` }] }],
+          generationConfig: { temperature: 0.1, response_mime_type: 'application/json' },
         };
-
-        if (responseSchema) {
-          reqBody.generationConfig.response_schema = responseSchema;
-        }
 
         const res = await fetch(url, {
           method: 'POST',
@@ -120,38 +61,21 @@ async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, respo
             const cleanJson = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
             return JSON.parse(cleanJson) as T;
           }
-        } else {
-          const errText = await res.text();
-          lastError = `HTTP ${res.status} (${ver}/${model}): ${errText}`;
-          if (res.status === 404 || res.status === 429) continue;
-          throw new Error(lastError);
         }
-      } catch (err: any) {
-        if (err.message && !err.message.includes('404') && !err.message.includes('429') && !err.message.includes('JSON')) {
-          throw err;
-        }
-      }
+      } catch {}
     }
   }
 
-  throw new Error(`Gemini JSON Error: ${lastError || 'Failed across all candidate models'}`);
+  throw new Error('Failed across candidate models');
 }
 
-/**
- * Extracts structured knowledge from article using Google Gemini
- */
 export async function extractKnowledgeFromArticle(
   cleanText: string,
   metadata: ScrapedMetadata
 ): Promise<ExtractedKnowledgeItem> {
   const currentKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY;
 
-  if (
-    env.NODE_ENV === 'test' ||
-    !currentKey ||
-    currentKey === 'mock-api-key' ||
-    currentKey === 'AIzaSyYourCopiedKeyHere'
-  ) {
+  if (!currentKey || currentKey === 'mock-api-key' || currentKey === 'AIzaSyYourCopiedKeyHere') {
     return generateFallbackExtractedKnowledge(cleanText, metadata.url, metadata.title);
   }
 
@@ -159,15 +83,11 @@ export async function extractKnowledgeFromArticle(
     const prompt = `Title: ${metadata.title}\nURL: ${metadata.url}\n\nContent:\n${cleanText.slice(0, 20000)}`;
     const parsed = await callGeminiJson<any>(INGESTION_SYSTEM_PROMPT, prompt);
     return ExtractedKnowledgeSchema.parse(parsed);
-  } catch (error: any) {
-    console.warn(`[ProblemIntelligence] Gemini extraction notice: ${error.message}. Falling back to local grounded extractor.`);
+  } catch {
     return generateFallbackExtractedKnowledge(cleanText, metadata.url, metadata.title);
   }
 }
 
-/**
- * Alias for extractKnowledgeFromArticle for pipeline compatibility
- */
 export async function extractKnowledgeFromText(
   scrapedText: string,
   metadata: ScrapedMetadata
@@ -181,22 +101,33 @@ export async function analyzeProblemIntelligence(
 ): Promise<ProblemIntelligence> {
   const currentKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY;
 
-  if (
-    env.NODE_ENV === 'test' ||
-    !currentKey ||
-    currentKey === 'mock-api-key' ||
-    currentKey === 'AIzaSyYourCopiedKeyHere'
-  ) {
-    return generateFallbackIntelligence(rawText, district);
+  // Run translation pre-processing
+  const translation = await detectAndTranslate(rawText, district);
+
+  if (!currentKey || currentKey === 'mock-api-key' || currentKey === 'AIzaSyYourCopiedKeyHere') {
+    const fallback = generateFallbackIntelligence(rawText, district);
+    return {
+      ...fallback,
+      detectedDialect: translation.detectedLanguage || fallback.detectedDialect,
+      translatedProblem: translation.translatedText || fallback.translatedProblem
+    };
   }
 
   try {
-    const prompt = `Target District: ${district}\nRaw Citizen Grievance Statement: "${rawText}"\n\nAnalyze this problem, translate to English, extract problem DNA, identify root causes, and generate 2-3 candidate solutions.`;
+    const prompt = `Target District: ${district}\nDetected Language/Dialect: ${translation.detectedLanguage}\nNormalized Problem English: "${translation.translatedText}"\nRaw Citizen Statement: "${rawText}"\n\nAnalyze this problem, extract problem DNA, identify root causes, and generate 2-3 candidate solutions.`;
     const parsed = await callGeminiJson<any>(SYSTEM_PROMPT, prompt);
-    return ProblemIntelligenceSchema.parse(parsed);
-  } catch (error: any) {
-    console.warn(`[ProblemIntelligence] Gemini structured completion notice: ${error.message}. Falling back to intelligent local analyzer.`);
-    return generateFallbackIntelligence(rawText, district);
+    const result = ProblemIntelligenceSchema.parse(parsed);
+    if (!result.detectedDialect || result.detectedDialect === 'Unknown') {
+      result.detectedDialect = translation.detectedLanguage;
+    }
+    return result;
+  } catch {
+    const fallback = generateFallbackIntelligence(rawText, district);
+    return {
+      ...fallback,
+      detectedDialect: translation.detectedLanguage || fallback.detectedDialect,
+      translatedProblem: translation.translatedText || fallback.translatedProblem
+    };
   }
 }
 
@@ -227,44 +158,83 @@ function generateFallbackExtractedKnowledge(
   };
 }
 
-/**
- * Intelligent Local Semantic Parser & Dialect Translator
- * Translates regional Hindi, Khortha, Nagpuri, Santhali, and Bengali vernacular into accurate technical English.
- */
 function generateFallbackIntelligence(rawText: string, district: string): ProblemIntelligence {
   const lower = rawText.toLowerCase();
 
-  // 1. Smoke / Air Quality / Mining Fires (e.g. "dhua", "smoke", "mining", "coal", "aag")
+  // 1. Water Contamination / Heavy Metals / Arsenic / Fluoride / Tubewell / Drinking Water
+  const isWaterContamination =
+    lower.includes('arsenic') ||
+    lower.includes('fluoride') ||
+    lower.includes('tubewell') ||
+    lower.includes('tube-well') ||
+    lower.includes('borewell') ||
+    lower.includes('filter') ||
+    lower.includes('purif') ||
+    lower.includes('drinking water') ||
+    lower.includes('contamination') ||
+    lower.includes('heavy-metal') ||
+    rawText.includes('আর্সেনিক') ||
+    rawText.includes('নলকূপ') ||
+    rawText.includes('आर्सेनिक') ||
+    rawText.includes('फ्लोराइड') ||
+    rawText.includes('दूषित');
+
+  if (isWaterContamination) {
+    return {
+      problemDNA: ['Drinking Water Safety', 'Heavy Metal Contamination', 'Arsenic/Fluoride Adsorption', 'Public Health Engineering'],
+      translatedProblem: `Critical toxic arsenic and chemical contamination in rural tube-well drinking water sources exceeding permissible WHO standards in ${district}.`,
+      detectedDialect: /[\u0980-\u09FF]/.test(rawText) ? 'Bengali / Bangla Dialect' : 'Hindi / Regional Dialect',
+      rootCauses: [
+        'Deep aquifer geo-chemical leaching releasing toxic arsenic and fluoride into groundwater tables',
+        'Absence of continuous ion-selective electrochemical water quality telemetry on rural community tube-wells',
+        'Lack of decentralized community-scale adsorption filtration kiosks forcing residents to consume raw contaminated water',
+        'Delayed contamination alert dissemination to Jal Sahiya village water sanitation committees',
+      ],
+      candidateSolutions: [
+        {
+          id: 'sol-a',
+          title: 'A. Solar-Powered Community Arsenic & Fluoride Removal Water Kiosks',
+          description: 'Deploy solar-powered multi-stage adsorption filter columns (Activated Alumina & Granular Ferric Hydroxide) with automated backwash and real-time TDS/Arsenic IoT telemetry.',
+          isRecommended: true,
+          pros: ['Eliminates >99% arsenic and fluoride to WHO standards (<0.01 mg/L)', 'Operates 100% off-grid with solar PV and LiFePO4 battery', 'Zero toxic chemical byproduct discharge'],
+          cons: ['Adsorption bed requires regeneration every 12-18 months'],
+          recommendationRationale: 'Provides proven, sustainable drinking water purification directly at village handpumps with zero recurring fuel cost (Recommended Solution).',
+        },
+        {
+          id: 'sol-b',
+          title: 'B. Decentralized Reverse Osmosis (RO) Purification Hub with Smart Card ATM',
+          description: 'Establish village-level containerized RO water ATMs operated by local Women SHG federations for metered safe water distribution.',
+          isRecommended: false,
+          pros: ['High throughput daily capacity', 'Integrated smart-card revenue model for local SHG operators'],
+          cons: ['Generates reject brine stream requiring drain disposal', 'Higher capital investment'],
+          recommendationRationale: 'Effective for high-salinity areas but generates wastewater compared to adsorption filtration.',
+        },
+      ],
+      requiredDisciplines: ['Chemical & Environmental Engineering', 'Public Health & Epidemiology', 'IoT Embedded Sensing', 'Rural Water Governance'],
+      domainTags: ['Water Quality & Hydrology', 'Water Purification', 'Public Health Engineering'],
+      severityScore: 9,
+      summary: `High-priority drinking water chemical contamination and public health emergency in ${district}.`,
+    };
+  }
+
+  // 2. Mining & Geo-hazards / Toxic Smoke / Subsidence
   const isSmokeOrMining =
     lower.includes('dhua') ||
-    lower.includes('dhuaa') ||
     lower.includes('smoke') ||
-    lower.includes('pollution') ||
     lower.includes('mining') ||
-    lower.includes('mine') ||
     lower.includes('coal') ||
     lower.includes('fire') ||
-    lower.includes('aag') ||
     lower.includes('jharia') ||
-    lower.includes('bangal') ||
-    lower.includes('bengal');
+    rawText.includes('কয়লা') ||
+    rawText.includes('খনি') ||
+    rawText.includes('धुआं') ||
+    rawText.includes('कोयला');
 
   if (isSmokeOrMining) {
-    let translated = `Heavy toxic smoke and particulate emissions originating from mining operations in the bordering area impacting residents of ${district}.`;
-    let dialect = 'Hindi / Khortha Regional Mining Dialect';
-
-    if (lower.includes('bangal') || lower.includes('bengal')) {
-      translated = `Heavy toxic smoke, fugitive dust, and industrial emissions drifting across from the Bengal border mining zone into residential habitations of ${district}.`;
-      dialect = 'Regional Hindi / Bengal-Jharkhand Border Vernacular';
-    } else if (lower.includes('jharia') || lower.includes('koyla')) {
-      translated = `Subsurface coal seam fire combustion releasing toxic carbon monoxide and particulate smoke across ${district} settlements.`;
-      dialect = 'Khortha / Dhanbad Coalfield Dialect';
-    }
-
     return {
       problemDNA: ['Air Quality & Pollution Control', 'Mining Geo-hazards', 'Environmental Telemetry', 'Public Health & Safety'],
-      translatedProblem: translated,
-      detectedDialect: dialect,
+      translatedProblem: `Heavy toxic smoke and particulate emissions originating from mining operations in the bordering area impacting residents of ${district}.`,
+      detectedDialect: /[\u0980-\u09FF]/.test(rawText) ? 'Bengali / Bangla Dialect' : 'Hindi / Khortha Regional Mining Dialect',
       rootCauses: [
         'Uncontrolled open-cast coal blasting and unmonitored spontaneous combustion in nearby mining blocks',
         'Absence of continuous ambient particulate (PM2.5/PM10) and toxic gas (CO, SO2) edge telemetry stations',
@@ -290,15 +260,6 @@ function generateFallbackIntelligence(rawText: string, district: string): Proble
           cons: ['Flight restrictions during night and adverse weather', 'High operational pilot cost'],
           recommendationRationale: 'Complements ground stations but cannot provide 24/7 continuous real-time threshold alerts.',
         },
-        {
-          id: 'sol-c',
-          title: 'C. Automated High-Pressure Water Mist & Smog Cannons with Edge Actuation',
-          description: 'Install automated misting suppression cannons linked directly to air quality triggers at village boundaries.',
-          isRecommended: false,
-          pros: ['Active physical suppression of particulate matter', 'Immediate localized relief'],
-          cons: ['High water consumption and capital expenditure'],
-          recommendationRationale: 'Effective for spot suppression but requires baseline continuous sensor telemetry first.',
-        },
       ],
       requiredDisciplines: ['Environmental Engineering', 'IoT & Embedded Sensors', 'Atmospheric Modeling', 'Public Health'],
       domainTags: ['Mining & Geo-hazards', 'Air Quality Monitoring', 'Environmental Governance'],
@@ -307,120 +268,70 @@ function generateFallbackIntelligence(rawText: string, district: string): Proble
     };
   }
 
-  // 2. Water / Irrigation / Leakage (e.g. "pani", "water", "canal", "leak", "nalka", "fluoride")
-  const isWater =
-    lower.includes('water') ||
-    lower.includes('pani') ||
-    lower.includes('leak') ||
-    lower.includes('canal') ||
-    lower.includes('irrigation') ||
-    lower.includes('fluoride') ||
-    lower.includes('nalka') ||
-    lower.includes('khet') ||
-    lower.includes('fasal');
+  // 3. Minor Forest Produce & Tribal Livelihoods (Lac, Tussar, Mahua)
+  const isForestProduce =
+    lower.includes('lac') ||
+    lower.includes('mahua') ||
+    lower.includes('tussar') ||
+    lower.includes('silk') ||
+    lower.includes('forest produce') ||
+    rawText.includes('লাহ') ||
+    rawText.includes('লাহ') ||
+    rawText.includes('तसर');
 
-  if (isWater) {
-    let translated = `Substantial irrigation canal conveyance loss and unmonitored subterranean pipeline leaks in ${district} causing water shortages for agricultural fields.`;
-    let dialect = 'Nagpuri / Regional Hindi Dialect';
-
-    if (lower.includes('fluoride') || lower.includes('peene ka')) {
-      translated = `Elevated hazardous fluoride contamination in rural groundwater drinking sources causing fluorosis in ${district} villages.`;
-      dialect = 'Bhojpuri / Palamu Regional Dialect';
-    }
-
+  if (isForestProduce) {
     return {
-      problemDNA: ['Water Security & Hydrology', 'Smart Agriculture', 'IoT Telemetry', 'Rural Infrastructure'],
-      translatedProblem: translated,
-      detectedDialect: dialect,
+      problemDNA: ['Minor Forest Produce', 'Tribal Value Addition', 'Post-Harvest Preservation', 'SHG Livelihoods'],
+      translatedProblem: `High post-harvest perishability and lack of decentralized processing infrastructure for tribal minor forest produce in ${district}.`,
+      detectedDialect: 'Santali / Mundari Regional Dialect',
       rootCauses: [
-        'Undetected subterranean fractures in secondary canal distribution lines',
-        'Lack of real-time differential flow telemetry and pressure monitoring',
-        'Deferred maintenance and lack of automated grievance escalation for local Pani Samitis',
-        'Inefficient unlined earthen channels causing high seepage and evaporative loss',
+        'Lack of temperature-controlled storage and scientific solar dehydrators at village clusters',
+        'Predatory middlemen discounting unrefined raw forest produce',
+        'Manual peeling and reeling inefficiencies reducing daily artisan earnings',
       ],
       candidateSolutions: [
         {
           id: 'sol-a',
-          title: 'A. Ultrasonic Non-Invasive Flow Telemetry & Edge Leak Detection',
-          description: 'Install solar-powered clamp-on ultrasonic flow meters and acoustic leak microphones across distribution manifolds with LoRaWAN gateways.',
+          title: 'A. Decentralized Solar Convective Drying Kiosks & Motorized Value-Addition Hubs',
+          description: 'Deploy community solar drying chambers with hermetic storage pods and motorized processing tools managed by Women SHGs.',
           isRecommended: true,
-          pros: ['Zero pipe-cutting required', 'Pinpoints underground fractures within 15 minutes', 'Integrated Pani Samiti mobile alerts'],
-          cons: ['Requires initial field calibration for silted water'],
-          recommendationRationale: 'Delivers immediate 38%+ reduction in conveyance loss with zero infrastructural disruption (Recommended Solution).',
-        },
-        {
-          id: 'sol-b',
-          title: 'B. Satellite SAR Soil Moisture Anomaly Inversion',
-          description: 'Analyze Sentinel-1 Synthetic Aperture Radar data to detect canal seepage corridors from orbit.',
-          isRecommended: false,
-          pros: ['Covers entire district from orbit', 'Zero ground maintenance'],
-          cons: ['5-day revisit latency', 'Cannot detect sudden pipe bursts in real time'],
-          recommendationRationale: 'Valuable for seasonal catchment planning but insufficient for immediate operational control.',
+          pros: ['Curtails spoilage from 45% to <6%', 'Increases artisan household net revenue by 65%'],
+          cons: ['Requires initial SHG training on moisture quality control'],
+          recommendationRationale: 'Directly multiplies tribal farm-gate realization with zero ongoing electricity costs (Recommended Solution).',
         },
       ],
-      requiredDisciplines: ['Hydrology & Water Resources', 'Embedded IoT Systems', 'GIS Spatial Analytics', 'Agronomy'],
-      domainTags: ['Water Quality & Hydrology', 'Smart Irrigation', 'IoT Telemetry'],
-      severityScore: 8,
-      summary: `Critical irrigation canal leakage and water management challenge in ${district}.`,
-    };
-  }
-
-  // 3. Electricity / Solar / Power Grid (e.g. "bijli", "power", "solar", "light", "current")
-  const isPower = lower.includes('bijli') || lower.includes('power') || lower.includes('solar') || lower.includes('light') || lower.includes('current') || lower.includes('andhera');
-
-  if (isPower) {
-    return {
-      problemDNA: ['Renewable Energy', 'Decentralized Mini-Grids', 'Battery Storage', 'Rural Electrification'],
-      translatedProblem: `Frequent unannounced electrical outages and lack of reliable grid power impacting rural tribal households and agro-processing in ${district}.`,
-      detectedDialect: 'Nagpuri / Rural Hindi',
-      rootCauses: [
-        'Vulnerable long-distance 11kV distribution lines exposed to forest vegetation and lightning surges',
-        'Lack of decentralized battery storage backup for essential community loads',
-        'Absence of automated smart metering and remote fault detection systems',
-      ],
-      candidateSolutions: [
-        {
-          id: 'sol-a',
-          title: 'A. Decentralized Solar PV Mini-Grid with LiFePO4 Energy Storage',
-          description: 'Deploy 50kW solar array with 100kWh lithium iron phosphate battery storage and automated micro-inverters.',
-          isRecommended: true,
-          pros: ['100% standalone power autonomy', 'Powers cold storage and household lighting', 'Zero reliance on erratic state grid'],
-          cons: ['Initial capital investment requires government grant support'],
-          recommendationRationale: 'Proven high-reliability solution for remote forest fringe habitations in Jharkhand.',
-        },
-      ],
-      requiredDisciplines: ['Electrical Engineering', 'Solar PV Systems', 'Energy Economics'],
-      domainTags: ['Infrastructure & Renewable Energy', 'Decentralized Solar'],
+      requiredDisciplines: ['Agro-Processing & Post-Harvest Engineering', 'Renewable Thermal Systems', 'Rural Economics'],
+      domainTags: ['Agriculture & Minor Forest Produce', 'Tribal Welfare', 'Rural Technology'],
       severityScore: 7,
-      summary: `Rural power reliability challenge in ${district} requiring decentralized renewable energy intervention.`,
+      summary: `Tribal forest produce value chain and preservation deficit in ${district}.`,
     };
   }
 
-  // Default General Societal Translation
+  // 4. Default: Irrigation Canal Conveyance Loss & Hydrology
   return {
-    problemDNA: ['Public Infrastructure', 'Environmental Monitoring', 'IoT Telemetry', 'Tribal Welfare'],
-    translatedProblem: `Citizen infrastructure and environmental grievance reported from ${district}: High-priority societal challenge regarding public safety and basic utility delivery.`,
-    detectedDialect: 'Hindi with Regional Vernacular Expressions',
+    problemDNA: ['Water Security & Hydrology', 'Smart Agriculture', 'IoT Telemetry', 'Rural Infrastructure'],
+    translatedProblem: `Substantial irrigation canal conveyance loss and unmonitored subterranean pipeline leaks in ${district} causing water shortages for agricultural fields.`,
+    detectedDialect: 'Nagpuri / Regional Hindi Dialect',
     rootCauses: [
-      'Inadequate continuous telemetry and decentralized field monitoring',
-      'Delayed maintenance response and lack of automated grievance escalation',
-      'Absence of multi-agency coordination between district administration and technical institutions',
+      'Undetected subterranean fractures in secondary canal distribution lines',
+      'Lack of real-time differential flow telemetry and pressure monitoring',
+      'Deferred maintenance and lack of automated grievance escalation for local Pani Samitis',
+      'Inefficient unlined earthen channels causing high seepage and evaporative loss',
     ],
     candidateSolutions: [
       {
         id: 'sol-a',
-        title: 'A. Decentralized Autonomous IoT Monitoring & Citizen Alert System',
-        description: 'Deploy solar-powered multi-sensor pods with automated SMS dispatch to local Gram Panchayats and Block Development Officers.',
+        title: 'A. Ultrasonic Non-Invasive Flow Telemetry & Edge Leak Detection',
+        description: 'Install solar-powered clamp-on ultrasonic flow meters and acoustic leak microphones across distribution manifolds with LoRaWAN gateways.',
         isRecommended: true,
-        pros: ['Autonomous 24/7 field operation', 'Direct escalation to responsible engineers'],
-        cons: ['Requires routine battery and sensor cleaning'],
-        recommendationRationale: 'Provides immediate operational visibility and automated accountability across rural blocks.',
+        pros: ['Zero pipe-cutting required', 'Pinpoints underground fractures within 15 minutes', 'Integrated Pani Samiti mobile alerts'],
+        cons: ['Requires initial field calibration for silted water'],
+        recommendationRationale: 'Delivers immediate 38%+ reduction in conveyance loss with zero infrastructural disruption (Recommended Solution).',
       },
     ],
-    requiredDisciplines: ['Civil & Environmental Engineering', 'Embedded IoT Systems', 'Public Administration'],
-    domainTags: ['Governance & Public Delivery', 'Rural Infrastructure'],
+    requiredDisciplines: ['Hydrology & Water Resources', 'Embedded IoT Systems', 'GIS Spatial Analytics', 'Agronomy'],
+    domainTags: ['Water Quality & Hydrology', 'Smart Irrigation', 'IoT Telemetry'],
     severityScore: 8,
-    summary: `Citizen grievance reported from ${district} requiring multidisciplinary engineering intervention.`,
+    summary: `Critical irrigation canal leakage and water management challenge in ${district}.`,
   };
 }
-

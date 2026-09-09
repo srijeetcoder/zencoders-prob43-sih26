@@ -1,9 +1,21 @@
 import { z } from 'zod';
 
 export const ProcessProblemInputSchema = z.object({
-  rawDescription: z.string().min(10, 'Problem description must be at least 10 characters long'),
-  district: z.string().min(2, 'District name is required'),
-});
+  rawDescription: z.string().optional(),
+  userProblemInput: z.string().optional(),
+  citizenProblemInput: z.string().optional(),
+  problemInput: z.string().optional(),
+  text: z.string().optional(),
+  description: z.string().optional(),
+  title: z.string().optional(),
+  problemTitle: z.string().optional(),
+  fieldContext: z.string().optional(),
+  context: z.string().optional(),
+  district: z.string().default('Ranchi'),
+}).refine(
+  (data) => !!(data.rawDescription || data.userProblemInput || data.citizenProblemInput || data.problemInput || data.text || data.description || data.title || data.problemTitle),
+  { message: 'Problem description or citizen problem input is required' }
+);
 
 export type ProcessProblemInput = z.infer<typeof ProcessProblemInputSchema>;
 

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProcessProblemInputSchema } from '../schemas/problem.schema';
+import { processAndGroupInput } from '../services/translationAndGrouping.service';
 import { onnxMasterOrchestrator } from '../services/onnxOrchestrator.service';
 import { analyzeProblemIntelligence } from '../services/problemIntelligence.service';
 import { checkProblemDuplicate } from '../services/deduplication.service';
@@ -15,18 +16,48 @@ import { generateEmbedding } from '../services/embedding.service';
 export async function processProblem(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const input = ProcessProblemInputSchema.parse(req.body);
-    const { rawDescription, district } = input;
+    const userProblemInput =
+      input.rawDescription ||
+      input.userProblemInput ||
+      input.citizenProblemInput ||
+      input.problemInput ||
+      input.text ||
+      input.description ||
+      input.title ||
+      input.problemTitle ||
+      '';
+    const district = input.district || 'Ranchi';
+    const fieldContext = input.fieldContext || input.context || '';
 
-    // 1. Local Zero-API Master ONNX Domain & Priority Routing
-    const routing = await onnxMasterOrchestrator.routeProblem(rawDescription, district);
+    // 1. Unified Gemini Translation & Thematic Domain Grouping FIRST
+    const processed = await processAndGroupInput(userProblemInput, district);
+    const normalizedProblem = processed.translatedEnglishText;
+    const classifiedDomain = processed.classifiedDomain;
+    const detectedLanguage = processed.detectedLanguage;
 
-    // 2. Problem Intelligence (Problem DNA, Root Causes, 2-3 Candidate Solutions)
-    const intelligence = await analyzeProblemIntelligence(rawDescription, district);
+    // Optional field translation for field context
+    let normalizedFieldContext = fieldContext;
+    if (fieldContext && fieldContext.trim().length > 0) {
+      const fieldProcessed = await processAndGroupInput(fieldContext, district);
+      normalizedFieldContext = fieldProcessed.translatedEnglishText;
+    }
 
-    // 3. Vector Deduplication Check (Cosine Distance > 0.82 in same district)
+    // 2. Local Zero-API Master ONNX Domain & Priority Routing on clean English
+    const routing = await onnxMasterOrchestrator.routeProblem(normalizedProblem, district);
+    routing.domain = classifiedDomain || routing.domain;
+
+    // 3. Problem Intelligence (Problem DNA, Root Causes, 2-3 Candidate Solutions)
+    const intelligence = await analyzeProblemIntelligence(normalizedProblem, district);
+    intelligence.detectedDialect = detectedLanguage || intelligence.detectedDialect;
+    intelligence.translatedProblem = normalizedProblem;
+    if (classifiedDomain && !intelligence.domainTags.includes(classifiedDomain)) {
+      intelligence.domainTags = [classifiedDomain, ...intelligence.domainTags];
+    }
+
+    // 4. Vector Deduplication Check (Cosine Distance > 0.82 in same district) on clean normalized English
     const deduplication = await checkProblemDuplicate(intelligence.translatedProblem, district);
 
-    // 4. Persistence into PostgreSQL with pgvector
+    // 5. Persistence into PostgreSQL with pgvector (text-embedding-004)
     const embedding = deduplication.vector.length === 768 
       ? deduplication.vector 
       : await generateEmbedding(intelligence.translatedProblem);
@@ -52,7 +83,7 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
           RETURNING id;
         `;
         const insertRes = await query(insertSql, [
-          rawDescription,
+          userProblemInput,
           district,
           intelligence.domainTags,
           intelligence.rootCauses,
@@ -68,7 +99,7 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       }
     }
 
-    // 5. Ecosystem Matcher & Readiness Evaluator (Section 4 in PDF)
+    // 6. Ecosystem Matcher & Readiness Evaluator
     const combinedTags = [...intelligence.domainTags, ...intelligence.requiredDisciplines];
     const ecosystemReadiness = await matchEcosystemWithReadiness(
       intelligence.translatedProblem,
@@ -77,17 +108,19 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
       { limit: 5 }
     );
 
-    // 6. Blueprint Engine (RAG past cases + structured implementation blueprint generation)
+    // 7. Blueprint Engine (RAG past cases + domain-bound structured blueprint generation)
     const recommendedSol = intelligence.candidateSolutions.find((s) => s.isRecommended)?.title;
     const blueprint = await generateProjectBlueprint(
       intelligence.translatedProblem,
       district,
       intelligence.rootCauses,
       intelligence.requiredDisciplines,
-      recommendedSol
+      recommendedSol,
+      classifiedDomain,
+      normalizedFieldContext
     );
 
-    // 7. Assemble Unified Response matching SIH PS-43 Specification
+    // 8. Assemble Unified Response matching SIH PS-43 Specification
     res.status(200).json({
       success: true,
       data: {
@@ -96,6 +129,9 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
         matchedExistingProblemId: deduplication.matchedProblemId || null,
         similarityScore: deduplication.similarityScore || null,
         orchestrationRouting: routing,
+        classifiedDomain,
+        detectedLanguage,
+        rootCauseSummary: processed.rootCauseSummary,
         
         // Step 1: Problem DNA & Dialect
         problemDNA: intelligence.problemDNA,
@@ -116,7 +152,7 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
           topPartners: ecosystemReadiness.topMatches,
         },
         
-        // Step 5: Solution Blueprint (Normalized with both flat and nested keys)
+        // Step 5: Solution Blueprint
         blueprint: {
           ...blueprint,
           title: blueprint.projectTitle || 'Societal Solution Blueprint',
