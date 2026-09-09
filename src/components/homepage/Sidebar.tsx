@@ -16,14 +16,14 @@ import { Link } from "react-router-dom";
 
 const menuItems = [
   { name: "Home", icon: Home, path: "/main" },
-  { name: "Report a Problem", icon: FilePlus2 },
-  { name: "Explore Problems", icon: Search },
-  { name: "My Submissions", icon: ClipboardList },
-  { name: "Track Status", icon: Activity },
-  { name: "Nearby Issues", icon: MapPin },
-  { name: "Community", icon: Users },
-  { name: "Impact & Badges", icon: Heart },
-  { name: "Help & Support", icon: HelpCircle },
+  { name: "Report a Problem", icon: FilePlus2, path: "/main" },
+  { name: "Explore Problems", icon: Search, path: "/problemlist"},
+  { name: "My Submissions", icon: ClipboardList, path: "/main"},
+  { name: "Track Status", icon: Activity, path: "/main"},
+  { name: "Nearby Issues", icon: MapPin, path: "/main"},
+  { name: "Community", icon: Users, path: "/main"},
+  { name: "Impact & Badges", icon: Heart, path: "/main"},
+  { name: "Help & Support", icon: HelpCircle, path: "/main"},
 ];
 
 function Sidebar() {
@@ -33,8 +33,8 @@ function Sidebar() {
   return (
     <aside
       className={`
-        left-0 top-0 z-50
-        flex min-h-screen flex-col
+        sticky top-0 z-50
+        flex h-screen shrink-0 flex-col
         ${isOpen ? "w-[230px]" : "w-[70px]"}
         border-r border-slate-200 bg-white px-4 py-4
         transition-[width] duration-300 ease-in-out
@@ -68,7 +68,7 @@ function Sidebar() {
         </div>
       </div>
 
-      <nav className="mt-8 flex-1">
+      <nav className="mt-8 flex-1 overflow-y-auto">
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;

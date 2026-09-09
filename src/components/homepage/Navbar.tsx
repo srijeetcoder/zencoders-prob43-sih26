@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 function Navbar() {
   return (
-    <header className="h-16 border-b border-slate-200 bg-white px-6">
+    <header className="sticky top-0 z-40 h-16 border-b border-slate-200 bg-white px-6">
       <div className="flex h-full items-center justify-between">
 
         <div className="relative w-80">
