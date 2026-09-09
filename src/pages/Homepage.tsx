@@ -17,6 +17,10 @@ import Activeprojects from "../components/user-dashboard/Activeprojects.tsx"
 import Quickaction from "../components/user-dashboard/Quickaction.tsx"
 import Sustainablesolution from "../components/user-dashboard/Sustainablesolution.tsx"
 
+// Problems
+import ProblemsList from "../components/problems/ProblemsList.tsx" 
+import ProblemDetails from "../components/problems/ProblemDetails.tsx"
+
 function MainContent() {
   return (
     <>
@@ -53,6 +57,14 @@ function DashBoard() {
   );
 }
 
+function Problems() {
+  return (
+    <>
+      <ProblemsList />
+    </>
+  );
+}
+
 function Homepage() {
   return (
     <div className="flex min-h-screen bg-[#f5f9fc]">
@@ -62,6 +74,8 @@ function Homepage() {
         <Routes>
           <Route path="/main" element={<MainContent />} />
           <Route path="/dashboard" element={<DashBoard />} />
+          <Route path="/problemlist" element={<Problems />} />
+          <Route path="/problemlist/:problemId" element={<ProblemDetails />} />
         </Routes>
       </div>
     </div>
