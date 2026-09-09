@@ -8,18 +8,17 @@ import ProblemsNearYou from "../components/homepage/ProblemsNearYou.tsx"
 import OngoingProjects from "../components/homepage/OngoingProjects.tsx"
 
 // User dashboard
-import ProfileHero from "../components/user-dashboard/ProfileHero.tsx"
-import DashboardStats from "../components/user-dashboard/DashboardStats.tsx"
-import SubmissionBySector from "../components/user-dashboard/SubmissionBySector.tsx" 
-import ProjectProgress from "../components/user-dashboard/Projectprogress.tsx"
-import RecentSubmissions from "../components/user-dashboard/Recentsubmission.tsx"
-import Activeprojects from "../components/user-dashboard/Activeprojects.tsx"
-import Quickaction from "../components/user-dashboard/Quickaction.tsx"
-import Sustainablesolution from "../components/user-dashboard/Sustainablesolution.tsx"
+import UserDasboard from "../pages/UserDashboard.tsx"
 
 // Problems
 import ProblemsList from "../components/problems/ProblemsList.tsx" 
 import ProblemDetails from "../components/problems/ProblemDetails.tsx"
+import ProblemSubmission from "../pages/ProblemSubmission.tsx"
+
+// University and Partners
+import University from "../pages/University.tsx"
+
+import SuccessStory from "../pages/SuccessStories.tsx"
 
 function MainContent() {
   return (
@@ -31,36 +30,18 @@ function MainContent() {
   );
 }
 
-function DashBoard() {
+function Problems() {
   return (
     <>
-      <ProfileHero />
-      <DashboardStats />
-      
-      <div className="grid grid-cols-1 gap-3 px-5 xl:grid-cols-3">
-        <div className="xl:col-span-1">
-          <SubmissionBySector />
-        </div>
-        <div className="xl:col-span-1">
-          <ProjectProgress />
-        </div>
-        <div className="xl:col-span-1">
-          <RecentSubmissions />
-        </div>
-      </div>
-      <div className="flex flex-col">
-        <Activeprojects />
-        <Quickaction />
-        <Sustainablesolution />
-      </div>
+      <ProblemSubmission />
     </>
   );
 }
 
-function Problems() {
+function Partner() {
   return (
     <>
-      <ProblemsList />
+      <University />
     </>
   );
 }
@@ -73,9 +54,10 @@ function Homepage() {
         <Navbar />
         <Routes>
           <Route path="/main" element={<MainContent />} />
-          <Route path="/dashboard" element={<DashBoard />} />
-          <Route path="/problemlist" element={<Problems />} />
-          <Route path="/problemlist/:problemId" element={<ProblemDetails />} />
+          <Route path="/userdashboard" element={<UserDasboard />} />
+          <Route path="/problem" element={<Problems />} />
+          <Route path="/partners" element={<Partner />} />
+          <Route path="/successstories" element={<SuccessStory />} />
         </Routes>
       </div>
     </div>

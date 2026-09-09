@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Hero() {
   return (
     <section className="px-8 py-8">
@@ -5,7 +7,7 @@ function Hero() {
 
         <div className="max-w-2xl">
           <p className="mb-3 text-sm font-medium text-emerald-600">
-            Welcome to JanSahyog
+            Welcome to Pukaar
           </p>
 
           <h1 className="text-4xl font-bold leading-tight text-[#10245e]">
@@ -14,12 +16,12 @@ function Hero() {
             a <span className="text-[#087f5b]">difference</span>.
           </h1>
 
-          <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+          <p className="mt-4 max-w-xl text-base leading-7 mb-5 text-slate-600">
             Report problems, share ideas, and work together
             to build a better community.
           </p>
 
-          <button
+          <Link to="/userdashboard"
             className="
               mt-6 rounded-xl
               bg-emerald-600
@@ -30,7 +32,7 @@ function Hero() {
             "
           >
             Report a Problem
-          </button>
+          </Link>
         </div>
 
       </div>
