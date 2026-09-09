@@ -45,7 +45,7 @@ function Navbar() {
             />
           </button>
 
-          <Link to="/dashboard" className="flex items-center gap-3">
+          <Link to="/userdashboard" className="flex items-center gap-3">
             <div className="
               flex h-9 w-9
               items-center justify-center
