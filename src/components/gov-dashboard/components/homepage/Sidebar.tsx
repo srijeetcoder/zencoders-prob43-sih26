@@ -86,12 +86,13 @@ function Sidebar() {
         </button>
 
         <Link
-          to="/gov"
+          to="/"
           className={`
             select-none overflow-hidden
             transition-all duration-300 ease-in-out
             ${isOpen ? "w-[150px] opacity-100" : "w-0 opacity-0"}
           `}
+          title="Return to Landing Page"
         >
           <h1 className="whitespace-nowrap text-xl font-extrabold tracking-tight">
             <span className="text-slate-900">Poo</span>

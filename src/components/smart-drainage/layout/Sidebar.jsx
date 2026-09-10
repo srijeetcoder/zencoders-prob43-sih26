@@ -19,16 +19,16 @@ const iconMap = {
 };
 
 const routeMap = {
-  "Dashboard": "/gov-dashboard",
-  "Problem Analysis": "/analysis",
-  "AI Deep Dive": "/analysis",
+  "Dashboard": "/gov",
+  "Problem Analysis": "/gov/ai-analysis",
+  "AI Deep Dive": "/gov/ai-analysis",
   "Solution Matching": "/solution-matching",
   "Project Management": "/smart-drainage",
   "Partners & Academia": "/partners",
   "Impact Analytics": "/trackprogress",
   "Knowledge Base": "/successstories",
-  "Notifications": "/gov-dashboard",
-  "Settings": "/gov-dashboard",
+  "Notifications": "/gov/alerts",
+  "Settings": "/gov/settings",
 };
 
 export default function Sidebar() {

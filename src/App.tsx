@@ -47,11 +47,7 @@ function App() {
           />
           <Route
             path="/analysis"
-            element={
-              <AuthGuard allowedRoles={["GOVERNMENT", "INSTITUTION", "ADMIN"]} portalName="Government & Institutional AI Intelligence">
-                <AIAnalysisPage />
-              </AuthGuard>
-            }
+            element={<Navigate to="/gov/ai-analysis" replace />}
           />
           <Route
             path="/solution-matching"

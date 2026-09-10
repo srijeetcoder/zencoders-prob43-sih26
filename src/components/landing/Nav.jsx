@@ -6,9 +6,9 @@ import { useAuth } from '../../context/AuthContext'
 const NAV_LINKS = [
   { name: 'Home', path: '/' },
   { name: 'Explore Problems', path: '/explore-problems', matchPaths: ['/explore-problems', '/problemlist'] },
-  { name: 'AI Analysis', path: '/analysis' },
+  { name: 'AI Analysis', path: '/gov/ai-analysis', roles: ['government', 'admin'] },
   { name: 'Solution Matching', path: '/solution-matching' },
-  { name: 'Gov Portal', path: '/gov-dashboard' },
+  { name: 'Gov Portal', path: '/gov' },
   { name: 'Stories', path: '/successstories' },
 ]
 
@@ -18,6 +18,11 @@ export default function Nav() {
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  const userRole = (user?.role || 'citizen').toLowerCase()
+  const visibleNavLinks = NAV_LINKS.filter(
+    (link) => !link.roles || link.roles.includes(userRole) || userRole === 'admin'
+  )
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-md shadow-xs">
@@ -32,7 +37,7 @@ export default function Nav() {
 
         {/* Desktop Navigation Links with Dynamic Active Indicator */}
         <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
-          {NAV_LINKS.map((link) => {
+          {visibleNavLinks.map((link) => {
             const isActive =
               link.path === location.pathname ||
               (link.matchPaths && link.matchPaths.includes(location.pathname))
@@ -145,13 +150,15 @@ export default function Nav() {
           >
             Explore Problems
           </Link>
-          <Link
-            to="/analysis"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-1.5 text-sm font-medium text-gray-700 hover:text-[#148554]"
-          >
-            AI Deep Analysis
-          </Link>
+          {(userRole === 'government' || userRole === 'admin') && (
+            <Link
+              to="/gov/ai-analysis"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-1.5 text-sm font-medium text-gray-700 hover:text-[#148554]"
+            >
+              AI Deep Analysis
+            </Link>
+          )}
           <Link
             to="/solution-matching"
             onClick={() => setMobileMenuOpen(false)}
@@ -160,7 +167,7 @@ export default function Nav() {
             Solution & Team Match
           </Link>
           <Link
-            to="/gov-dashboard"
+            to="/gov"
             onClick={() => setMobileMenuOpen(false)}
             className="block py-1.5 text-sm font-medium text-gray-700 hover:text-[#148554]"
           >

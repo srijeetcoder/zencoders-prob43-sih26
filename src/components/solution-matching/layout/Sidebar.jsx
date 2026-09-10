@@ -27,16 +27,16 @@ const iconMap = {
 };
 
 const routeMap = {
-  "dashboard": "/gov-dashboard",
+  "dashboard": "/gov",
   "problems": "/problemlist",
-  "analysis": "/analysis",
+  "analysis": "/gov/ai-analysis",
   "solutions": "/solution-matching",
   "monitoring": "/smart-drainage",
   "partners": "/partners",
   "success": "/successstories",
   "track": "/trackprogress",
-  "notifications": "/gov-dashboard",
-  "settings": "/gov-dashboard",
+  "notifications": "/gov/alerts",
+  "settings": "/gov/settings",
 };
 
 export default function Sidebar() {

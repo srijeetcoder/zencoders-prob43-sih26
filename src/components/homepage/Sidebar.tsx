@@ -27,10 +27,10 @@ interface MenuItem {
 const baseMenuItems: MenuItem[] = [
   { name: "Home Feed", icon: Home, path: "/main" },
   { name: "Report Problem", icon: FilePlus2, path: "/problem" },
-  { name: "AI Analysis", icon: Brain, path: "/analysis", roles: ["government", "institution", "university", "admin"] },
+  { name: "AI Analysis", icon: Brain, path: "/gov/ai-analysis", roles: ["government", "admin"] },
   { name: "Solution Match", icon: Layers, path: "/solution-matching", roles: ["government", "institution", "university", "admin"] },
   { name: "Smart Drainage", icon: Activity, path: "/smart-drainage", roles: ["government", "admin"] },
-  { name: "Gov Dashboard", icon: LayoutDashboard, path: "/gov-dashboard", roles: ["government", "admin"] },
+  { name: "Gov Dashboard", icon: LayoutDashboard, path: "/gov", roles: ["government", "admin"] },
   { name: "University Dashboard", icon: GraduationCap, path: "/university-dashboard", roles: ["institution", "university", "admin"] },
   { name: "User Dashboard", icon: User, path: "/userdashboard" },
   { name: "Track Progress", icon: Activity, path: "/trackprogress" },
