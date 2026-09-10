@@ -49,6 +49,18 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true }));
 
   // 5. API Routes
+  app.get('/', (req: Request, res: Response) => {
+    res.json({
+      status: 'healthy',
+      service: 'Societal Innovation Intelligence Engine (SIH PS-43) - Production Backend',
+      state: 'Government of Jharkhand',
+      version: '1.0.0',
+      apiBase: '/api/v1',
+      healthCheck: '/health',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.use('/api', routes);
   app.use('/api/v1', routes);
   app.use('/health', (req, res, next) => {
