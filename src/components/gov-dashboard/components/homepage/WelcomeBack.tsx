@@ -44,26 +44,25 @@ const todaysSummary = [
 function WelcomeBack() {
   return (
     <section className="px-8 py-8">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-green-50 via-emerald-50 to-emerald-100 px-8 py-10">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-50/90 via-[#eef9f3] to-[#d6f5e5] p-8 sm:p-10 border border-emerald-200/90 shadow-sm">
         <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium text-green-900">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-800 px-3.5 py-1 text-xs font-bold text-white shadow-xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
               {getGreeting()} · {getToday()}
-            </p>
+            </div>
 
-            <h1 className="mt-3 text-4xl font-bold leading-tight text-navy-900 sm:text-5xl">
+            <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl">
               Welcome back,{" "}
-              <span className="text-green-600">Officer</span>.
+              <span className="text-emerald-700">Officer</span>.
             </h1>
 
-            <p className="mt-2 text-sm font-medium text-green-900">
-              आपका स्वागत है।
+            <p className="mt-1.5 text-sm font-bold text-emerald-900">
+              झारखंड सरकार नागरिक समाधान मंच · आपका स्वागत है।
             </p>
 
-            <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-              You're signed in as a Government of Jharkhand employee on the
-              PooKar Civic Dashboard. Review new reports, track resolutions,
-              and coordinate with your departments and teams.
+            <p className="mt-4 max-w-xl text-sm font-medium leading-relaxed text-slate-700 sm:text-base">
+              You're signed in to the PooKar Executive Command Dashboard. Review verified citizen grievances, monitor live district telemetry, and track real-time resolution workflows.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -72,35 +71,38 @@ function WelcomeBack() {
                   key={label}
                   to={path}
                   className="
-                    flex items-center gap-2
+                    group
+                    flex items-center gap-2.5
                     rounded-xl
-                    border border-slate-200
+                    border border-emerald-300/90
                     bg-white
                     px-5 py-3
-                    text-sm font-semibold
-                    text-navy-900
-                    transition-colors
-                    hover:bg-green-50
+                    text-xs font-bold
+                    text-slate-800
+                    shadow-xs
+                    transition-all
+                    hover:border-emerald-700 hover:bg-emerald-700 hover:text-white
+                    sm:text-sm
                   "
                 >
-                  <Icon size={16} />
-                  {label}
+                  <Icon size={17} className="text-emerald-700 transition-colors group-hover:text-white" />
+                  <span>{label}</span>
                 </Link>
               ))}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 backdrop-blur">
-            <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              <Mail size={14} />
+          <div className="rounded-2xl border border-emerald-200/90 bg-white/95 p-6 shadow-sm backdrop-blur-md">
+            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800">
+              <Mail size={15} className="text-emerald-700" />
               Today's Summary
             </p>
 
-            <div className="mt-3 flex gap-6">
+            <div className="mt-4 flex gap-6 sm:gap-8">
               {todaysSummary.map((item) => (
                 <div key={item.label}>
-                  <p className="text-2xl font-bold text-navy-900">{item.value}</p>
-                  <p className="text-xs text-slate-500">{item.label}</p>
+                  <p className="text-2xl font-black text-slate-900 sm:text-3xl">{item.value}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-600">{item.label}</p>
                 </div>
               ))}
             </div>
@@ -112,3 +114,4 @@ function WelcomeBack() {
 }
 
 export default WelcomeBack;
+

@@ -2,37 +2,35 @@ import vidhanSabhaImg from "../../assets/auth-bg/jharkhand-vidhan-sabha.jpg";
 import educationImg from "../../assets/auth-bg/jharkhand-education.jpg";
 import agricultureImg from "../../assets/auth-bg/jharkhand-agriculture.jpg";
 import miningImg from "../../assets/auth-bg/jharkhand-mining.jpg";
-import machineryImg from "C:/Users/srije/.gemini/antigravity-ide/brain/c8a70e01-f5d8-478b-9ea5-0930f9d845bf/.user_uploaded/media_1789055673816.jpg";
 
-// The 5 official authentic Jharkhand domain images provided by the user
+// The official authentic Jharkhand domain images
 const IMAGES = [
   agricultureImg,
   educationImg,
   vidhanSabhaImg,
   miningImg,
-  machineryImg,
 ];
 
 // 5 rows with varied image order for visual variety
 const ROW_CONFIGS = [
   {
-    images: [IMAGES[0], IMAGES[1], IMAGES[2], IMAGES[3], IMAGES[4]],
+    images: [IMAGES[0], IMAGES[1], IMAGES[2], IMAGES[3]],
     animationClass: "animate-auth-slider-left",
   },
   {
-    images: [IMAGES[2], IMAGES[3], IMAGES[4], IMAGES[0], IMAGES[1]],
+    images: [IMAGES[2], IMAGES[3], IMAGES[0], IMAGES[1]],
     animationClass: "animate-auth-slider-right",
   },
   {
-    images: [IMAGES[1], IMAGES[4], IMAGES[0], IMAGES[3], IMAGES[2]],
+    images: [IMAGES[1], IMAGES[3], IMAGES[0], IMAGES[2]],
     animationClass: "animate-auth-slider-left-fast",
   },
   {
-    images: [IMAGES[3], IMAGES[2], IMAGES[1], IMAGES[4], IMAGES[0]],
+    images: [IMAGES[3], IMAGES[2], IMAGES[1], IMAGES[0]],
     animationClass: "animate-auth-slider-right-fast",
   },
   {
-    images: [IMAGES[4], IMAGES[0], IMAGES[2], IMAGES[1], IMAGES[3]],
+    images: [IMAGES[0], IMAGES[2], IMAGES[1], IMAGES[3]],
     animationClass: "animate-auth-slider-left",
   },
 ];

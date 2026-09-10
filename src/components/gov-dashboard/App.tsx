@@ -44,35 +44,33 @@ function Home() {
 
 function GovDashboardApp() {
   return (
-    <>
-      <div className="flex min-h-screen flex-col bg-[#f2f6fb]">
+    <div className="flex min-h-screen bg-[#f5f9fc]">
+      <Sidebar />
+
+      <div className="flex-1 min-w-0 flex flex-col">
         <GovTopBar />
+        <Navbar />
 
-        <div className="flex flex-1">
-          <Sidebar />
-
-          <div className="min-w-0 flex-1">
-            <Navbar />
-
-            <Routes>
-              <Route path="/gov" element={<Home />} />
-              <Route path="/gov/live-problems" element={<LiveProblems />} />
-              <Route path="/gov/live-problems/:problemId" element={<ProblemDetail />} />
-              <Route path="/gov/ai-analysis" element={<AiAnalysis />} />
-              <Route path="/gov/create-team" element={<CreateTeam />} />
-              <Route path="/gov/university-partners" element={<UniversityPartners />} />
-              <Route path="/gov/resource-center" element={<ResourceCenter />} />
-              <Route path="/gov/alerts" element={<AlertsPage />} />
-              <Route path="/gov/settings" element={<SettingsPage />} />
-              <Route path="/gov/help" element={<HelpPage />} />
-              <Route path="/gov/*" element={<Navigate to="/gov" replace />} />
-            </Routes>
-          </div>
-        </div>
+        <main className="flex-1">
+          <Routes>
+            <Route index element={<Home />} />
+            <Route path="/" element={<Home />} />
+            <Route path="live-problems" element={<LiveProblems />} />
+            <Route path="live-problems/:problemId" element={<ProblemDetail />} />
+            <Route path="ai-analysis" element={<AiAnalysis />} />
+            <Route path="create-team" element={<CreateTeam />} />
+            <Route path="university-partners" element={<UniversityPartners />} />
+            <Route path="resource-center" element={<ResourceCenter />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="help" element={<HelpPage />} />
+            <Route path="*" element={<Navigate to="" replace />} />
+          </Routes>
+        </main>
 
         <Footer />
       </div>
-    </>
+    </div>
   );
 }
 

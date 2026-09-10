@@ -39,7 +39,7 @@ function OngoingProjects() {
           </p>
         </div>
 
-        <button className="flex items-center gap-1 text-sm font-semibold text-teal-600">
+        <button className="flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800 transition-colors">
           View all
           <ArrowRight size={16} />
         </button>
@@ -53,47 +53,52 @@ function OngoingProjects() {
               min-w-[300px]
               overflow-hidden
               rounded-2xl
-              border border-slate-200
+              border border-slate-200/90
               bg-white
               shadow-sm
+              transition-all
+              hover:border-emerald-300
+              hover:shadow-md
             "
           >
-            <div className="h-40 bg-gradient-to-br from-navy-100 to-brand-100" />
+            <div className="h-36 bg-gradient-to-br from-emerald-100/90 via-teal-50 to-slate-100 flex items-center justify-center">
+              <span className="text-xs font-bold text-emerald-800 bg-white/90 px-3 py-1 rounded-full border border-emerald-200 shadow-xs">
+                Active Project
+              </span>
+            </div>
 
             <div className="p-5">
-
-              <h3 className="text-lg font-semibold text-navy-900">
+              <h3 className="text-base font-bold text-slate-900">
                 {project.title}
               </h3>
 
-              <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
-                <MapPin size={15} />
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                <MapPin size={15} className="text-emerald-700" />
                 {project.location}
               </div>
 
               <div className="mt-5">
                 <div className="mb-2 flex justify-between text-xs">
-                  <span className="text-slate-500">
+                  <span className="font-semibold text-slate-600">
                     Project progress
                   </span>
 
-                  <span className="font-semibold text-teal-600">
+                  <span className="font-bold text-emerald-700">
                     {project.progress}%
                   </span>
                 </div>
 
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-teal-500"
+                    className="h-full rounded-full bg-emerald-600 transition-all"
                     style={{ width: `${project.progress}%` }}
                   />
                 </div>
               </div>
 
-              <button className="mt-4 text-sm font-semibold text-teal-600">
-                View project →
+              <button className="mt-4 text-xs font-bold text-emerald-700 hover:text-emerald-900 transition-colors">
+                View project details →
               </button>
-
             </div>
           </div>
         ))}
