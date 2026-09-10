@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import AuthGuard from "./components/auth/AuthGuard";
 import LandingPage from "./pages/LandingPage";
@@ -28,8 +28,9 @@ function App() {
           <Route path="/prototype" element={<Prototype />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgetpassword" element={<ForgetPassword />} />
+          <Route path="/gov-dashboard" element={<Navigate to="/gov" replace />} />
           <Route
-            path="/gov-dashboard"
+            path="/gov/*"
             element={
               <AuthGuard allowedRoles={["GOVERNMENT", "ADMIN"]} portalName="Government Portal & Command Console">
                 <GovDashboardPage />

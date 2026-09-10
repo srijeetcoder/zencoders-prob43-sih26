@@ -7,6 +7,7 @@ import '@fontsource/noto-sans-devanagari/400.css'
 import '@fontsource/noto-sans-devanagari/500.css'
 import '@fontsource/noto-sans-devanagari/600.css'
 import './index.css'
+import './components/gov-dashboard/gov-theme.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
