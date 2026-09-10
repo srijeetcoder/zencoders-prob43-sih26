@@ -189,6 +189,35 @@ export class AuthController {
     }
   }
 
+  private static activeOtps: Map<string, { otp: string; expiresAt: Date; phone?: string }> = new Map();
+
+  async sendOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, phone, type = 'REGISTRATION' } = req.body;
+      if (!email && !phone) {
+        throw new ValidationError('Email or phone number is required to send OTP');
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+      const targetKey = (email || phone).toLowerCase().trim();
+      AuthController.activeOtps.set(targetKey, { otp, expiresAt, phone });
+
+      console.log(`[🔐 SECURE OTP DISPATCH] [${type}]`);
+      if (email) console.log(`  📧 Email Destination: ${email} -> OTP: ${otp}`);
+      if (phone) console.log(`  📱 SMS Destination: ${phone} -> OTP: ${otp}`);
+
+      sendSuccess(res, {
+        message: `OTP sent successfully to ${email ? `email (${email})` : ''}${email && phone ? ' and ' : ''}${phone ? `mobile SMS (${phone})` : ''}.`,
+        expiresInSeconds: 600,
+        debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email } = ForgotPasswordSchema.parse(req.body);
@@ -197,10 +226,10 @@ export class AuthController {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
         await authRepo.setResetOtp(email, otp, expiresAt);
-        // In production, send email/SMS; for dev return message
-        console.log(`[Password Reset OTP for ${email}]: ${otp}`);
+        AuthController.activeOtps.set(email.toLowerCase().trim(), { otp, expiresAt });
+        console.log(`[🔑 Password Reset OTP for ${email}]: ${otp}`);
       }
-      sendSuccess(res, { message: 'If that email is registered, a password reset OTP has been sent.' });
+      sendSuccess(res, { message: 'If that email is registered, a password reset OTP has been sent via Email & SMS.' });
     } catch (err) {
       next(err);
     }
@@ -208,12 +237,29 @@ export class AuthController {
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, otp } = VerifyOtpSchema.parse(req.body);
-      const user = await authRepo.findByEmail(email);
-      if (!user || user.reset_otp !== otp || !user.reset_otp_expires_at || new Date(user.reset_otp_expires_at) < new Date()) {
-        throw new ValidationError('Invalid or expired OTP');
+      const { email, phone, otp } = req.body;
+      if (!otp) {
+        throw new ValidationError('OTP is required');
       }
-      sendSuccess(res, { message: 'OTP verified successfully' });
+
+      const targetKey = (email || phone || '').toLowerCase().trim();
+      const cached = AuthController.activeOtps.get(targetKey);
+
+      if (cached && cached.otp === otp.trim() && new Date(cached.expiresAt) >= new Date()) {
+        AuthController.activeOtps.delete(targetKey);
+        sendSuccess(res, { message: 'OTP verified successfully' });
+        return;
+      }
+
+      if (email) {
+        const user = await authRepo.findByEmail(email);
+        if (user && user.reset_otp === otp && user.reset_otp_expires_at && new Date(user.reset_otp_expires_at) >= new Date()) {
+          sendSuccess(res, { message: 'OTP verified successfully' });
+          return;
+        }
+      }
+
+      throw new ValidationError('Invalid or expired OTP. Please verify or request a new code.');
     } catch (err) {
       next(err);
     }

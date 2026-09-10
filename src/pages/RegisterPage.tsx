@@ -11,9 +11,14 @@ import {
   Phone,
   KeyRound,
   Loader2,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  X,
 } from "lucide-react";
 import Nav from "../components/landing/Nav";
 import { useAuth } from "../context/AuthContext";
+import { authApi } from "../services/api";
 import AuthBackgroundSlider from "../components/auth/AuthBackgroundSlider";
 import { INDIA_STATES_DISTRICTS } from "../data/indiaStatesDistricts";
 
@@ -34,6 +39,11 @@ export default function RegisterPage() {
 
   const [activeRole, setActiveRole] = useState<RegistrationRole>(defaultRole);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(30);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
@@ -57,6 +67,14 @@ export default function RegisterPage() {
       "Dhanbad",
       "Bokaro",
     ];
+
+  useEffect(() => {
+    let timer: any;
+    if (showOtpModal && otpCountdown > 0) {
+      timer = setInterval(() => setOtpCountdown((c) => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, otpCountdown]);
 
   useEffect(() => {
     if (roleParam) {
@@ -96,7 +114,7 @@ export default function RegisterPage() {
     setError("");
   };
 
-  const handleSubmitRegistration = async (e: React.FormEvent) => {
+  const handleInitiateRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
@@ -123,9 +141,62 @@ export default function RegisterPage() {
     setError("");
 
     try {
+      // Send dual OTP to Email and SMS
+      await authApi.sendOtp({
+        email: formData.email,
+        phone: formData.phone,
+        type: "REGISTRATION",
+      });
+
+      setOtpCountdown(30);
+      setOtpError("");
+      setOtpValue("");
+      setShowOtpModal(true);
+    } catch (err: any) {
+      // If backend OTP call throws, still open modal so user can proceed
+      setOtpCountdown(30);
+      setShowOtpModal(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCountdown > 0) return;
+    try {
+      await authApi.sendOtp({
+        email: formData.email,
+        phone: formData.phone,
+        type: "REGISTRATION",
+      });
+      setOtpCountdown(30);
+      setOtpError("");
+    } catch (err) {}
+  };
+
+  const handleVerifyAndFinalize = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpValue.trim()) {
+      setOtpError("Please enter the 6-digit verification OTP.");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setOtpError("");
+
+    try {
+      // Verify OTP with backend
+      await authApi.verifyOtp({
+        email: formData.email,
+        phone: formData.phone,
+        otp: otpValue.trim(),
+      });
+
+      // Complete registration
       await register({
         name: formData.fullName,
         email: formData.email,
+        password: formData.password,
         role: activeRole,
         department: formData.department || formData.organization,
         district: formData.district,
@@ -133,11 +204,12 @@ export default function RegisterPage() {
         organization: formData.organization,
       });
 
+      setShowOtpModal(false);
       setSuccess(true);
-    } catch (err) {
-      setError("Registration failed. Please try again.");
+    } catch (err: any) {
+      setOtpError(err?.message || "Invalid or expired OTP. Please check the code sent to your email & SMS.");
     } finally {
-      setIsSubmitting(false);
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -240,7 +312,7 @@ export default function RegisterPage() {
             )}
 
             {/* Registration Form */}
-            <form onSubmit={handleSubmitRegistration} className="space-y-2.5">
+            <form onSubmit={handleInitiateRegistration} className="space-y-2.5">
               {/* Full Legal Name */}
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-700">
@@ -499,11 +571,11 @@ export default function RegisterPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Activating Verified Node...</span>
+                      <span>Sending Verification OTP...</span>
                     </>
                   ) : (
                     <>
-                      <span>Complete Registration</span>
+                      <span>Verify & Complete Registration</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -549,9 +621,9 @@ export default function RegisterPage() {
                   if (activeRole === "GOVERNMENT") {
                     navigate("/gov-dashboard");
                   } else if (activeRole === "INSTITUTION") {
-                    navigate("/solution-matching");
+                    navigate("/university-dashboard");
                   } else {
-                    navigate("/main");
+                    navigate("/userdashboard");
                   }
                 }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-[#047d48] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#03663a]"
@@ -566,6 +638,108 @@ export default function RegisterPage() {
               >
                 Return to Home
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ================= DUAL EMAIL & SMS OTP VERIFICATION MODAL ================= */}
+        {showOtpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl relative">
+              <button
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="text-center">
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">
+                  Dual-Channel OTP Verification
+                </h3>
+
+                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                  We have dispatched a 6-digit verification code to:
+                </p>
+
+                <div className="mt-2.5 space-y-1 rounded-xl bg-slate-50 border border-slate-200/80 p-2.5 text-left text-xs text-slate-700">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span className="font-semibold truncate">{formData.email}</span>
+                  </div>
+                  {formData.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span className="font-semibold">{formData.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {otpError && (
+                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                  {otpError}
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyAndFinalize} className="mt-4 space-y-3.5">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Enter 6-Digit OTP
+                    </label>
+                    <button
+                      type="button"
+                      disabled={otpCountdown > 0}
+                      onClick={handleResendOtp}
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+                    >
+                      {otpCountdown > 0 ? `Resend OTP (${otpCountdown}s)` : "Resend OTP"}
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      autoFocus
+                      placeholder="e.g. 592814"
+                      value={otpValue}
+                      onChange={(e) => {
+                        setOtpValue(e.target.value.replace(/\D/g, ""));
+                        setOtpError("");
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-4 text-center font-mono text-base font-bold tracking-widest text-slate-900 placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isVerifyingOtp || !otpValue.trim()}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:opacity-75"
+                >
+                  {isVerifyingOtp ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Validating Security Token...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify & Activate Node</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           </div>
         )}

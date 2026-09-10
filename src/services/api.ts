@@ -60,6 +60,11 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  sendOtp: (payload: { email?: string; phone?: string; type?: string }) =>
+    fetchWithCircuitBreaker<{ message: string; expiresInSeconds?: number }>('/auth/send-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getMe: () => fetchWithCircuitBreaker('/auth/me'),
   logout: () => fetchWithCircuitBreaker('/auth/logout', { method: 'POST' }),
   forgotPassword: (email: string) =>
@@ -67,10 +72,10 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
-  verifyOtp: (email: string, otp: string) =>
-    fetchWithCircuitBreaker('/auth/verify-otp', {
+  verifyOtp: (payload: { email?: string; phone?: string; otp: string }) =>
+    fetchWithCircuitBreaker<{ message: string }>('/auth/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ email, otp }),
+      body: JSON.stringify(payload),
     }),
   resetPassword: (payload: any) =>
     fetchWithCircuitBreaker('/auth/reset-password', {

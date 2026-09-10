@@ -1,12 +1,22 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { UserPlus, LogIn, FilePlus2, ShieldCheck, UserCheck } from "lucide-react";
+import { UserPlus, LogIn, FilePlus2, ShieldCheck, UserCheck, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import UserProfileCard from "../components/user-dashboard/UserProfileCard";
 import UserProblems from "../components/user-dashboard/UserProblems";
 import UserSettings from "../components/user-dashboard/UserSettings";
 
+interface ProblemItem {
+  id: string;
+  title: string;
+  submittedAt: string;
+  status: "Pending" | "In Review" | "Resolved" | "Rejected";
+}
+
 function UserDashboard() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
+  const [problems, setProblems] = useState<ProblemItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // For unlogged in citizens: Show clean Register, Login, or Report a Problem window
   if (!isAuthenticated || !user) {
@@ -32,7 +42,7 @@ function UserDashboard() {
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Register */}
             <Link
-              to="/register"
+              to="/register?role=citizen"
               className="group flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#148554] p-5 text-white shadow-md shadow-emerald-900/10 transition-all duration-200 hover:-translate-y-1 hover:bg-[#107046] hover:shadow-lg hover:shadow-emerald-900/20"
             >
               <div className="rounded-xl bg-white/10 p-2.5 transition-transform duration-200 group-hover:scale-110">
@@ -46,7 +56,7 @@ function UserDashboard() {
 
             {/* Login */}
             <Link
-              to="/login"
+              to="/login?role=citizen"
               className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/70 p-5 text-slate-800 transition-all duration-200 hover:-translate-y-1 hover:border-emerald-300 hover:bg-white hover:shadow-md"
             >
               <div className="rounded-xl bg-slate-200/60 p-2.5 transition-transform duration-200 group-hover:scale-110">
@@ -63,27 +73,95 @@ function UserDashboard() {
     );
   }
 
+  // Fetch live citizen submissions
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUserGrievances = async () => {
+      setLoading(true);
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+      const items: ProblemItem[] = [];
+
+      // 1. Check local session submissions first
+      try {
+        const localSaved = localStorage.getItem("pookar_user_submissions");
+        if (localSaved) {
+          const parsed = JSON.parse(localSaved);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: any) => {
+              items.push({
+                id: p.ticketId || p.id || `JS-${Date.now()}`,
+                title: p.title || p.rawDescription || p.text || "Citizen Bottleneck Submission",
+                submittedAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "Recently",
+                status: (p.status === "RESOLVED" ? "Resolved" : p.status === "IN_REVIEW" || p.status === "LAB_MATCHED" ? "In Review" : "Pending") as any,
+              });
+            });
+          }
+        }
+      } catch {}
+
+      // 2. Query backend for user's grievances if token exists
+      if (token) {
+        try {
+          const res = await fetch(`${apiBase}/citizen/grievances`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const list = data.data?.items || data.data || [];
+            if (Array.isArray(list) && list.length > 0) {
+              list.forEach((g: any) => {
+                const mapStatus = (st: string) => {
+                  if (st === "RESOLVED") return "Resolved";
+                  if (st === "REJECTED") return "Rejected";
+                  if (st === "TRIAGED" || st === "LAB_MATCHING" || st === "IN_PROGRESS") return "In Review";
+                  return "Pending";
+                };
+                items.unshift({
+                  id: g.ticket_id || g.id,
+                  title: g.normalized_text || g.raw_text || `Grievance #${g.ticket_id}`,
+                  submittedAt: g.created_at ? new Date(g.created_at).toLocaleDateString() : "Today",
+                  status: mapStatus(g.status),
+                });
+              });
+            }
+          }
+        } catch (err) {
+          console.warn("[UserDashboard] Live grievance fetch notice:", err);
+        }
+      }
+
+      if (isMounted) {
+        // Deduplicate by ID
+        const unique = items.filter((item, index, self) => index === self.findIndex((t) => t.id === item.id));
+        setProblems(unique);
+        setLoading(false);
+      }
+    };
+
+    fetchUserGrievances();
+    return () => {
+      isMounted = false;
+    };
+  }, [token, user]);
+
   // Logged-in citizen view
   const isCitizen = !user?.role || user.role.toUpperCase() === "CITIZEN";
 
   const profileData = {
-    name: isCitizen && user?.name ? user.name : "Citizen Contributor",
-    role: "Citizen",
-    id: isCitizen && user?.id ? `USR-${user.id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}` : "USR-CITIZEN-01",
-    location: user?.district ? `${user.district}, India` : "Ranchi, Jharkhand",
-    organization: "Resident Contributor",
-    email: isCitizen && user?.email ? user.email : "citizen.contributor@pookar.gov.in",
-    phone: user?.verifiedPhone || user?.phone || "+91 98765 43210",
-    avatarUrl: user?.avatarUrl,
+    name: user?.name || "Citizen Contributor",
+    role: isCitizen ? "Citizen" : (user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1).toLowerCase()),
+    id: user?.id ? (user.id.startsWith("usr-") || user.id.startsWith("USR-") ? user.id.toUpperCase() : `USR-${user.id.slice(-6).toUpperCase()}`) : "USR-CITIZEN-01",
+    location: user?.district ? `${user.district}, India` : "Jharkhand, India",
+    organization: user?.department || "Resident Contributor",
+    email: user?.email || "citizen@pookar.gov.in",
+    phone: user?.verifiedPhone || user?.phone || "Verified Mobile",
+    avatarUrl: (user as any)?.avatarUrl,
   };
-
-  // Fresh citizen user starts with clean empty ledger
-  const myProblems: Array<{ id: string; title: string; submittedAt: string; status: "Pending" | "In Review" | "Resolved" }> = [];
 
   return (
     <div className="space-y-4 p-4">
       <UserProfileCard {...profileData} />
-      <UserProblems problems={myProblems} />
+      <UserProblems problems={problems} />
       <UserSettings
         email={profileData.email}
         phone={profileData.phone}
@@ -95,3 +173,4 @@ function UserDashboard() {
 }
 
 export default UserDashboard;
+

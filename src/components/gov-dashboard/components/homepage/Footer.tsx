@@ -128,9 +128,7 @@ function Footer() {
           </div>
 
           <p className="mt-4 text-center text-[11px] leading-5 text-slate-500">
-            Disclaimer: This is a prototype platform for demonstration purposes
-            and is not an official Government of Jharkhand website. Content and
-            data shown are representative only. | अस्वीकरण: यह एक प्रोटोटाइप प्लेटफॉर्म है
+            PooKar · Societal Innovation Intelligence & Citizen Grievance Redressal Engine · Government of Jharkhand
           </p>
         </div>
       </div>

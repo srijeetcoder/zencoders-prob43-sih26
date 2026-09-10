@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, KeyRound, ArrowRight, ArrowLeft, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Mail, KeyRound, ArrowRight, ArrowLeft, ShieldCheck, CheckCircle2, Loader2, Phone, Sparkles } from "lucide-react";
+import { authApi } from "../../services/api";
 
 function ForgetPassword() {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ function ForgetPassword() {
   });
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -17,22 +19,46 @@ function ForgetPassword() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   }
 
-  function handleNext(e: React.FormEvent) {
+  async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.email) return;
-    setStep(2);
-  }
+    if (!formData.email.trim()) return;
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (isSubmitting) return;
     setIsSubmitting(true);
-    setTimeout(() => {
+    setError("");
+    try {
+      await authApi.forgotPassword(formData.email.trim());
+      setStep(2);
+    } catch (err: any) {
+      setError(err?.message || "Failed to dispatch verification OTP. Please try again.");
+    } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formData.otp.trim() || !formData.newPassword.trim()) {
+      setError("Please provide the 6-digit OTP and your new password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await authApi.resetPassword({
+        email: formData.email.trim(),
+        otp: formData.otp.trim(),
+        newPassword: formData.newPassword.trim(),
+      });
       setSuccess(true);
-    }, 800);
+    } catch (err: any) {
+      setError(err?.message || "Invalid or expired OTP. Please verify and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -47,17 +73,23 @@ function ForgetPassword() {
         </h2>
         <p className="mt-0.5 text-xs text-slate-500">
           {step === 1
-            ? "Enter your registered email address to receive an OTP."
-            : "Enter the OTP sent to your email to verify and reset."}
+            ? "Enter your registered email address to receive an Email & SMS OTP."
+            : `Enter the 6-digit OTP sent to ${formData.email} to verify and reset.`}
         </p>
       </div>
 
+      {error && (
+        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+          {error}
+        </div>
+      )}
+
       {!success ? (
-        <form onSubmit={step === 1 ? handleNext : handleSubmit} className="space-y-3.5">
+        <form onSubmit={step === 1 ? handleSendOtp : handleResetPassword} className="space-y-3.5">
           {step === 1 && (
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700">
-                Registered Email Address
+                Registered Email / Official ID
               </label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -65,7 +97,7 @@ function ForgetPassword() {
                   type="email"
                   name="email"
                   required
-                  placeholder="name@gov.in or user@example.com"
+                  placeholder="name@gov.in or citizen@example.com"
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none"
@@ -77,26 +109,36 @@ function ForgetPassword() {
           {step === 2 && (
             <>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">
-                  Verification OTP
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">
+                    6-Digit Verification OTP
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                  >
+                    Resend Code
+                  </button>
+                </div>
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
                     name="otp"
                     required
-                    placeholder="Enter 6-digit OTP"
+                    maxLength={6}
+                    placeholder="e.g. 842109"
                     value={formData.otp}
                     onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3.5 text-sm font-mono tracking-widest text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">
-                  New Password
+                  New Security Password
                 </label>
                 <input
                   type="password"
@@ -114,10 +156,19 @@ function ForgetPassword() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99]"
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:opacity-75"
           >
-            <span>{step === 1 ? "Send Verification OTP" : "Update Password"}</span>
-            <ArrowRight className="h-4 w-4" />
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Processing Request...</span>
+              </>
+            ) : (
+              <>
+                <span>{step === 1 ? "Send Email & SMS OTP" : "Verify & Update Password"}</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
 
           <div className="pt-2 text-center">

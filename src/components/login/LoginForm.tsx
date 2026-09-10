@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Mail,
   Lock,
@@ -17,16 +17,40 @@ import { useAuth, type UserRole } from "../../context/AuthContext";
 function LoginForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
+  const roleParam = searchParams.get("role")?.toLowerCase() || "";
+  const initialRole: UserRole =
+    roleParam === "citizen"
+      ? "CITIZEN"
+      : roleParam === "university" || roleParam === "institution"
+      ? "INSTITUTION"
+      : roleParam === "gov" || roleParam === "government"
+      ? "GOVERNMENT"
+      : "CITIZEN";
+
+  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
   const [formData, setFormData] = useState({
-    email: "gov.officer@jharkhand.gov.in",
-    password: "••••••••••••",
+    email: initialRole === "CITIZEN" ? "" : "gov.officer@jharkhand.gov.in",
+    password: "",
   });
-  const [selectedRole, setSelectedRole] = useState<UserRole>("GOVERNMENT");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (roleParam === "citizen") {
+      setSelectedRole("CITIZEN");
+      setFormData({ email: "", password: "" });
+    } else if (roleParam === "university" || roleParam === "institution") {
+      setSelectedRole("INSTITUTION");
+      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "" });
+    } else if (roleParam === "gov" || roleParam === "government") {
+      setSelectedRole("GOVERNMENT");
+      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "" });
+    }
+  }, [roleParam]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFormData({
@@ -39,13 +63,13 @@ function LoginForm() {
   const handleRoleQuickSelect = (role: UserRole) => {
     setSelectedRole(role);
     if (role === "GOVERNMENT") {
-      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "••••••••••••" });
+      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "" });
     } else if (role === "INSTITUTION") {
-      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "••••••••••••" });
+      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "" });
     } else if (role === "CITIZEN") {
-      setFormData({ email: "citizen@jharkhand.gov.in", password: "••••••••••••" });
+      setFormData({ email: "", password: "" });
     } else {
-      setFormData({ email: "admin@jansahyog.gov.in", password: "••••••••••••" });
+      setFormData({ email: "admin@jansahyog.gov.in", password: "" });
     }
   };
 
@@ -62,7 +86,7 @@ function LoginForm() {
     setError("");
 
     try {
-      await login({
+      const loggedUser = await login({
         email: formData.email,
         password: formData.password,
         role: selectedRole,
@@ -70,16 +94,17 @@ function LoginForm() {
 
       setSuccess(true);
       setTimeout(() => {
-        if (selectedRole === "GOVERNMENT") {
+        const targetRole = (loggedUser?.role || selectedRole).toUpperCase();
+        if (targetRole === "GOVERNMENT" || targetRole === "ADMIN" || targetRole === "SUPER_ADMIN") {
           navigate("/gov-dashboard");
-        } else if (selectedRole === "INSTITUTION") {
-          navigate("/solution-matching");
+        } else if (targetRole === "INSTITUTION") {
+          navigate("/university-dashboard");
         } else {
-          navigate("/main");
+          navigate("/userdashboard");
         }
-      }, 700);
-    } catch (err) {
-      setError("Unable to sign in. Please verify your credentials.");
+      }, 600);
+    } catch (err: any) {
+      setError(err?.message || "Unable to sign in. Please verify your credentials.");
       setIsSubmitting(false);
     }
   }

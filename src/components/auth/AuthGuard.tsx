@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth, type UserRole } from "../../context/AuthContext";
-import { ShieldAlert, Lock, Building2, GraduationCap, ArrowRight, ArrowLeft, LogIn, UserPlus } from "lucide-react";
+import { ShieldAlert, Lock, ArrowLeft, LogIn, UserPlus } from "lucide-react";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -10,7 +10,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, allowedRoles, portalName = "Government Service" }: AuthGuardProps) {
-  const { user, role, isAuthenticated, switchDemoRole } = useAuth();
+  const { user, role, isAuthenticated } = useAuth();
 
   const isAuthorized = isAuthenticated && role && (allowedRoles.includes(role) || role === "ADMIN");
 
@@ -52,7 +52,7 @@ export default function AuthGuard({ children, allowedRoles, portalName = "Govern
         {/* Action Buttons */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link
-            to="/login?role=government"
+            to="/login"
             className="flex items-center justify-center gap-2 rounded-xl bg-[#148554] px-4 py-3 text-sm font-bold text-white shadow-md shadow-emerald-900/10 hover:bg-[#107046] transition-all hover:-translate-y-0.5"
           >
             <LogIn className="h-4 w-4" />
@@ -60,7 +60,7 @@ export default function AuthGuard({ children, allowedRoles, portalName = "Govern
           </Link>
 
           <Link
-            to="/register?role=government"
+            to="/register"
             className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-all hover:-translate-y-0.5"
           >
             <UserPlus className="h-4 w-4 text-emerald-600" />
@@ -68,39 +68,8 @@ export default function AuthGuard({ children, allowedRoles, portalName = "Govern
           </Link>
         </div>
 
-        {/* Instant Demo Sign-In */}
-        <div className="mt-8 border-t border-slate-100 pt-6">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
-            Authorized Personnel Demo Bypass
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => switchDemoRole("GOVERNMENT")}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-left hover:border-emerald-300 hover:bg-emerald-50/40 transition-all group"
-            >
-              <Building2 className="h-5 w-5 text-emerald-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 truncate">Gov War Room Officer</p>
-                <p className="text-[10px] text-slate-500 truncate">Shri R. K. Soren (IAS)</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => switchDemoRole("INSTITUTION")}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-left hover:border-purple-300 hover:bg-purple-50/40 transition-all group"
-            >
-              <GraduationCap className="h-5 w-5 text-purple-600 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 truncate">University / Lab</p>
-                <p className="text-[10px] text-slate-500 truncate">Dr. Priya Murmu (BIT)</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
         {/* Back to Home */}
-        <div className="mt-6 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
           <Link to="/" className="inline-flex items-center gap-1 hover:text-emerald-700 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" />
             Return to Public Home

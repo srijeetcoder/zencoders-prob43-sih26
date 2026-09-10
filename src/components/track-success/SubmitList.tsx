@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
+import { Search, MapPin, ChevronRight, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
 import { SUBMISSIONS, CATEGORY_META, STATUS_META, type Status } from "../data/submissions";
+import { citizenApi } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 const FILTER_TABS: { key: "all" | Status; label: string }[] = [
   { key: "all", label: "All" },
@@ -13,10 +15,75 @@ const FILTER_TABS: { key: "all" | Status; label: string }[] = [
 ];
 
 export default function MySubmissionsList() {
+  const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState<"all" | Status>("all");
   const [query, setQuery] = useState("");
+  const [allSubmissions, setAllSubmissions] = useState(SUBMISSIONS);
 
-  const filtered = SUBMISSIONS.filter((s) => {
+  useEffect(() => {
+    let isMounted = true;
+    const loadLiveSubmissions = async () => {
+      const merged = [...SUBMISSIONS];
+
+      // Check local storage submissions from this session
+      try {
+        const local = localStorage.getItem("pookar_user_submissions");
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item: any) => {
+              merged.unshift({
+                id: item.ticketId || item.id || `SUB-${Date.now()}`,
+                psCode: item.ticketId || "JS-2026-LIVE",
+                title: item.title || item.rawDescription || "Citizen Reported Bottleneck",
+                category: "drainage",
+                status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" ? "matched" : "submitted") as Status,
+                submittedOn: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Today",
+                location: item.district ? `${item.district}, Jharkhand` : "Ranchi, Jharkhand",
+                description: item.normalizedText || item.rawDescription || item.text || "Citizen bottleneck logged in state ledger.",
+                progressPercent: 25,
+                team: "National R&D Matching Pool",
+              });
+            });
+          }
+        }
+      } catch {}
+
+      // Fetch from public feed API
+      try {
+        const liveFeed = await citizenApi.getPublicFeed();
+        if (Array.isArray(liveFeed) && liveFeed.length > 0) {
+          liveFeed.forEach((item) => {
+            if (!merged.some((m) => m.id === item.ticketId || m.psCode === item.ticketId)) {
+              merged.push({
+                id: item.ticketId || item.id,
+                psCode: item.ticketId,
+                title: item.title,
+                category: item.domainTags?.[0]?.toLowerCase().includes("water") ? "drainage" : item.domainTags?.[0]?.toLowerCase().includes("fire") ? "fire" : "garbage",
+                status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" || item.status === "BLUEPRINT_GENERATED" ? "matched" : "submitted") as Status,
+                submittedOn: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent",
+                location: `${item.district}, Jharkhand`,
+                description: item.description,
+                progressPercent: item.status === "LAB_MATCHED" ? 60 : 30,
+                team: "Assigned Institutional Desk",
+              });
+            }
+          });
+        }
+      } catch {}
+
+      if (isMounted) {
+        setAllSubmissions(merged);
+      }
+    };
+
+    loadLiveSubmissions();
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const filtered = allSubmissions.filter((s) => {
     const matchesTab = activeTab === "all" || s.status === activeTab;
     const matchesQuery =
       query.trim().length === 0 ||

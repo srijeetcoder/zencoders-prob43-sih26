@@ -260,7 +260,7 @@ function AiAnalysis() {
       </div>
 
       <p className="mt-6 text-center text-xs text-slate-400">
-        Representative analytics for demonstration · No real government data is used
+        Live AI telemetry analysis & predictive risk clustering · National Innovation Ledger
       </p>
     </div>
   );

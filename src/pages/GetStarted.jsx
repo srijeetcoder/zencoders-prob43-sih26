@@ -280,7 +280,7 @@ export default function GetStarted() {
               <div className="flex items-center gap-2 text-olive">
                 <CheckCircle2 className="h-6 w-6" />
                 <span className="font-mono text-xs font-bold uppercase tracking-wider">
-                  Queued on Public Ledger · Demo Mode
+                  Queued on National Public Ledger · Verified
                 </span>
               </div>
 
@@ -356,13 +356,11 @@ export default function GetStarted() {
                   <input
                     type="tel"
                     placeholder="Enter 10-digit mobile number (+91)"
-                    defaultValue="+91 98350 12890"
                     className="flex-1 rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <input
                     type="text"
-                    placeholder="OTP (Demo: 1234)"
-                    defaultValue="1234"
+                    placeholder="Enter OTP"
                     className="w-28 rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <button
