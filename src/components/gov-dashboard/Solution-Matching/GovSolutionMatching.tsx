@@ -1,14 +1,12 @@
 import { useState } from "react";
-import Sidebar from "../components/solution-matching/layout/Sidebar";
-import Header from "../components/solution-matching/layout/Header";
-import SolutionStats from "../components/solution-matching/solution/SolutionStats";
-import FilterPanel from "../components/solution-matching/solution/FilterPanel";
-import SolutionList from "../components/solution-matching/solution/SolutionList";
-import TopMatchedTeam from "../components/solution-matching/teams/TopMatchedTeam";
-import OtherMatchedTeams from "../components/solution-matching/teams/OtherMatchedTeams";
-import { solutions as initialSolutions, filterOptions } from "../data/solutionMatchingData";
+import SolutionStats from "../../solution-matching/solution/SolutionStats";
+import FilterPanel from "../../solution-matching/solution/FilterPanel";
+import SolutionList from "../../solution-matching/solution/SolutionList";
+import TopMatchedTeam from "../../solution-matching/teams/TopMatchedTeam";
+import OtherMatchedTeams from "../../solution-matching/teams/OtherMatchedTeams";
+import { solutions as initialSolutions, filterOptions } from "../../../data/solutionMatchingData";
 
-export default function SolutionMatchingPage() {
+export default function GovSolutionMatching() {
   const [sortBy, setSortBy] = useState("relevance");
   const [filters, setFilters] = useState(JSON.parse(JSON.stringify(filterOptions)));
   const [filteredSolutions, setFilteredSolutions] = useState(initialSolutions);
@@ -97,30 +95,43 @@ export default function SolutionMatchingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <Sidebar />
-      <div className="ml-[240px]">
-        <Header />
-        <main className="p-6 space-y-6">
-          <SolutionStats />
-          <div className="flex gap-6">
-            <FilterPanel
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onReset={handleReset}
-              onApply={handleApply}
-            />
-            <SolutionList
-              solutions={filteredSolutions}
-              sortBy={sortBy}
-              onSortChange={handleSortChange}
-            />
-            <div className="w-[320px] shrink-0 space-y-4">
-              <TopMatchedTeam />
-              <OtherMatchedTeams />
-            </div>
-          </div>
-        </main>
+    <div className="space-y-6 p-6">
+      {/* Page Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#10245e]">
+            Solution & Team Matching
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            AI-powered recommendations connecting citizen challenges with verified research labs, universities, and enterprise innovators across Jharkhand.
+          </p>
+        </div>
+      </div>
+      
+      <SolutionStats />
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full lg:w-64 shrink-0">
+          <FilterPanel
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onReset={handleReset}
+            onApply={handleApply}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <SolutionList
+            solutions={filteredSolutions}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
+          />
+        </div>
+
+        <div className="w-full lg:w-[320px] shrink-0 space-y-4">
+          <TopMatchedTeam />
+          <OtherMatchedTeams />
+        </div>
       </div>
     </div>
   );

@@ -24,6 +24,13 @@ export default function Nav() {
     (link) => !link.roles || link.roles.includes(userRole) || userRole === 'admin'
   )
 
+  const getPortalFeedPath = () => {
+    const role = (user?.role || '').toUpperCase()
+    if (role === 'GOVERNMENT' || role === 'ADMIN') return '/gov'
+    if (role === 'INSTITUTION' || role === 'UNIVERSITY') return '/university-dashboard'
+    return '/main'
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-md shadow-xs">
       <div className="container-page flex h-18 items-center justify-between gap-4">
@@ -64,8 +71,8 @@ export default function Nav() {
           {/* Authenticated Only: Portal Feed */}
           {isAuthenticated && (
             <Link
-              to="/main"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              to={getPortalFeedPath()}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50/70 px-3.5 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-xs"
             >
               <LayoutDashboard className="h-3.5 w-3.5 text-emerald-600" />
               Portal Feed
@@ -200,7 +207,7 @@ export default function Nav() {
                   </button>
                 </div>
                 <Link
-                  to="/main"
+                  to={getPortalFeedPath()}
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full rounded-lg bg-[#047d48] py-2 text-center text-xs font-semibold text-white flex items-center justify-center gap-1.5"
                 >

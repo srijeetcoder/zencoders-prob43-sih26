@@ -10,6 +10,7 @@ import ExploreProblemsPage from "./pages/ExploreProblemsPage";
 import AIAnalysisPage from "./pages/AIAnalysisPage";
 import SolutionMatchingPage from "./pages/SolutionMatchingPage";
 import SmartDrainagePage from "./pages/SmartDrainagePage";
+import PublicSuccessStoriesPage from "./pages/PublicSuccessStoriesPage";
 import GovDashboardPage from "./pages/GovDashboardPage";
 import UniversityDashboardPage from "./pages/UniversityDashboardPage";
 import Homepage from "./pages/Homepage";
@@ -22,6 +23,8 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/explore-problems" element={<ExploreProblemsPage />} />
           <Route path="/problemlist" element={<ExploreProblemsPage />} />
+          <Route path="/successstories" element={<PublicSuccessStoriesPage />} />
+          <Route path="/stories" element={<PublicSuccessStoriesPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/get-started" element={<RegisterPage />} />
           <Route path="/signup" element={<RegisterPage />} />
@@ -51,11 +54,7 @@ function App() {
           />
           <Route
             path="/solution-matching"
-            element={
-              <AuthGuard allowedRoles={["GOVERNMENT", "INSTITUTION", "ADMIN"]} portalName="Government Solution & Innovation Match">
-                <SolutionMatchingPage />
-              </AuthGuard>
-            }
+            element={<Navigate to="/gov/solution-matching" replace />}
           />
           <Route
             path="/smart-drainage"

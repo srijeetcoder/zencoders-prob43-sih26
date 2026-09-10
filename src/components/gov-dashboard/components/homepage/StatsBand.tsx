@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   FileText,
   CheckCircle2,
@@ -5,59 +6,71 @@ import {
   Users,
   MapPinned,
 } from "lucide-react";
-import type { ElementType } from "react";
-
-interface Stat {
-  label: string;
-  value: string;
-  icon: ElementType;
-  iconBg: string;
-  iconColor: string;
-}
-
-const stats: Stat[] = [
-  {
-    label: "Total Case Reports",
-    value: "1,240",
-    icon: FileText,
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-800",
-  },
-  {
-    label: "Cases Resolved",
-    value: "386",
-    icon: CheckCircle2,
-    iconBg: "bg-teal-100",
-    iconColor: "text-teal-800",
-  },
-  {
-    label: "In Progress",
-    value: "512",
-    icon: Wrench,
-    iconBg: "bg-sky-100",
-    iconColor: "text-sky-700",
-  },
-  {
-    label: "Active Volunteers",
-    value: "928",
-    icon: Users,
-    iconBg: "bg-indigo-100",
-    iconColor: "text-indigo-700",
-  },
-  {
-    label: "Districts Covered",
-    value: "24",
-    icon: MapPinned,
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-800",
-  },
-];
+import { governmentApi, type GovernmentStats } from "../../../../services/api";
 
 function StatsBand() {
+  const [stats, setStats] = useState<GovernmentStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    governmentApi.getStats()
+      .then((data) => {
+        if (isMounted) {
+          setStats(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const statItems = [
+    {
+      label: "Total Submissions",
+      value: loading ? "..." : (stats?.totalSubmissions ?? 142).toLocaleString(),
+      icon: FileText,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-800",
+    },
+    {
+      label: "Cases Resolved",
+      value: loading ? "..." : (stats?.resolvedCases ?? 89).toLocaleString(),
+      icon: CheckCircle2,
+      iconBg: "bg-teal-100",
+      iconColor: "text-teal-800",
+    },
+    {
+      label: "Active R&D Projects",
+      value: loading ? "..." : (stats?.activeProjects ?? 38).toLocaleString(),
+      icon: Wrench,
+      iconBg: "bg-sky-100",
+      iconColor: "text-sky-700",
+    },
+    {
+      label: "Partner Institutions",
+      value: loading ? "..." : (stats?.registeredInstitutions ?? 24).toLocaleString(),
+      icon: Users,
+      iconBg: "bg-indigo-100",
+      iconColor: "text-indigo-700",
+    },
+    {
+      label: "Districts Covered",
+      value: "24 / 24",
+      icon: MapPinned,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-800",
+    },
+  ];
+
   return (
     <section className="px-8 pb-8">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {stats.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+        {statItems.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
           <div
             key={label}
             className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-5 py-4 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md"
