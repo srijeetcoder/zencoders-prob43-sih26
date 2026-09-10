@@ -1,95 +1,300 @@
-import { useState } from "react"
-import Input from "./Input"
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Building2,
+  GraduationCap,
+  ArrowRight,
+  Loader2,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
+import { useAuth, type UserRole } from "../../context/AuthContext";
 
 function LoginForm() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-        email : "",
-        password : ""
+    email: "gov.officer@jharkhand.gov.in",
+    password: "••••••••••••",
+  });
+  const [selectedRole, setSelectedRole] = useState<UserRole>("GOVERNMENT");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
     });
+    setError("");
+  }
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleRoleQuickSelect = (role: UserRole) => {
+    setSelectedRole(role);
+    if (role === "GOVERNMENT") {
+      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "••••••••••••" });
+    } else if (role === "INSTITUTION") {
+      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "••••••••••••" });
+    } else if (role === "CITIZEN") {
+      setFormData({ email: "citizen@jharkhand.gov.in", password: "••••••••••••" });
+    } else {
+      setFormData({ email: "admin@jansahyog.gov.in", password: "••••••••••••" });
+    }
+  };
 
-    function handleChange(e) {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value 
-        });
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!formData.email) {
+      setError("Please enter your registered email or official ID.");
+      return;
     }
 
-    function handleSubmit(e) {
-        e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
 
-        if (isSubmitting) return;
-        setIsSubmitting(true);
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password,
+        role: selectedRole,
+      });
 
-        console.log(formData);
+      setSuccess(true);
+      setTimeout(() => {
+        if (selectedRole === "GOVERNMENT") {
+          navigate("/gov-dashboard");
+        } else if (selectedRole === "INSTITUTION") {
+          navigate("/solution-matching");
+        } else {
+          navigate("/main");
+        }
+      }, 700);
+    } catch (err) {
+      setError("Unable to sign in. Please verify your credentials.");
+      setIsSubmitting(false);
     }
-    
-    return (
-        <form onSubmit={handleSubmit} className="
-          relative overflow-hidden
-          flex w-full max-w-md flex-col gap-5
-          rounded-2xl
-          border border-slate-200/80
-          bg-white
-          px-8 py-10
-          shadow-[0_12px_40px_rgba(0,0,0,0.06)]
-        ">
-          {/* Subtle Watermark Background inside the Login Card */}
-          <div 
-            className="pointer-events-none absolute inset-0 flex items-center justify-center select-none z-0"
-            aria-hidden="true"
+  }
+
+  return (
+    <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-7 sm:p-9 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+      {/* Background Official Emblem Watermark */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center select-none z-0"
+        aria-hidden="true"
+      >
+        <img
+          src="/emblem.png"
+          alt="Official Emblem Watermark"
+          className="h-[75%] w-[75%] object-contain opacity-[0.045] filter grayscale"
+        />
+      </div>
+
+      <div className="relative z-10">
+        {/* Top Header Badge */}
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-800">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>National Problem Ledger Portal</span>
+          </div>
+          <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900">
+            Sign In to <span className="text-[#047d48]">PooKar</span>
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Secure multi-stakeholder governance & innovation access
+          </p>
+        </div>
+
+        {/* Quick Role Selector Tabs */}
+        <div className="mb-5 grid grid-cols-3 gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => handleRoleQuickSelect("GOVERNMENT")}
+            className={`rounded-lg py-1.5 transition-all ${
+              selectedRole === "GOVERNMENT"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
-            <img
-              src="/emblem.png"
-              alt="Government Emblem Watermark"
-              className="h-[85%] w-[85%] object-contain opacity-[0.07] filter grayscale transition-opacity duration-300"
-            />
+            🏛️ Gov Desk
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleQuickSelect("INSTITUTION")}
+            className={`rounded-lg py-1.5 transition-all ${
+              selectedRole === "INSTITUTION"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            🎓 University
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleQuickSelect("CITIZEN")}
+            className={`rounded-lg py-1.5 transition-all ${
+              selectedRole === "CITIZEN"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            👤 Citizen
+          </button>
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-700">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>Authentication successful! Redirecting...</span>
+            </div>
+          )}
+
+          {/* Email / ID Input */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">
+              Official Email / User ID
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <Mail className="h-4 w-4" />
+              </div>
+              <input
+                type="text"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="name@gov.in, .ac.in or phone"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
+                required
+              />
+            </div>
           </div>
 
-          {/* Foreground Form Controls */}
-          <div className="relative z-10 flex flex-col gap-5">
-            <span className="whitespace-nowrap font-bold text-sm text-slate-800">
-              Please enter your <span className="text-green-600">credentials</span>
-            </span>
-
-            <Input
-              type="email"
-              name="email"
-              placeholder="Please enter the email..."
-              value={formData.email}
-              onChange={handleChange}
-            />
-
-            <Input
-              type="password"
-              name="password"
-              placeholder="Please enter the password..."
-              value={formData.password}
-              onChange={handleChange}
-            />
-
-            <button type="submit" className="
-              bg-green-500
-              shadow-sm
-              transition-all duration-200 ease-in-out
-              mx-6 my-3 py-2 px-3
-              text-white font-bold font-[14px]
-              hover:bg-white hover:text-green-500 
-              active:scale-95
-              ring-2 ring-green-400
-              rounded-[8px]
-              cursor-pointer
-            "> Submit </button>
-
-            <span className="whitespace-nowrap text-xs text-slate-600">
-              Don't have an account? <Link to="/signup" className="text-green-600 font-bold cursor-pointer hover:underline">Sign up</Link> <br/> 
-              <Link to="/forgetpassword" className="text-green-600 font-bold cursor-pointer hover:underline">Forget Password</Link>
-            </span>
+          {/* Password Input */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700">
+                Security Password / OTP
+              </label>
+              <Link
+                to="/forgetpassword"
+                className="text-xs font-semibold text-[#047d48] hover:text-[#03663a] hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <Lock className="h-4 w-4" />
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter password"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting || success}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#047d48] py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#03663a] active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Verifying credentials...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In to Dashboard</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
         </form>
-    );
+
+        {/* Divider */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200" />
+          </div>
+          <span className="relative bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Or Register on PooKar
+          </span>
+        </div>
+
+        {/* Citizen Quick Register Link */}
+        <div className="text-center text-xs text-slate-600 mb-4">
+          Are you a resident reporting a bottleneck?{" "}
+          <Link
+            to="/register?role=citizen"
+            className="font-bold text-[#047d48] hover:underline"
+          >
+            Register as Citizen
+          </Link>
+        </div>
+
+        {/* Two Dedicated Registration Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <Link
+            to="/register?role=ministry"
+            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
+          >
+            <div className="flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
+                <Building2 className="h-3.5 w-3.5" />
+              </div>
+              <span className="leading-tight text-left">Register as Government</span>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+          </Link>
+
+          <Link
+            to="/register?role=university"
+            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
+          >
+            <div className="flex items-center gap-2">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
+                <GraduationCap className="h-3.5 w-3.5" />
+              </div>
+              <span className="leading-tight text-left">Register as University / Lab</span>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export default LoginForm
+export default LoginForm;

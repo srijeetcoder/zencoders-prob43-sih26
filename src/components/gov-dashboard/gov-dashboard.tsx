@@ -1,15 +1,15 @@
-import ProfileHero from "./ProfileHero.tsx"
-import DashboardStats from "../components/user-dashboard/DashboardStats.tsx"
-import SubmissionBySector from ".SubmissionBySector.tsx" 
-import ProjectProgress from ".Projectprogress.tsx"
-import RecentSubmissions from ".Recentsubmission.tsx"
-import Activeprojects from ".Activeprojects.tsx"
-import Quickaction from ".Quickaction.tsx"
-import Sustainablesolution from ".Sustainablesolution.tsx"
+import ProfileHero from "./ProfileHero";
+import DashboardStats from "./DashboardStats";
+import SubmissionBySector from "./SubmissionBySector";
+import ProjectProgress from "./Projectprogress";
+import RecentSubmissions from "./Recentsubmission";
+import Activeprojects from "./Activeprojects";
+import Quickaction from "./Quickaction";
+import Sustainablesolution from "./Sustainablesolution";
 
 function DashBoard() {
   return (
-    <>
+    <div className="w-full">
       <ProfileHero />
       <DashboardStats />
       
@@ -29,7 +29,8 @@ function DashBoard() {
         <Quickaction />
         <Sustainablesolution />
       </div>
-    </>
+    </div>
   );
 }
 
+export default DashBoard;

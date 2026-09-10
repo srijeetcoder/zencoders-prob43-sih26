@@ -1,6 +1,6 @@
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, Navigate } from "react-router-dom"
 
-// Main page
+// Main page components
 import Sidebar from "../components/homepage/Sidebar.tsx"
 import Navbar from "../components/homepage/Navbar.tsx"
 import Hero from "../components/homepage/Hero.tsx"
@@ -17,9 +17,7 @@ import ProblemSubmission from "../pages/ProblemSubmission.tsx"
 
 // University and Partners
 import University from "../pages/University.tsx"
-
 import SuccessStory from "../pages/SuccessStories.tsx"
-
 import TrackProgress from "../pages/TrackProgress.tsx"
 import SubmissionDetail from "../components/track-success/SubmissionPages.tsx"
 
@@ -45,12 +43,14 @@ function Homepage() {
   return (
     <div className="flex min-h-screen bg-[#f5f9fc]">
       <Sidebar />
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <Navbar />
         <Routes>
+          <Route path="/" element={<Navigate to="/main" replace />} />
           <Route path="/main" element={<MainContent />} />
           <Route path="/userdashboard" element={<UserDasboard />} />
           <Route path="/problem" element={<Problems />} />
+          <Route path="/explore-solutions/:problemId" element={<ProblemDetails />} />
           <Route path="/partners" element={<University />} />
           <Route path="/successstories" element={<SuccessStory />} />
           <Route path="/trackprogress" element={<TrackProgress />} />

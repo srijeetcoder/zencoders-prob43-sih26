@@ -3,6 +3,10 @@ import problemRoutes from './problem.routes';
 import ecosystemRoutes from './ecosystem.routes';
 import simulatorRoutes from './simulator.routes';
 import crawlerRoutes from './crawler.routes';
+import citizenRoutes from './citizen.routes';
+import governmentRoutes from './government.routes';
+import institutionRoutes from './institution.routes';
+import authRoutes from './auth.routes';
 
 const router = Router();
 
@@ -16,7 +20,15 @@ router.get('/health', (req, res) => {
   });
 });
 
-// Mount modular sub-routers
+// Authentication & Identity
+router.use('/auth', authRoutes);
+
+// Portal & Modular Sub-Routers
+router.use('/citizen', citizenRoutes);
+router.use('/government', governmentRoutes);
+router.use('/institution', institutionRoutes);
+
+// Core Processing Sub-Routers
 router.use('/problems', problemRoutes);
 router.use('/ecosystem', ecosystemRoutes);
 router.use('/simulator', simulatorRoutes);

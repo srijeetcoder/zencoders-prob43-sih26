@@ -1,95 +1,110 @@
-type Status = "Planning" | "In Progress" | "Testing" | "Completed";
+import { useEffect, useState } from "react";
+import { governmentApi, type ActiveProject } from "../../services/api";
 
-interface Project {
-  id: string;
-  name: string;
-  thumbnail: string;
-  domain: string;
-  location: string;
-  partner: string;
-  status: Status;
-}
-
-const STATUS_STYLES: Record<Status, string> = {
-  Planning: "bg-blue-50 text-blue-700",
-  "In Progress": "bg-emerald-50 text-emerald-700",
-  Testing: "bg-teal-50 text-teal-700",
-  Completed: "bg-slate-100 text-slate-600",
+const STATUS_STYLES: Record<string, string> = {
+  FIELD_VALIDATION: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  HARDWARE_CALIBRATION: "bg-blue-50 text-blue-700 border-blue-200",
+  DEPLOYED_PILOT: "bg-purple-50 text-purple-700 border-purple-200",
+  PROTOTYPING: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
-const projects: Project[] = [
+const DEFAULT_PROJECTS: ActiveProject[] = [
   {
-    id: "1",
-    name: "Solar Water Purification",
-    thumbnail:
-      "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=100&h=100&fit=crop",
-    domain: "Environment",
-    location: "Purulia, WB",
-    partner: "IIT Kharagpur",
-    status: "In Progress",
+    id: "proj-001",
+    title: "IoT Real-Time Smart Drainage Siltation Telemetry",
+    district: "Ranchi",
+    leadInstitution: "Birsa Institute of Technology (BIT Mesra)",
+    department: "Urban Development & Housing Dept",
+    budgetSanctioned: "₹ 14.8 Lakhs",
+    progressPercentage: 74,
+    readinessScore: 88,
+    status: "FIELD_VALIDATION",
+    hardwareBoMCount: 14,
+    startDate: "2026-07-15",
+    expectedCompletion: "2026-10-30",
   },
   {
-    id: "2",
-    name: "Smart Street Lighting",
-    thumbnail:
-      "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=100&h=100&fit=crop",
-    domain: "Infrastructure",
-    location: "Durgapur, WB",
-    partner: "Jadavpur University",
-    status: "Testing",
+    id: "proj-002",
+    title: "Subsurface Thermal Imaging & Gas Telemetry Grid",
+    district: "Dhanbad",
+    leadInstitution: "IIT (ISM) Dhanbad & CSIR-CIMFR",
+    department: "Dept of Mines & Geology",
+    budgetSanctioned: "₹ 28.5 Lakhs",
+    progressPercentage: 62,
+    readinessScore: 92,
+    status: "HARDWARE_CALIBRATION",
+    hardwareBoMCount: 22,
+    startDate: "2026-06-01",
+    expectedCompletion: "2026-12-15",
   },
   {
-    id: "3",
-    name: "AI-based Crop Disease Detection",
-    thumbnail:
-      "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=100&h=100&fit=crop",
-    domain: "Agriculture",
-    location: "Bankura, WB",
-    partner: "MAKAUT",
-    status: "In Progress",
+    id: "proj-003",
+    title: "Phase-Change Material Solar Cold-Chain Storage",
+    district: "Ramgarh",
+    leadInstitution: "NIT Jamshedpur Clean Energy Lab",
+    department: "Health & Family Welfare Dept",
+    budgetSanctioned: "₹ 9.2 Lakhs",
+    progressPercentage: 81,
+    readinessScore: 85,
+    status: "DEPLOYED_PILOT",
+    hardwareBoMCount: 9,
+    startDate: "2026-05-20",
+    expectedCompletion: "2026-09-30",
   },
   {
-    id: "4",
-    name: "Community Health Kiosk",
-    thumbnail:
-      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=100&h=100&fit=crop",
-    domain: "Healthcare",
-    location: "Malda, WB",
-    partner: "Tata Projects",
-    status: "Planning",
+    id: "proj-004",
+    title: "IoT Water Filtration & Heavy Metal Adsorption Unit",
+    district: "Bokaro",
+    leadInstitution: "Birsa Agricultural University & BIT Sindri",
+    department: "Drinking Water & Sanitation Dept",
+    budgetSanctioned: "₹ 18.0 Lakhs",
+    progressPercentage: 45,
+    readinessScore: 79,
+    status: "PROTOTYPING",
+    hardwareBoMCount: 16,
+    startDate: "2026-08-01",
+    expectedCompletion: "2027-01-20",
   },
 ];
 
 function ActiveProjects() {
+  const [projects, setProjects] = useState<ActiveProject[]>(DEFAULT_PROJECTS);
+
+  useEffect(() => {
+    let isMounted = true;
+    governmentApi.getProjects().then((res) => {
+      if (isMounted && res && res.length > 0) {
+        setProjects(res);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="h-full rounded-xl border border-slate-200 bg-white px-5 py-4 mx-5 my-2 shadow-sm">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900">
-          Active Projects (Recent)
-        </h3>
-        <button
-          type="button"
-          className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-        >
-          View all
-          <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M12.79 5.23a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H3a.75.75 0 010-1.5h12.94l-3.22-3.22a.75.75 0 010-1.06z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">
+            Active Institutional Innovation Pilots
+          </h3>
+          <p className="text-xs text-slate-500">Live academic research projects mapped to Jharkhand state departments</p>
+        </div>
+        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+          {projects.length} Active Deployments
+        </span>
       </div>
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[700px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-100 text-xs font-medium text-slate-500">
-              <th className="pb-2 pr-4 font-medium">Project</th>
-              <th className="pb-2 pr-4 font-medium">Domain</th>
-              <th className="pb-2 pr-4 font-medium">Location</th>
-              <th className="pb-2 pr-4 font-medium">Partner</th>
+              <th className="pb-2 pr-4 font-medium">Pilot Project</th>
+              <th className="pb-2 pr-4 font-medium">District</th>
+              <th className="pb-2 pr-4 font-medium">Lead Academic Partner</th>
+              <th className="pb-2 pr-4 font-medium">Budget</th>
+              <th className="pb-2 pr-4 font-medium">Progress</th>
               <th className="pb-2 font-medium">Status</th>
             </tr>
           </thead>
@@ -97,34 +112,43 @@ function ActiveProjects() {
             {projects.map((project) => (
               <tr
                 key={project.id}
-                className="border-b border-slate-50 last:border-0"
+                className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50"
               >
                 <td className="py-3 pr-4">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={project.thumbnail}
-                      alt=""
-                      className="h-9 w-9 shrink-0 rounded-lg object-cover"
-                    />
+                  <div>
                     <span className="font-medium text-slate-900">
-                      {project.name}
+                      {project.title}
+                    </span>
+                    <p className="text-xs text-slate-400">{project.department}</p>
+                  </div>
+                </td>
+                <td className="py-3 pr-4 font-medium text-slate-700">{project.district}</td>
+                <td className="py-3 pr-4 text-xs text-slate-600">
+                  {project.leadInstitution}
+                </td>
+                <td className="py-3 pr-4 text-xs font-semibold text-slate-800">
+                  {project.budgetSanctioned}
+                </td>
+                <td className="py-3 pr-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-20 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full"
+                        style={{ width: `${project.progressPercentage}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-slate-600">
+                      {project.progressPercentage}%
                     </span>
                   </div>
                 </td>
-                <td className="py-3 pr-4 text-slate-600">{project.domain}</td>
-                <td className="py-3 pr-4 text-slate-600">
-                  {project.location}
-                </td>
-                <td className="py-3 pr-4 text-slate-600">
-                  {project.partner}
-                </td>
                 <td className="py-3">
                   <span
-                    className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-                      STATUS_STYLES[project.status]
+                    className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                      STATUS_STYLES[project.status] || "bg-slate-100 text-slate-700 border-slate-200"
                     }`}
                   >
-                    {project.status}
+                    {project.status.replace(/_/g, " ")}
                   </span>
                 </td>
               </tr>

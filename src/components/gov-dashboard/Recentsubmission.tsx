@@ -1,140 +1,114 @@
-import { MapPin, HeartPulse, Trash2, BookOpen, Sprout } from "lucide-react";
-import type { ElementType } from "react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, MapPin, HeartPulse, Trash2, ShieldAlert, Clock } from "lucide-react";
+import { governmentApi, type EscalationQueueItem } from "../../services/api";
 
-type Category =
-  | "Infrastructure"
-  | "Healthcare"
-  | "Environment"
-  | "Education"
-  | "Agriculture";
-
-interface Submission {
-  id: string;
-  title: string;
-  location: string;
-  timeAgo: string;
-  category: Category;
-  icon: ElementType;
-}
-
-const CATEGORY_STYLES: Record<Category, { badge: string; iconBg: string; iconColor: string }> = {
-  Infrastructure: {
-    badge: "bg-blue-50 text-blue-700",
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-  },
-  Healthcare: {
-    badge: "bg-rose-50 text-rose-700",
-    iconBg: "bg-rose-50",
-    iconColor: "text-rose-600",
-  },
-  Environment: {
-    badge: "bg-emerald-50 text-emerald-700",
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-  },
-  Education: {
-    badge: "bg-purple-50 text-purple-700",
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
-  },
-  Agriculture: {
-    badge: "bg-amber-50 text-amber-700",
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
-  },
-};
-
-const submissions: Submission[] = [
+const DEFAULT_ESCALATIONS: EscalationQueueItem[] = [
   {
-    id: "1",
-    title: "Water logging in Ward 12",
-    location: "Kolkata, West Bengal",
-    timeAgo: "2 hours ago",
-    category: "Infrastructure",
-    icon: MapPin,
+    id: "esc-001",
+    ticketId: "JS-2026-9041",
+    title: "Jharia Coalfield Sector 4 Subsurface Thermal Breach",
+    district: "Dhanbad",
+    department: "Dept of Mines & Geology / CSIR-CIMFR",
+    priority: "CRITICAL",
+    slaDeadlineHours: 6,
+    status: "DISPATCHED_TO_CIMFR",
+    detectedDialect: "Khortha",
+    reportedHoursAgo: 3.2,
   },
   {
-    id: "2",
-    title: "Lack of primary healthcare center",
-    location: "Jalpaiguri, West Bengal",
-    timeAgo: "5 hours ago",
-    category: "Healthcare",
-    icon: HeartPulse,
+    id: "esc-002",
+    ticketId: "JS-2026-8812",
+    title: "Harmu River Conduit Choking & Backflow Risk",
+    district: "Ranchi",
+    department: "RMC Municipal Flood Cell",
+    priority: "CRITICAL",
+    slaDeadlineHours: 12,
+    status: "FIELD_PILOT_ACTIVE",
+    detectedDialect: "Nagpuri",
+    reportedHoursAgo: 5.8,
   },
   {
-    id: "3",
-    title: "Waste management in local market",
-    location: "Siliguri, West Bengal",
-    timeAgo: "1 day ago",
-    category: "Environment",
-    icon: Trash2,
-  },
-  {
-    id: "4",
-    title: "Need for smart classrooms",
-    location: "Howrah, West Bengal",
-    timeAgo: "1 day ago",
-    category: "Education",
-    icon: BookOpen,
-  },
-  {
-    id: "5",
-    title: "Irrigation support for farmers",
-    location: "Bankura, West Bengal",
-    timeAgo: "2 days ago",
-    category: "Agriculture",
-    icon: Sprout,
+    id: "esc-003",
+    ticketId: "JS-2026-6192",
+    title: "Chitarpur Rural Health Sub-center Vaccine Cold-Storage Outage",
+    district: "Ramgarh",
+    department: "Dept of Health & Family Welfare",
+    priority: "HIGH",
+    slaDeadlineHours: 18,
+    status: "LAB_MATCHED",
+    detectedDialect: "Hinglish",
+    reportedHoursAgo: 8.4,
   },
 ];
 
 function RecentSubmissions() {
+  const [escalations, setEscalations] = useState<EscalationQueueItem[]>(DEFAULT_ESCALATIONS);
+
+  useEffect(() => {
+    let isMounted = true;
+    governmentApi.getEscalations().then((res) => {
+      if (isMounted && res && res.escalationQueue && res.escalationQueue.length > 0) {
+        setEscalations(res.escalationQueue);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="h-full rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900">
-          Recent Submissions
-        </h3>
-        <button
-          type="button"
-          className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-        >
-          View all
-          <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M12.79 5.23a.75.75 0 011.06 0l4.5 4.5a.75.75 0 010 1.06l-4.5 4.5a.75.75 0 11-1.06-1.06l3.22-3.22H3a.75.75 0 010-1.5h12.94l-3.22-3.22a.75.75 0 010-1.06z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-rose-600" />
+          <h3 className="text-base font-semibold text-slate-900">
+            Priority Escalations Queue
+          </h3>
+        </div>
+        <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
+          Live Hazard Queue
+        </span>
       </div>
 
       <ul className="mt-3 divide-y divide-slate-100">
-        {submissions.map(({ id, title, location, timeAgo, category, icon: Icon }) => {
-          const style = CATEGORY_STYLES[category];
+        {escalations.map((item) => {
+          const isCritical = item.priority === "CRITICAL";
           return (
-            <li key={id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+            <li key={item.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.iconBg}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                  isCritical ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"
+                }`}
               >
-                <Icon className={`h-4.5 w-4.5 ${style.iconColor}`} />
+                <AlertTriangle className="h-4.5 w-4.5" />
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">
-                  {title}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-slate-900">
+                    {item.title}
+                  </p>
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-600">
+                    {item.ticketId}
+                  </span>
+                </div>
                 <p className="mt-0.5 truncate text-xs text-slate-500">
-                  {location} &middot; {timeAgo}
+                  {item.district} &bull; {item.department} &bull; {item.reportedHoursAgo}h ago
                 </p>
               </div>
 
-              <span
-                className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${style.badge}`}
-              >
-                {category}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    isCritical ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {item.priority}
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <Clock className="h-3 w-3" /> SLA: {item.slaDeadlineHours}h
+                </span>
+              </div>
             </li>
           );
         })}
@@ -144,3 +118,4 @@ function RecentSubmissions() {
 }
 
 export default RecentSubmissions;
+

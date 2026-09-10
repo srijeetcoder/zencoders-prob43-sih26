@@ -70,9 +70,21 @@ export function UserProblems({ problems, onViewAll }: UserProblemsProps) {
 
       {/* List */}
       {problems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-6 text-center">
-          <Inbox className="mb-2 h-5 w-5 text-slate-300" />
-          <p className="text-xs font-medium text-slate-500">No problems submitted</p>
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-xl bg-slate-50/70 border border-dashed border-slate-200">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-700 mb-3">
+            <Inbox className="h-6 w-6" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800">No Problems Submitted Yet</h4>
+          <p className="mt-1 text-xs text-slate-500 max-w-sm leading-relaxed">
+            You haven't logged any societal bottlenecks or civic challenges on the public ledger.
+          </p>
+          <a
+            href="/problem"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#148554] hover:bg-[#0e6c43] px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all"
+          >
+            <span>Report Your First Problem</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </a>
         </div>
       ) : (
         <ul className="space-y-2">

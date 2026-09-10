@@ -7,7 +7,7 @@ function Hero() {
 
         <div className="max-w-2xl">
           <p className="mb-3 text-sm font-medium text-emerald-600">
-            Welcome to Pukaar
+            Welcome to PooKar
           </p>
 
           <h1 className="text-4xl font-bold leading-tight text-[#10245e]">
@@ -21,7 +21,7 @@ function Hero() {
             to build a better community.
           </p>
 
-          <Link to="/userdashboard"
+          <Link to="/problem"
             className="
               mt-6 rounded-xl
               bg-emerald-600

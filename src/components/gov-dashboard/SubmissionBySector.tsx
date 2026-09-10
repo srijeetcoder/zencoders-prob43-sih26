@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -5,28 +6,33 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { governmentApi, type SectorItem } from "../../services/api";
 
-const totalProblems = 1240;
-
-const sectorData = [
-  { name: "Infrastructure", value: 28 },
-  { name: "Environment", value: 22 },
-  { name: "Healthcare", value: 15 },
-  { name: "Education", value: 12 },
-  { name: "Agriculture", value: 10 },
-  { name: "Others", value: 13 },
-];
-
-const sectorColors = [
-  "#4A90E2",
-  "#45B98A",
-  "#E95B5B",
-  "#F5B94C",
-  "#D98B7A",
-  "#8B7BC8",
+const DEFAULT_SECTORS: SectorItem[] = [
+  { name: "Water & Urban Drainage", count: 48, percentage: 33.8, status: "HIGH_ATTENTION", color: "#0284c7" },
+  { name: "Mining Safety & Geo-Hazards", count: 32, percentage: 22.5, status: "CRITICAL", color: "#ea580c" },
+  { name: "Rural Health & Cold Chain", count: 26, percentage: 18.3, status: "MODERATE", color: "#16a34a" },
+  { name: "Renewable Microgrids & Power", count: 21, percentage: 14.8, status: "NORMAL", color: "#eab308" },
+  { name: "Agri-Forestry & Livelihood", count: 15, percentage: 10.6, status: "STABLE", color: "#8b5cf6" },
 ];
 
 function SubmissionsBySector() {
+  const [sectors, setSectors] = useState<SectorItem[]>(DEFAULT_SECTORS);
+
+  useEffect(() => {
+    let isMounted = true;
+    governmentApi.getSectors().then((res) => {
+      if (isMounted && res && res.length > 0) {
+        setSectors(res);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalCount = sectors.reduce((acc, curr) => acc + curr.count, 0);
+
   return (
     <div className="h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -34,11 +40,9 @@ function SubmissionsBySector() {
           Problem Submissions by Sector
         </h2>
 
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 outline-none">
-          <option>Last 6 Months</option>
-          <option>Last Month</option>
-          <option>This Year</option>
-        </select>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+          Live State Intake
+        </span>
       </div>
 
       <div className="flex items-center justify-between">
@@ -46,19 +50,19 @@ function SubmissionsBySector() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={sectorData}
-                dataKey="value"
+                data={sectors}
+                dataKey="percentage"
                 nameKey="name"
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
                 outerRadius={85}
-                paddingAngle={1}
+                paddingAngle={2}
               >
-                {sectorData.map((_, index) => (
+                {sectors.map((entry, index) => (
                   <Cell
                     key={index}
-                    fill={sectorColors[index]}
+                    fill={entry.color || "#0284c7"}
                   />
                 ))}
               </Pie>
@@ -69,34 +73,34 @@ function SubmissionsBySector() {
 
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xl font-bold text-slate-900">
-              {totalProblems.toLocaleString()}
+              {totalCount}
             </span>
 
             <span className="text-xs text-slate-500">
-              Total
+              Total Intake
             </span>
           </div>
         </div>
 
-        <div className="mr-4 flex flex-col gap-3">
-          {sectorData.map((sector, index) => (
+        <div className="mr-4 flex flex-col gap-2.5">
+          {sectors.map((sector) => (
             <div
               key={sector.name}
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-xs"
             >
               <span
-                className="h-3 w-3 rounded-full"
+                className="h-2.5 w-2.5 rounded-full"
                 style={{
-                  backgroundColor: sectorColors[index],
+                  backgroundColor: sector.color || "#0284c7",
                 }}
               />
 
-              <span className="w-28 text-slate-600">
+              <span className="w-36 truncate text-slate-600">
                 {sector.name}
               </span>
 
-              <span className="font-medium text-slate-700">
-                {sector.value}%
+              <span className="font-semibold text-slate-800">
+                {sector.percentage}%
               </span>
             </div>
           ))}
@@ -107,3 +111,4 @@ function SubmissionsBySector() {
 }
 
 export default SubmissionsBySector;
+

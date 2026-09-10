@@ -1,33 +1,27 @@
 import { MapPin, Clock, ArrowRight } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import GoogleHazardMap from "../maps/GoogleHazardMap";
 
-L.Marker.prototype.options.icon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-/* Dummy Data */
 const problems = [
   {
-    title: "Pothole on Main Road",
-    location: "Salt Lake, Sector V",
+    title: "Harmu River Urban Drainage Siltation & Overflow",
+    location: "Ranchi, Jharkhand",
     time: "2 hours ago",
+    status: "Active Triage",
+    district: "Ranchi",
   },
   {
-    title: "Street Light Not Working",
-    location: "College More",
-    time: "5 hours ago",
+    title: "Subsurface Thermal Breach in Jharia Coalfield Sector 4",
+    location: "Dhanbad, Jharkhand",
+    time: "4 hours ago",
+    status: "Dispatched to CIMFR",
+    district: "Dhanbad",
   },
   {
-    title: "Garbage Collection Issue",
-    location: "Karunamoyee",
-    time: "Yesterday",
+    title: "Vaccine Cold-Chain Storage Outage at PHC",
+    location: "Ramgarh, Jharkhand",
+    time: "6 hours ago",
+    status: "Lab Matched",
+    district: "Ramgarh",
   },
 ];
 
@@ -37,11 +31,11 @@ function ProblemsNearYou() {
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-[#10245e]">
-            Problems Near You
+            District Hazard Grid & Problems Near You
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            See what's happening around your community
+            Live Google Maps telemetry across 24 Jharkhand state districts
           </p>
         </div>
 
@@ -51,40 +45,9 @@ function ProblemsNearYou() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-        <div className="relative h-[360px] overflow-hidden rounded-3xl border border-slate-200 bg-emerald-50">
-
-          <MapContainer
-            center={[22.5762, 88.3639]}
-            zoom={13}
-            zoomControl={false}
-            className="h-full w-full"
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            <Marker position={[22.5762, 88.3639]}>
-            <Popup>
-              Pothole on Main Road
-            </Popup>
-            </Marker>
-          </MapContainer>
-
-          <button
-            className="
-              absolute bottom-4 right-4
-              rounded-xl bg-white
-              px-4 py-2 z-[1000]
-              text-sm font-medium
-              text-[#10245e]
-              shadow-sm
-              hover:bg-slate-50
-            "
-          >
-            Use my location
-          </button>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-start">
+        <div>
+          <GoogleHazardMap height="360px" showFilters={false} />
         </div>
 
         <div className="space-y-3">
@@ -102,7 +65,6 @@ function ProblemsNearYou() {
               "
             >
               <div className="flex items-start justify-between gap-4">
-
                 <div>
                   <h3 className="font-semibold text-[#10245e]">
                     {problem.title}
@@ -119,18 +81,17 @@ function ProblemsNearYou() {
                   </div>
                 </div>
 
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-600">
-                  Open
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                  {problem.status}
                 </span>
-
               </div>
             </div>
           ))}
         </div>
-
       </div>
     </section>
   );
 }
 
 export default ProblemsNearYou;
+

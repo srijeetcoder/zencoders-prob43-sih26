@@ -63,7 +63,11 @@ function OverallProgress({ submission, lastUpdated }: OverallProgressProps) {
                       : "bg-slate-200 text-slate-400"
                   }`}
                 >
-                  {isDone ? <Check className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
+                  {isDone ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Settings className={`h-4 w-4 ${isCurrent ? "animate-spin" : ""}`} />
+                  )}
                 </div>
                 <div
                   className={

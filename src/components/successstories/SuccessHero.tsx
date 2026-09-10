@@ -30,7 +30,7 @@ export default function SuccessHero() {
           <div className="relative h-44 w-full flex-shrink-0 overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm lg:w-80">
             <div className="flex h-full flex-col justify-between">
               <div>
-                <span className="text-xs font-medium text-emerald-600">Pukaar Vision</span>
+                <span className="text-xs font-medium text-emerald-600">PooKar Vision</span>
                 <p className="mt-1 text-xs italic text-slate-600">
                   "Innovation in governance today, a stronger community tomorrow."
                 </p>
