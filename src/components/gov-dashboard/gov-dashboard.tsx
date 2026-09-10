@@ -1,11 +1,11 @@
-import ProfileHero from "../components/user-dashboard/ProfileHero.tsx"
+import ProfileHero from "./ProfileHero.tsx"
 import DashboardStats from "../components/user-dashboard/DashboardStats.tsx"
-import SubmissionBySector from "../components/user-dashboard/SubmissionBySector.tsx" 
-import ProjectProgress from "../components/user-dashboard/Projectprogress.tsx"
-import RecentSubmissions from "../components/user-dashboard/Recentsubmission.tsx"
-import Activeprojects from "../components/user-dashboard/Activeprojects.tsx"
-import Quickaction from "../components/user-dashboard/Quickaction.tsx"
-import Sustainablesolution from "../components/user-dashboard/Sustainablesolution.tsx"
+import SubmissionBySector from ".SubmissionBySector.tsx" 
+import ProjectProgress from ".Projectprogress.tsx"
+import RecentSubmissions from ".Recentsubmission.tsx"
+import Activeprojects from ".Activeprojects.tsx"
+import Quickaction from ".Quickaction.tsx"
+import Sustainablesolution from ".Sustainablesolution.tsx"
 
 function DashBoard() {
   return (

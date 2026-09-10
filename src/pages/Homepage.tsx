@@ -20,6 +20,9 @@ import University from "../pages/University.tsx"
 
 import SuccessStory from "../pages/SuccessStories.tsx"
 
+import TrackProgress from "../pages/TrackProgress.tsx"
+import SubmissionDetail from "../components/track-success/SubmissionPages.tsx"
+
 function MainContent() {
   return (
     <>
@@ -38,14 +41,6 @@ function Problems() {
   );
 }
 
-function Partner() {
-  return (
-    <>
-      <University />
-    </>
-  );
-}
-
 function Homepage() {
   return (
     <div className="flex min-h-screen bg-[#f5f9fc]">
@@ -56,8 +51,10 @@ function Homepage() {
           <Route path="/main" element={<MainContent />} />
           <Route path="/userdashboard" element={<UserDasboard />} />
           <Route path="/problem" element={<Problems />} />
-          <Route path="/partners" element={<Partner />} />
+          <Route path="/partners" element={<University />} />
           <Route path="/successstories" element={<SuccessStory />} />
+          <Route path="/trackprogress" element={<TrackProgress />} />
+          <Route path="/trackprogress/:id" element={<SubmissionDetail />} />
         </Routes>
       </div>
     </div>
