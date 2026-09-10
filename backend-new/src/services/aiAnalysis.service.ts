@@ -105,7 +105,13 @@ You MUST respond strictly with a valid JSON object matching this schema:
 
     // 4. Deterministic Negative BoM Guard
     const bomResult = bomGuard.validateBom(domain, parsedOutput.bom);
-    parsedOutput.bom = bomResult.sanitizedBom;
+    parsedOutput.bom = bomResult.sanitizedBom.map((item) => ({
+      item: item.item,
+      justification: item.justification || 'Domain validated BoM item',
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      totalCost: item.totalCost,
+    }));
 
     // 5. Persist analysis to PostgreSQL ai_analysis table
     try {

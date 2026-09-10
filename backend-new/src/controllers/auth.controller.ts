@@ -32,12 +32,12 @@ export class AuthController {
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN }
+        { expiresIn: (env.JWT_EXPIRES_IN || '7d') as any }
       );
       const refreshToken = jwt.sign(
         { userId: user.id },
         env.JWT_SECRET,
-        { expiresIn: '30d' }
+        { expiresIn: '30d' as any }
       );
 
       await authRepo.updateRefreshToken(user.id, refreshToken);
@@ -89,12 +89,12 @@ export class AuthController {
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN }
+        { expiresIn: (env.JWT_EXPIRES_IN || '7d') as any }
       );
       const refreshToken = jwt.sign(
         { userId: user.id },
         env.JWT_SECRET,
-        { expiresIn: '30d' }
+        { expiresIn: '30d' as any }
       );
 
       await authRepo.updateRefreshToken(user.id, refreshToken);
@@ -102,7 +102,7 @@ export class AuthController {
       await auditRepo.log({
         user_id: user.id,
         role: user.role,
-        action: 'USER_LOGIN',
+        action: 'USER_LOGGED_IN',
         resource_type: 'USER',
         resource_id: user.id,
         ip_address: req.ip,
@@ -126,7 +126,7 @@ export class AuthController {
     }
   }
 
-  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { refreshToken } = req.body;
       if (!refreshToken) {
@@ -142,7 +142,7 @@ export class AuthController {
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN }
+        { expiresIn: (env.JWT_EXPIRES_IN || '7d') as any }
       );
 
       sendSuccess(res, { token });
