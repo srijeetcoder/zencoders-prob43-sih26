@@ -126,6 +126,10 @@ export class AuthController {
     }
   }
 
+  async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+    return this.refreshToken(req, res, next);
+  }
+
   async refreshToken(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { refreshToken } = req.body;
