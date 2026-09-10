@@ -15,10 +15,10 @@ import buildingSilhouette from "../assets/ss.png";
 const menuItems = [
   { name: "Home", icon: Home, path: "/main" },
   { name: "Report a Problem", icon: FilePlus2, path: "/problem" },
-  { name: "Track Progress", icon: Activity, path: "/main" },
+  { name: "Track Progress", icon: Activity, path: "/trackprogress" },
   { name: "Success Stories", icon: Trophy, path: "/successstories" },
   { name: "University and Partners", icon: University, path: "/partners" },
-  { name: "Settings", icon: Settings, path: "/userdashboard" },
+  { name: "Settings", icon: Settings, path: "/settings" },
 ];
 
 function Sidebar() {
