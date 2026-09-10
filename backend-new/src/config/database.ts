@@ -1,4 +1,4 @@
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { env } from './env';
 
 const isCloudDb = Boolean(
@@ -15,6 +15,10 @@ export const pool = new Pool(
     ? {
         connectionString: env.DATABASE_URL,
         ssl: isCloudDb || env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        min: env.PG_POOL_MIN,
+        max: env.PG_POOL_MAX,
+        idleTimeoutMillis: env.PG_IDLE_TIMEOUT,
+        connectionTimeoutMillis: env.PG_CONNECTION_TIMEOUT,
       }
     : {
         host: env.DB_HOST,
@@ -22,18 +26,19 @@ export const pool = new Pool(
         user: env.DB_USER,
         password: env.DB_PASSWORD,
         database: env.DB_NAME,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        min: env.PG_POOL_MIN,
+        max: env.PG_POOL_MAX,
+        idleTimeoutMillis: env.PG_IDLE_TIMEOUT,
+        connectionTimeoutMillis: env.PG_CONNECTION_TIMEOUT,
       }
 );
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle PostgreSQL client:', err);
+  console.error('[PostgreSQL Pool] Unexpected error on idle client:', err);
 });
 
 /**
- * Helper to format numeric array to pgvector string literal e.g. '[0.0123, 0.456, ...]'
+ * Formats a numeric array into pgvector literal e.g. '[0.0123, 0.456, ...]'
  */
 export function formatVector(vector: number[]): string {
   return `[${vector.join(',')}]`;
@@ -49,57 +54,63 @@ export async function query<T extends QueryResultRow = any>(
   const start = Date.now();
   const res = await pool.query<T>(text, params);
   const duration = Date.now() - start;
+  if (duration > 1000) {
+    console.warn(`[Slow Query] (${duration}ms): ${text.slice(0, 100)}...`);
+  }
   return res;
+}
+
+/**
+ * Execute a sequence of queries within a single ACID transaction
+ */
+export async function withTransaction<T>(
+  callback: (client: PoolClient) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Health check for database connectivity
+ */
+export async function checkDatabaseHealth(): Promise<{ status: 'healthy' | 'unhealthy'; latencyMs: number; error?: string }> {
+  const start = Date.now();
+  try {
+    const res = await pool.query('SELECT 1 AS healthy;');
+    const latencyMs = Date.now() - start;
+    if (res.rows[0]?.healthy === 1) {
+      return { status: 'healthy', latencyMs };
+    }
+    return { status: 'unhealthy', latencyMs, error: 'Invalid response from DB' };
+  } catch (err: any) {
+    return { status: 'unhealthy', latencyMs: Date.now() - start, error: err.message };
+  }
 }
 
 let schemaChecked = false;
 /**
- * Automatically ensures pgvector extension & tables are configured to vector(768) with HNSW indices.
+ * Automatically ensures pgvector extension & core tables are configured to vector(768) with HNSW indices.
  */
 export async function ensurePgvectorSchema768(): Promise<void> {
   if (schemaChecked) return;
   try {
-    // 1. Enable pgvector extension
     try {
       await query(`CREATE EXTENSION IF NOT EXISTS vector;`);
+      await query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
     } catch {}
-
-    // 2. Create innovation_memory table if not existing
-    await query(`
-      CREATE TABLE IF NOT EXISTS innovation_memory (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        title TEXT NOT NULL,
-        problem_summary TEXT,
-        solution_summary TEXT,
-        outcome TEXT,
-        domain TEXT,
-        source_url TEXT,
-        raw_content TEXT,
-        credibility_score NUMERIC DEFAULT 85,
-        audit_details JSONB,
-        embedding vector(768),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 3. Ensure columns and types match 768 dimensions
-    await query(`
-      ALTER TABLE innovation_memory ALTER COLUMN embedding TYPE vector(768);
-      ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS credibility_score NUMERIC DEFAULT 85;
-      ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS source_url TEXT;
-      ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS raw_content TEXT;
-      ALTER TABLE innovation_memory ADD COLUMN IF NOT EXISTS audit_details JSONB;
-    `);
-
-    // 4. Ensure HNSW index
-    await query(`
-      CREATE INDEX IF NOT EXISTS innovation_memory_embedding_hnsw_idx 
-      ON innovation_memory USING hnsw (embedding vector_cosine_ops)
-      WITH (m = 16, ef_construction = 64);
-    `);
-
     schemaChecked = true;
   } catch (err: any) {
     schemaChecked = true;
   }
 }
+

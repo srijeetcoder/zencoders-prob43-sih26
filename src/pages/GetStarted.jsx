@@ -4,6 +4,7 @@ import Nav from '../components/landing/Nav'
 import Footer from '../components/landing/Footer'
 import { LedgerMark } from '../components/landing/Figures'
 import { citizenApi } from '../services/api'
+import { INDIA_STATES_DISTRICTS } from '../data/indiaStatesDistricts'
 import {
   User,
   Landmark,
@@ -102,14 +103,21 @@ export default function GetStarted() {
   const [actor, setActor] = useState('citizen')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
-  const [district, setDistrict] = useState('')
-  const [state, setState] = useState('')
+  const [district, setDistrict] = useState('Ranchi')
+  const [state, setState] = useState('Jharkhand')
   const [urgency, setUrgency] = useState('High')
   const [tried, setTried] = useState('')
   const [beneficiaries, setBeneficiaries] = useState('')
   const [skillsNeeded, setSkillsNeeded] = useState('')
   const [submittedData, setSubmittedData] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const availableDistricts =
+    INDIA_STATES_DISTRICTS.find((s) => s.state === state)?.districts || [
+      'Ranchi',
+      'Dhanbad',
+      'Bokaro',
+    ]
 
   const activeActor = ACTORS.find((a) => a.id === actor) || ACTORS[0]
 
@@ -533,33 +541,42 @@ export default function GetStarted() {
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <label htmlFor="prob-district" className="text-xs font-bold uppercase tracking-wider text-ink-3">
-                            District / Block *
-                          </label>
-                          <input
-                            id="prob-district"
-                            type="text"
-                            required
-                            value={district}
-                            onChange={(e) => setDistrict(e.target.value)}
-                            placeholder="e.g. Jhansi, Babina Block"
-                            className="mt-1.5 w-full rounded-xl border border-line bg-paper-2 px-4 py-3 text-xs sm:text-sm text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
                           <label htmlFor="prob-state" className="text-xs font-bold uppercase tracking-wider text-ink-3">
                             State / UT *
                           </label>
-                          <input
+                          <select
                             id="prob-state"
-                            type="text"
-                            required
                             value={state}
-                            onChange={(e) => setState(e.target.value)}
-                            placeholder="e.g. Uttar Pradesh"
-                            className="mt-1.5 w-full rounded-xl border border-line bg-paper-2 px-4 py-3 text-xs sm:text-sm text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
-                          />
+                            onChange={(e) => {
+                              const newState = e.target.value;
+                              setState(newState);
+                              const matched = INDIA_STATES_DISTRICTS.find((s) => s.state === newState);
+                              setDistrict(matched?.districts[0] || '');
+                            }}
+                            className="mt-1.5 w-full rounded-xl border border-line bg-paper-2 px-3 py-3 text-xs text-ink focus:border-accent focus:outline-none"
+                          >
+                            {INDIA_STATES_DISTRICTS.map((item) => (
+                              <option key={item.state} value={item.state}>
+                                {item.state} {item.hindiName ? `· ${item.hindiName}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label htmlFor="prob-district" className="text-xs font-bold uppercase tracking-wider text-ink-3">
+                            District / Region *
+                          </label>
+                          <select
+                            id="prob-district"
+                            value={district}
+                            onChange={(e) => setDistrict(e.target.value)}
+                            className="mt-1.5 w-full rounded-xl border border-line bg-paper-2 px-3 py-3 text-xs text-ink focus:border-accent focus:outline-none"
+                          >
+                            {availableDistricts.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>

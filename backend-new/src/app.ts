@@ -1,31 +1,79 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import routes from './routes';
+import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
+import { generalLimiter } from './middleware/rateLimiter';
 
 export function createApp(): Application {
   const app = express();
 
-  // Core Middleware
-  app.use(cors());
+  // 1. Security Headers (Rule 40)
+  app.use(helmet({
+    contentSecurityPolicy: false, // Compatible with React client assets
+    crossOriginEmbedderPolicy: false,
+  }));
+
+  // 2. CORS (Rule 40)
+  const allowedOrigins = env.CORS_ORIGINS === '*' ? '*' : env.CORS_ORIGINS.split(',').map((o) => o.trim());
+  app.use(
+    cors({
+      origin: allowedOrigins,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    })
+  );
+
+  // 3. Request ID & Structured Request Logging (Rule 62)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const reqId = (req.headers['x-request-id'] as string) || `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    (req as any).requestId = reqId;
+    res.setHeader('X-Request-Id', reqId);
+
+    const startTime = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      if (req.originalUrl !== '/api/health') {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} | ${res.statusCode} | ${duration}ms | ${reqId}`);
+      }
+    });
+
+    next();
+  });
+
+  // 4. Body Parsers & General Rate Limiting
+  app.use(generalLimiter);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // API Routes
+  // 5. API Routes
   app.use('/api', routes);
+  app.use('/api/v1', routes);
+  app.use('/health', (req, res, next) => {
+    // Top level /health fallback
+    req.url = '/health';
+    routes(req, res, next);
+  });
 
-  // 404 Handler
-  app.use((req, res) => {
+  // 6. 404 Handler
+  app.use((req: Request, res: Response) => {
     res.status(404).json({
       success: false,
-      error: `Endpoint not found: ${req.method} ${req.originalUrl}`,
+      error: {
+        code: 'NOT_FOUND',
+        message: `Endpoint not found: ${req.method} ${req.originalUrl}`,
+      },
+      requestId: (req as any).requestId,
     });
   });
 
-  // Global Error Handler
+  // 7. Global Centralized Error Handler
   app.use(errorHandler);
 
   return app;
 }
 
 export const app = createApp();
+

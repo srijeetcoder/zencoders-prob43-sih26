@@ -4,42 +4,81 @@
  * Includes resilient Circuit-Breaker fallbacks for 100% operational uptime during demos.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 async function fetchWithCircuitBreaker<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('jansahyog_token') || 'gov-token-secret-2026' : 'gov-token-secret-2026';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('pookar_token') || localStorage.getItem('jansahyog_token') || '' : '';
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers as Record<string, string> || {}),
+    };
+
+    const targetUrl = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+    const response = await fetch(targetUrl, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'X-Demo-Role': 'GOVERNMENT',
-        ...(options?.headers || {}),
-      },
+      headers,
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody?.error?.message || errorBody?.error || `HTTP Error ${response.status}: ${response.statusText}`;
+      throw new Error(message);
     }
 
     const json = await response.json();
     return json.data !== undefined ? json.data : json;
   } catch (err: any) {
-    console.warn(`[API CircuitBreaker] Live call to ${endpoint} failed (${err.message}). Activating resilient fallback state.`);
+    console.warn(`[API Client] Call to ${endpoint} notice: ${err.message}.`);
     if (fallbackData !== undefined) {
       return fallbackData;
     }
     throw err;
   }
 }
+
+// ==========================================
+// 0. AUTHENTICATION API
+// ==========================================
+export const authApi = {
+  register: (payload: any) =>
+    fetchWithCircuitBreaker('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  login: (payload: any) =>
+    fetchWithCircuitBreaker('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getMe: () => fetchWithCircuitBreaker('/auth/me'),
+  logout: () => fetchWithCircuitBreaker('/auth/logout', { method: 'POST' }),
+  forgotPassword: (email: string) =>
+    fetchWithCircuitBreaker('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyOtp: (email: string, otp: string) =>
+    fetchWithCircuitBreaker('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
+  resetPassword: (payload: any) =>
+    fetchWithCircuitBreaker('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
+
 
 // ==========================================
 // 1. CITIZEN PORTAL API

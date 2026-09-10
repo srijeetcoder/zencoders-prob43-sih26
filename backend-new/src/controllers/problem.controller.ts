@@ -160,3 +160,128 @@ export async function processProblem(req: Request, res: Response, next: NextFunc
     next(error);
   }
 }
+
+/**
+ * Public problem ledger endpoint with pagination and domain/district filtering.
+ * Strips citizen PII for public transparency.
+ */
+export async function getPublicProblems(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string || '12', 10)));
+    const offset = (page - 1) * limit;
+
+    const district = (req.query.district as string) || undefined;
+    const domain = (req.query.domain as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+
+    const whereClauses: string[] = ['is_simulation = false'];
+    const params: any[] = [];
+    let pIdx = 1;
+
+    if (district && district !== 'All') {
+      whereClauses.push(`district ILIKE $${pIdx++}`);
+      params.push(`%${district}%`);
+    }
+    if (domain && domain !== 'All') {
+      whereClauses.push(`domain ILIKE $${pIdx++}`);
+      params.push(`%${domain}%`);
+    }
+    if (search) {
+      whereClauses.push(`(ticket_id ILIKE $${pIdx} OR normalized_text ILIKE $${pIdx})`);
+      params.push(`%${search}%`);
+      pIdx++;
+    }
+
+    const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
+
+    const countRes = await query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM grievances ${whereSql};`,
+      params
+    );
+    const total = parseInt(countRes.rows[0]?.count || '0', 10);
+
+    const dataRes = await query(
+      `SELECT id, ticket_id, normalized_text, domain, sub_domain, severity, priority,
+              status, district, block, language, created_at, resolved_at
+       FROM grievances
+       ${whereSql}
+       ORDER BY created_at DESC
+       LIMIT $${pIdx++} OFFSET $${pIdx++};`,
+      [...params, limit, offset]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: dataRes.rows.map((row) => ({
+          id: row.id,
+          ticketId: row.ticket_id,
+          title: `${row.domain} Challenge in ${row.district}`,
+          description: row.normalized_text,
+          domain: row.domain,
+          subDomain: row.sub_domain,
+          severity: row.severity,
+          priority: row.priority,
+          status: row.status,
+          district: row.district,
+          block: row.block,
+          language: row.language,
+          createdAt: row.created_at,
+          resolvedAt: row.resolved_at,
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getProblemDetail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const idOrTicket = req.params.id;
+    const resDb = await query(
+      `SELECT id, ticket_id, normalized_text, domain, sub_domain, severity, priority,
+              status, district, block, language, created_at, resolved_at
+       FROM grievances
+       WHERE (id::text = $1 OR ticket_id ILIKE $1) AND is_simulation = false
+       LIMIT 1;`,
+      [idOrTicket]
+    );
+
+    if (!resDb.rows[0]) {
+      res.status(404).json({ success: false, error: 'Problem not found' });
+      return;
+    }
+
+    const row = resDb.rows[0];
+    res.status(200).json({
+      success: true,
+      data: {
+        id: row.id,
+        ticketId: row.ticket_id,
+        title: `${row.domain} Challenge in ${row.district}`,
+        description: row.normalized_text,
+        domain: row.domain,
+        subDomain: row.sub_domain,
+        severity: row.severity,
+        priority: row.priority,
+        status: row.status,
+        district: row.district,
+        block: row.block,
+        language: row.language,
+        createdAt: row.created_at,
+        resolvedAt: row.resolved_at,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

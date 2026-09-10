@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Menu, X, LayoutDashboard, LogOut, UserCheck } from 'lucide-react'
+import { Menu, X, LayoutDashboard, LogOut, UserCheck, Search } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const NAV_LINKS = [
@@ -14,6 +14,7 @@ const NAV_LINKS = [
 
 export default function Nav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()

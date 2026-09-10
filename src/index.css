@@ -216,3 +216,43 @@ html.lenis body {
   }
 }
 
+@keyframes authSliderLeft {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes authSliderRight {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-auth-slider-left {
+  animation: authSliderLeft 45s linear infinite;
+  will-change: transform;
+}
+
+.animate-auth-slider-right {
+  animation: authSliderRight 50s linear infinite;
+  will-change: transform;
+}
+
+.animate-auth-slider-left-fast {
+  animation: authSliderLeft 38s linear infinite;
+  will-change: transform;
+}
+
+.animate-auth-slider-right-fast {
+  animation: authSliderRight 42s linear infinite;
+  will-change: transform;
+}
+
+
+

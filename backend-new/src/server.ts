@@ -1,6 +1,7 @@
 import { app } from './app';
 import { env } from './config/env';
-import { ensurePgvectorSchema768, query } from './config/database';
+import { pool, ensurePgvectorSchema768, query, formatVector } from './config/database';
+import { runMigrations } from './config/migrate';
 import { onnxMasterOrchestrator } from './services/onnxOrchestrator.service';
 
 async function bootstrap() {
@@ -8,22 +9,18 @@ async function bootstrap() {
     console.log('⚡ Initializing Master ONNX Orchestrator...');
     await onnxMasterOrchestrator.initSession();
 
-    // Ensure pgvector columns are 768 dimensions and HNSW index is active
+    // 1. Run migrations to initialize all tables, roles, and reference districts
+    await runMigrations();
+
+    // 2. Ensure pgvector columns are 768 dimensions and HNSW index is active
     await ensurePgvectorSchema768();
-    const { ensureHnswIndexing, startIngestionCron, stopIngestionCron } = await import('./workers/ingestion.worker');
-    await ensureHnswIndexing();
 
-    // Start automated daily background data harvesting cron worker (default daily at 02:00 AM)
-    if (env.NODE_ENV !== 'test') {
-      startIngestionCron('0 2 * * *');
-    }
-
-    // Auto-seed benchmark knowledge if database is missing WaterWatch
+    // 3. Auto-seed benchmark knowledge if database is missing WaterWatch
     try {
       const check = await query("SELECT COUNT(*) FROM innovation_memory WHERE title ILIKE '%WaterWatch%';");
       const count = parseInt(check.rows[0]?.count || '0', 10);
       if (count === 0) {
-        console.log('🌱 Seeding WaterWatch (PDF Benchmark) into Innovation Memory...');
+        console.log('🌱 Seeding WaterWatch (Benchmark) into Innovation Memory...');
         const cs = {
           title: 'WaterWatch Rural Canal Automation & Leakage Control',
           problem_summary: '14 villages in Palamu suffered 42% irrigation canal water loss due to undetected underground breached pipelines and lack of continuous monitoring.',
@@ -33,7 +30,6 @@ async function bootstrap() {
         };
         const text = `Title: ${cs.title}. Problem: ${cs.problem_summary} Solution: ${cs.solution_summary} Outcome: ${cs.outcome} Domain: ${cs.domain}`;
         const { generateEmbedding } = await import('./services/embedding.service');
-        const { formatVector } = await import('./config/database');
         const vec = await generateEmbedding(text);
         await query(
           `INSERT INTO innovation_memory (title, problem_summary, solution_summary, outcome, domain, embedding)
@@ -48,19 +44,24 @@ async function bootstrap() {
 
     const server = app.listen(env.PORT, () => {
       console.log(`================================================================`);
-      console.log(`🏛️  SOCIETAL INNOVATION INTELLIGENCE ENGINE (SIH PS-43) - NEW BACKEND`);
-      console.log(`📍 Government of Jharkhand Innovation Coordination Backend`);
+      console.log(`🏛️  SOCIETAL INNOVATION INTELLIGENCE ENGINE (SIH PS-43) - PRODUCTION BACKEND`);
+      console.log(`📍 Government of Jharkhand Innovation Coordination Platform`);
       console.log(`🚀 Server running in [${env.NODE_ENV}] mode on port ${env.PORT}`);
-      console.log(`🔗 API Base: http://localhost:${env.PORT}/api`);
-      console.log(`💚 Health: http://localhost:${env.PORT}/api/health`);
+      console.log(`🔗 API Base: http://localhost:${env.PORT}/api/v1`);
+      console.log(`💚 Health: http://localhost:${env.PORT}/health`);
       console.log(`================================================================`);
     });
 
-    const shutdown = () => {
+    const shutdown = async () => {
       console.log('\n🛑 Gracefully shutting down server...');
-      stopIngestionCron();
-      server.close(() => {
+      server.close(async () => {
         console.log('✅ HTTP server closed.');
+        try {
+          await pool.end();
+          console.log('✅ PostgreSQL connection pool drained.');
+        } catch (e: any) {
+          console.error('Error closing DB pool:', e.message);
+        }
         process.exit(0);
       });
     };
@@ -76,3 +77,4 @@ async function bootstrap() {
 if (require.main === module) {
   bootstrap();
 }
+

@@ -85,7 +85,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-7 sm:p-9 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+    <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-xl p-5 sm:p-7 shadow-[0_25px_60px_rgba(15,23,42,0.12)]">
       {/* Background Official Emblem Watermark */}
       <div
         className="pointer-events-none absolute inset-0 flex items-center justify-center select-none z-0"
@@ -100,27 +100,27 @@ function LoginForm() {
 
       <div className="relative z-10">
         {/* Top Header Badge */}
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-800">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+        <div className="mb-3 sm:mb-4 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+            <ShieldCheck className="h-3 w-3 text-emerald-600" />
             <span>National Problem Ledger Portal</span>
           </div>
-          <h2 className="mt-2.5 text-2xl font-bold tracking-tight text-slate-900">
+          <h2 className="mt-1.5 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Sign In to <span className="text-[#047d48]">PooKar</span>
           </h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500">
             Secure multi-stakeholder governance & innovation access
           </p>
         </div>
 
         {/* Quick Role Selector Tabs */}
-        <div className="mb-5 grid grid-cols-3 gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
+        <div className="mb-3 sm:mb-4 grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
           <button
             type="button"
             onClick={() => handleRoleQuickSelect("GOVERNMENT")}
             className={`rounded-lg py-1.5 transition-all ${
               selectedRole === "GOVERNMENT"
-                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -131,7 +131,7 @@ function LoginForm() {
             onClick={() => handleRoleQuickSelect("INSTITUTION")}
             className={`rounded-lg py-1.5 transition-all ${
               selectedRole === "INSTITUTION"
-                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -142,7 +142,7 @@ function LoginForm() {
             onClick={() => handleRoleQuickSelect("CITIZEN")}
             className={`rounded-lg py-1.5 transition-all ${
               selectedRole === "CITIZEN"
-                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
+                ? "bg-white text-emerald-700 shadow-sm border border-slate-200 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -151,22 +151,22 @@ function LoginForm() {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-medium text-rose-700">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-800">
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span>Authentication successful! Redirecting...</span>
             </div>
           )}
 
           {/* Email / ID Input */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-700">
               Official Email / User ID
             </label>
@@ -180,14 +180,14 @@ function LoginForm() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="name@gov.in, .ac.in or phone"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2 pl-10 pr-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
                 required
               />
             </div>
           </div>
 
           {/* Password Input */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700">
                 Security Password / OTP
@@ -209,7 +209,7 @@ function LoginForm() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter password"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none transition-colors"
                 required
               />
               <button
@@ -227,7 +227,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={isSubmitting || success}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#047d48] py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#03663a] active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#047d48] py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#03663a] active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
@@ -244,17 +244,17 @@ function LoginForm() {
         </form>
 
         {/* Divider */}
-        <div className="relative my-6 text-center">
+        <div className="relative my-3 sm:my-4 text-center">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200" />
           </div>
-          <span className="relative bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <span className="relative bg-white px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Or Register on PooKar
           </span>
         </div>
 
         {/* Citizen Quick Register Link */}
-        <div className="text-center text-xs text-slate-600 mb-4">
+        <div className="text-center text-xs text-slate-600 mb-3">
           Are you a resident reporting a bottleneck?{" "}
           <Link
             to="/register?role=citizen"
@@ -265,31 +265,31 @@ function LoginForm() {
         </div>
 
         {/* Two Dedicated Registration Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Link
             to="/register?role=ministry"
-            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
+            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
           >
             <div className="flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
+              <div className="grid h-6 w-6 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
                 <Building2 className="h-3.5 w-3.5" />
               </div>
-              <span className="leading-tight text-left">Register as Government</span>
+              <span className="leading-tight text-left">Gov Register</span>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+            <ArrowRight className="h-3 w-3 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
           </Link>
 
           <Link
             to="/register?role=university"
-            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
+            className="group flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-900"
           >
             <div className="flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
+              <div className="grid h-6 w-6 place-items-center rounded-lg bg-emerald-100/80 text-emerald-700">
                 <GraduationCap className="h-3.5 w-3.5" />
               </div>
-              <span className="leading-tight text-left">Register as University / Lab</span>
+              <span className="leading-tight text-left">University / Lab</span>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+            <ArrowRight className="h-3 w-3 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
           </Link>
         </div>
       </div>
