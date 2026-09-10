@@ -5,7 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci || npm install
 
 COPY tsconfig*.json ./
 COPY src ./src
@@ -23,7 +23,7 @@ ENV PORT=5000
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev --no-audit
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/init.sql ./init.sql

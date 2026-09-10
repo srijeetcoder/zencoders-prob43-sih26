@@ -37,6 +37,25 @@ pool.on('error', (err) => {
   console.error('[PostgreSQL Pool] Unexpected error on idle client:', err);
 });
 
+// Dedicated Vector Pool for Neon RAG database if specified
+const vectorDbUrl = env.NEON_DATABASE_URL || env.VECTOR_DATABASE_URL;
+export const vectorPool = vectorDbUrl
+  ? new Pool({
+      connectionString: vectorDbUrl,
+      ssl: { rejectUnauthorized: false },
+      min: 1,
+      max: env.PG_POOL_MAX,
+      idleTimeoutMillis: env.PG_IDLE_TIMEOUT,
+      connectionTimeoutMillis: env.PG_CONNECTION_TIMEOUT,
+    })
+  : pool;
+
+if (vectorDbUrl) {
+  vectorPool.on('error', (err) => {
+    console.error('[Neon Vector Pool] Unexpected error on idle client:', err);
+  });
+}
+
 /**
  * Formats a numeric array into pgvector literal e.g. '[0.0123, 0.456, ...]'
  */
@@ -45,7 +64,7 @@ export function formatVector(vector: number[]): string {
 }
 
 /**
- * Type-safe query wrapper
+ * Type-safe query wrapper for primary relational store (Supabase)
  */
 export async function query<T extends QueryResultRow = any>(
   text: string,
@@ -56,6 +75,22 @@ export async function query<T extends QueryResultRow = any>(
   const duration = Date.now() - start;
   if (duration > 1000) {
     console.warn(`[Slow Query] (${duration}ms): ${text.slice(0, 100)}...`);
+  }
+  return res;
+}
+
+/**
+ * Dedicated query wrapper for Vector / RAG operations (Neon / pgvector)
+ */
+export async function vectorQuery<T extends QueryResultRow = any>(
+  text: string,
+  params?: any[]
+): Promise<QueryResult<T>> {
+  const start = Date.now();
+  const res = await vectorPool.query<T>(text, params);
+  const duration = Date.now() - start;
+  if (duration > 1000) {
+    console.warn(`[Slow Vector Query] (${duration}ms): ${text.slice(0, 100)}...`);
   }
   return res;
 }

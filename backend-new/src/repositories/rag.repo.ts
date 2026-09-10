@@ -1,4 +1,4 @@
-import { query, formatVector } from '../config/database';
+import { query, vectorQuery, formatVector } from '../config/database';
 import { DatabaseError, RagIsolationError } from '../utils/errors';
 
 export interface RagChunkResult {
@@ -29,8 +29,8 @@ export class RagRepository {
     const vectorStr = formatVector(options.embedding);
 
     try {
-      // 1. Query rag_chunks table with strict SQL WHERE domain = $2
-      const chunkRes = await query<RagChunkResult>(
+      // 1. Query rag_chunks table in Neon vector DB with strict SQL WHERE domain = $2
+      const chunkRes = await vectorQuery<RagChunkResult>(
         `SELECT
             id,
             document_id,
@@ -51,7 +51,7 @@ export class RagRepository {
       }
 
       // 2. Fallback check on innovation_memory with mandatory SQL WHERE domain = $2
-      const memRes = await query<{
+      const memRes = await vectorQuery<{
         id: string;
         title: string;
         problem_summary: string;
@@ -98,7 +98,7 @@ export class RagRepository {
   }): Promise<string> {
     if (!data.domain) throw new RagIsolationError('Domain is mandatory when indexing RAG chunks');
     try {
-      const res = await query<{ id: string }>(
+      const res = await vectorQuery<{ id: string }>(
         `INSERT INTO rag_chunks (document_id, content, domain, embedding, metadata)
          VALUES ($1, $2, $3, $4::vector, $5)
          RETURNING id;`,
@@ -117,7 +117,7 @@ export class RagRepository {
     metadata?: Record<string, any>;
   }): Promise<string> {
     try {
-      const res = await query<{ id: string }>(
+      const res = await vectorQuery<{ id: string }>(
         `INSERT INTO rag_documents (title, domain, source_url, metadata)
          VALUES ($1, $2, $3, $4)
          RETURNING id;`,

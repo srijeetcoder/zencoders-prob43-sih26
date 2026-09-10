@@ -10,6 +10,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.string().or(z.number()).transform((val) => typeof val === 'number' ? val : parseInt(val, 10)).default('5000'),
   DATABASE_URL: z.string().optional(),
+  NEON_DATABASE_URL: z.string().optional(),
+  VECTOR_DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().default('localhost'),
   DB_PORT: z.string().or(z.number()).transform((val) => typeof val === 'number' ? val : parseInt(val, 10)).default('5432'),
   DB_USER: z.string().default('postgres'),
