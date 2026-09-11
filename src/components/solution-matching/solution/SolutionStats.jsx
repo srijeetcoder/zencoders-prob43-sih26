@@ -8,7 +8,7 @@ const iconMap = {
   clock: Clock,
 };
 
-export default function SolutionStats({ stats: dynamicStats }: { stats?: any[] }) {
+export default function SolutionStats({ stats: dynamicStats }) {
   const displayStats = dynamicStats && dynamicStats.length > 0 ? dynamicStats : defaultStats;
 
   return (

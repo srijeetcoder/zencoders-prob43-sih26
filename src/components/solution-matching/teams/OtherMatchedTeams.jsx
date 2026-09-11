@@ -1,7 +1,7 @@
 import { ArrowRight, GraduationCap, Building2 } from "lucide-react";
 import { otherTeams as defaultOtherTeams } from "../../../data/solutionMatchingData";
 
-export default function OtherMatchedTeams({ teams: customTeams }: { teams?: any[] }) {
+export default function OtherMatchedTeams({ teams: customTeams }) {
   const displayTeams = customTeams && customTeams.length > 0 ? customTeams : defaultOtherTeams;
 
   return (
@@ -18,7 +18,7 @@ export default function OtherMatchedTeams({ teams: customTeams }: { teams?: any[
 
         {/* Teams list */}
         <div className="space-y-1">
-          {displayTeams.map((team: any) => (
+          {displayTeams.map((team) => (
             <div
               key={team.id}
               className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"

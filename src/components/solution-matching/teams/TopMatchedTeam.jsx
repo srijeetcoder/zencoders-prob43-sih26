@@ -1,7 +1,7 @@
 import { ArrowRight, Users, GraduationCap, Handshake } from "lucide-react";
 import { topTeam as defaultTopTeam } from "../../../data/solutionMatchingData";
 
-export default function TopMatchedTeam({ team: customTeam }: { team?: any }) {
+export default function TopMatchedTeam({ team: customTeam }) {
   const currentTeam = customTeam || defaultTopTeam;
 
   return (
@@ -37,7 +37,7 @@ export default function TopMatchedTeam({ team: customTeam }: { team?: any }) {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        {currentTeam.stats?.map((stat: any) => (
+        {currentTeam.stats?.map((stat) => (
           <div key={stat.label} className="text-center p-2.5 bg-gray-50 rounded-lg">
             <p className="text-lg font-bold text-gray-900">{stat.value}</p>
             <p className="text-[10px] text-gray-400 leading-tight">{stat.label}</p>
