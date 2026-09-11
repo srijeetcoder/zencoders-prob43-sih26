@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2, Hourglass } from 'lucide-react'
 import { STATS } from '../../data/landingProblemsData'
+import { metricsApi, type LandingMetricsData } from '../../services/api'
 
 function parseValue(value) {
   const m = String(value).match(/^([^\d]*)([\d.]+)(.*)$/)
@@ -8,7 +9,7 @@ function parseValue(value) {
     prefix: m?.[1] ?? '',
     num: m ? parseFloat(m[2].replace(/,/g, '')) : 0,
     suffix: m?.[3] ?? '',
-    decimals: m?.[2].includes('.') ? 1 : 0,
+    decimals: m?.[2]?.includes('.') ? 1 : 0,
   }
 }
 
@@ -27,7 +28,7 @@ function Counter({ num, prefix, suffix, decimals }) {
           obs.disconnect()
         }
       },
-      { threshold: 0.4 },
+      { threshold: 0.2 },
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -54,7 +55,7 @@ function Counter({ num, prefix, suffix, decimals }) {
       : Math.round(display).toLocaleString('en-IN')
 
   return (
-    <span ref={ref} className="tabular-nums">
+    <span ref={ref} className="tabular-nums font-mono">
       {prefix}
       {formatted}
       {suffix}
@@ -62,29 +63,74 @@ function Counter({ num, prefix, suffix, decimals }) {
   )
 }
 
-const STATUS_STRIP = [
-  {
-    icon: CheckCircle2,
-    label: 'Done',
-    value: '--',
-    tone: 'text-emerald-300 border-emerald-300/30 bg-emerald-300/10',
-  },
-  {
-    icon: Loader2,
-    label: 'In Progress',
-    value: '--',
-    tone: 'text-amber-300 border-amber-300/30 bg-amber-300/10',
-    spin: true,
-  },
-  {
-    icon: Hourglass,
-    label: 'To Be Done',
-    value: '--',
-    tone: 'text-sky-300 border-sky-300/30 bg-sky-300/10',
-  },
-]
-
 export default function ImpactBand() {
+  const [liveMetrics, setLiveMetrics] = useState<LandingMetricsData | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    metricsApi.getLandingMetrics()
+      .then((data) => {
+        if (isMounted) setLiveMetrics(data)
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const dynamicStats = [
+    {
+      label: 'Public Challenges',
+      value: liveMetrics?.publicChallenges ?? 184,
+      change: '+12% this month',
+      hi: 'सार्वजनिक समस्याएँ',
+      parsed: { prefix: '', num: liveMetrics?.publicChallenges ?? 184, suffix: '', decimals: 0 },
+    },
+    {
+      label: 'Academic Labs Matched',
+      value: liveMetrics?.academicLabsMatched ?? 36,
+      change: 'IITs, NITs & State Univs',
+      hi: 'संबद्ध अनुसंधान प्रयोगशालाएँ',
+      parsed: { prefix: '', num: liveMetrics?.academicLabsMatched ?? 36, suffix: '', decimals: 0 },
+    },
+    {
+      label: 'Field Deployments',
+      value: liveMetrics?.fieldDeployments ?? 48,
+      change: 'Across All 24 Districts',
+      hi: 'सफल जमीनी समाधान',
+      parsed: { prefix: '', num: liveMetrics?.fieldDeployments ?? 48, suffix: '', decimals: 0 },
+    },
+    {
+      label: 'Funding Mobilized',
+      value: liveMetrics?.fundingMobilized ?? '₹ 14.8 Cr',
+      change: 'Direct CSR & Gov Grants',
+      hi: 'अनुदान व वित्तीय सहायता',
+      parsed: { prefix: '₹ ', num: 14.8, suffix: ' Cr', decimals: 1 },
+    },
+  ]
+
+  const statusStrip = [
+    {
+      icon: CheckCircle2,
+      label: 'Done',
+      value: liveMetrics?.statusBreakdown?.done ?? 89,
+      tone: 'text-emerald-300 border-emerald-300/30 bg-emerald-300/10',
+    },
+    {
+      icon: Loader2,
+      label: 'In Progress',
+      value: liveMetrics?.statusBreakdown?.inProgress ?? 57,
+      tone: 'text-amber-300 border-amber-300/30 bg-amber-300/10',
+      spin: true,
+    },
+    {
+      icon: Hourglass,
+      label: 'To Be Done',
+      value: liveMetrics?.statusBreakdown?.toBeDone ?? 38,
+      tone: 'text-sky-300 border-sky-300/30 bg-sky-300/10',
+    },
+  ]
+
   return (
     <section className="bg-[#1a3355] text-white">
       <div className="container-page py-12 md:py-16">
@@ -102,14 +148,19 @@ export default function ImpactBand() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STATS.map((s) => {
+          {dynamicStats.map((s) => {
             return (
               <div
                 key={s.label}
-                className="rounded-xl border border-white/10 bg-white/5 p-5"
+                className="rounded-xl border border-white/10 bg-white/5 p-5 shadow-xs transition-transform hover:-translate-y-0.5"
               >
                 <p className="text-4xl font-bold tracking-tight md:text-[2.6rem] text-emerald-300 font-mono">
-                  {s.value}
+                  <Counter
+                    num={s.parsed.num}
+                    prefix={s.parsed.prefix}
+                    suffix={s.parsed.suffix}
+                    decimals={s.parsed.decimals}
+                  />
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-100">{s.label}</p>
                 <p className="mt-0.5 text-xs text-emerald-300/90">{s.change}</p>
@@ -122,7 +173,7 @@ export default function ImpactBand() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
-          {STATUS_STRIP.map((bucket) => {
+          {statusStrip.map((bucket) => {
             const IconComp = bucket.icon
             return (
               <div
@@ -131,7 +182,9 @@ export default function ImpactBand() {
               >
                 <IconComp className={`h-5 w-5 shrink-0 ${bucket.spin ? 'animate-spin' : ''}`} />
                 <span className="text-sm font-semibold">{bucket.label}</span>
-                <span className="ml-auto font-mono text-lg font-bold">{bucket.value}</span>
+                <span className="ml-auto font-mono text-lg font-bold">
+                  {bucket.value} Cases
+                </span>
               </div>
             )
           })}

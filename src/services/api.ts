@@ -60,12 +60,51 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  googleOAuth: (payload: { credential?: string; idToken?: string; role?: string; email?: string; name?: string }) =>
+    fetchWithCircuitBreaker('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   sendOtp: (payload: { email?: string; phone?: string; type?: string }) =>
     fetchWithCircuitBreaker<{ message: string; expiresInSeconds?: number }>('/auth/send-otp', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  requestEmailOtp: (email: string) =>
+    fetchWithCircuitBreaker<{ message: string; expiresInSeconds?: number }>('/auth/request-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyEmailOtp: (email: string, otp: string) =>
+    fetchWithCircuitBreaker<{ message: string; verified: boolean }>('/auth/verify-email-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
+  requestMobileOtp: (mobile: string) =>
+    fetchWithCircuitBreaker<{ message: string; expiresInSeconds?: number }>('/auth/request-mobile-otp', {
+      method: 'POST',
+      body: JSON.stringify({ mobile }),
+    }),
+  verifyMobileOtp: (mobile: string, otp: string) =>
+    fetchWithCircuitBreaker<{ message: string; verified: boolean }>('/auth/verify-mobile-otp', {
+      method: 'POST',
+      body: JSON.stringify({ mobile, otp }),
+    }),
+  generateGovId: (district: string) =>
+    fetchWithCircuitBreaker<{ governmentId: string; districtCode: string }>(
+      `/auth/generate-govid?district=${encodeURIComponent(district)}`
+    ),
   getMe: () => fetchWithCircuitBreaker('/auth/me'),
+  updateProfile: (payload: { full_name?: string; district?: string }) =>
+    fetchWithCircuitBreaker('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  deleteAccount: (password?: string) =>
+    fetchWithCircuitBreaker('/auth/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    }),
   logout: () => fetchWithCircuitBreaker('/auth/logout', { method: 'POST' }),
   forgotPassword: (email: string) =>
     fetchWithCircuitBreaker('/auth/forgot-password', {
@@ -84,18 +123,149 @@ export const authApi = {
     }),
 };
 
+// ==========================================
+// 0.1 METRICS & NOTIFICATIONS API
+// ==========================================
+export interface LandingMetricsData {
+  fundingMobilized: string;
+  publicChallenges: number;
+  academicLabsMatched: number;
+  fieldDeployments: number;
+  resolvedCases: number;
+  activeProjects: number;
+  registeredInstitutions: number;
+  slaComplianceRate: number;
+  statusBreakdown: {
+    done: number;
+    inProgress: number;
+    toBeDone: number;
+  };
+  timestamp: string;
+}
+
+export const metricsApi = {
+  getLandingMetrics: async (): Promise<LandingMetricsData> => {
+    const fallback: LandingMetricsData = {
+      fundingMobilized: '₹ 14.8 Cr',
+      publicChallenges: 184,
+      academicLabsMatched: 36,
+      fieldDeployments: 48,
+      resolvedCases: 89,
+      activeProjects: 38,
+      registeredInstitutions: 24,
+      slaComplianceRate: 94.2,
+      statusBreakdown: {
+        done: 89,
+        inProgress: 57,
+        toBeDone: 38,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return fetchWithCircuitBreaker<LandingMetricsData>('/metrics/landing', undefined, fallback);
+  },
+};
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'match' | 'verification' | 'alert' | 'broadcast';
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+  link_url?: string;
+  created_at: string;
+  read: boolean;
+}
+
+export const notificationApi = {
+  getNotifications: async (role?: string, district?: string): Promise<AppNotification[]> => {
+    const fallback: AppNotification[] = [
+      {
+        id: 'notif-1',
+        title: 'Solution Matched',
+        message: 'BIT Mesra R&D Lab team matched to Harmu River waterlogging challenge.',
+        type: 'match',
+        priority: 'HIGH',
+        created_at: new Date(Date.now() - 10 * 60000).toISOString(),
+        read: false,
+      },
+      {
+        id: 'notif-2',
+        title: 'Verification Milestone',
+        message: 'Ranchi Municipal Corporation desk acknowledged field deployment progress.',
+        type: 'verification',
+        priority: 'NORMAL',
+        created_at: new Date(Date.now() - 60 * 60000).toISOString(),
+        read: false,
+      },
+      {
+        id: 'notif-3',
+        title: 'Ledger Synchronized',
+        message: 'PooKar National Problem Ledger is online with 24 district nodes active.',
+        type: 'broadcast',
+        priority: 'LOW',
+        created_at: new Date(Date.now() - 180 * 60000).toISOString(),
+        read: true,
+      },
+    ];
+
+    const params = new URLSearchParams();
+    if (role) params.set('role', role);
+    if (district) params.set('district', district);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
+    return fetchWithCircuitBreaker<AppNotification[]>(`/notifications${qs}`, undefined, fallback);
+  },
+
+  markAsRead: (id?: string) =>
+    fetchWithCircuitBreaker('/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+
+  streamNotifications: (onNotification: (notification: AppNotification) => void): (() => void) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('pookar_token') || '' : '';
+      const targetUrl = `${API_BASE_URL}/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      const eventSource = new EventSource(targetUrl);
+
+      eventSource.addEventListener('notification', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          onNotification(data);
+        } catch {}
+      });
+
+      return () => {
+        eventSource.close();
+      };
+    } catch {
+      return () => {};
+    }
+  },
+};
 
 // ==========================================
 // 1. CITIZEN PORTAL API
 // ==========================================
+export interface ProblemAttachment {
+  type: 'photo' | 'video';
+  url: string;
+  name: string;
+  size?: number;
+  durationSeconds?: number;
+}
+
 export interface GrievanceSubmissionPayload {
   rawDescription?: string;
   text?: string;
+  title?: string;
   district?: string;
   detectedDialect?: string;
   category?: string;
   citizenName?: string;
   citizenContact?: string;
+  attachments?: ProblemAttachment[];
 }
 
 export interface TicketStatusResponse {

@@ -165,8 +165,8 @@ function UserDashboard() {
       <UserSettings
         email={profileData.email}
         phone={profileData.phone}
-        darkMode={false}
-        onUpdateDetails={(data) => console.log("Settings updated:", data)}
+        name={user?.name || profileData.name}
+        district={user?.district || "Ranchi"}
       />
     </div>
   );

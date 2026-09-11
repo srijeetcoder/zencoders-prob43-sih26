@@ -2,47 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Search, Bell, ChevronDown, CheckCheck, Sparkles, AlertCircle, Info, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../../context/AuthContext";
-
-interface GovNotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  type: "alert" | "verification" | "broadcast";
-}
-
-const INITIAL_GOV_NOTIFICATIONS: GovNotificationItem[] = [
-  {
-    id: "gnotif-1",
-    title: "High Severity Alert: Ranchi",
-    message: "Critical waterlogging reported near Kanke Road Ward 12. Automated sensor threshold breached.",
-    time: "5m ago",
-    read: false,
-    type: "alert",
-  },
-  {
-    id: "gnotif-2",
-    title: "Team Assignment Acknowledged",
-    message: "BIT Mesra R&D Lab accepted solution matching for Smart Drainage Sector 4.",
-    time: "45m ago",
-    read: false,
-    type: "verification",
-  },
-  {
-    id: "gnotif-3",
-    title: "AI Analysis Model Calibrated",
-    message: "Jharkhand Geospatial Heatmap updated with 24 district grievance clusters.",
-    time: "2h ago",
-    read: true,
-    type: "broadcast",
-  },
-];
+import { notificationApi, type AppNotification } from "../../../../services/api";
 
 function Navbar() {
   const { user, isAuthenticated } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<GovNotificationItem[]>(INITIAL_GOV_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const displayName = isAuthenticated && user?.name ? user.name : "Jharkhand Govt Officer";
@@ -50,6 +15,34 @@ function Navbar() {
   const initial = displayName.charAt(0).toUpperCase();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial fetch of notifications for government role
+    notificationApi.getNotifications("GOVERNMENT", user?.district)
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          setNotifications(data);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Subscribe to real-time Server-Sent Events (SSE)
+    const cleanupStream = notificationApi.streamNotifications((incoming) => {
+      if (isMounted && incoming && incoming.id) {
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === incoming.id)) return prev;
+          return [incoming, ...prev];
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      cleanupStream();
+    };
+  }, [user?.district]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,17 +56,20 @@ function Navbar() {
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    notificationApi.markAsRead().catch(() => {});
   };
 
   const markAsRead = (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    notificationApi.markAsRead(id).catch(() => {});
   };
 
   const removeNotification = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    notificationApi.markAsRead(id).catch(() => {});
   };
 
   return (
@@ -185,7 +181,9 @@ function Navbar() {
                             <p className={`text-xs font-semibold ${notif.read ? "text-slate-700" : "text-[#10245e]"}`}>
                               {notif.title}
                             </p>
-                            <span className="text-[10px] text-slate-400 shrink-0">{notif.time}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0">
+                              {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
                           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
                             {notif.message}

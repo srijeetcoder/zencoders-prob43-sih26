@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  AlertCircle,
   X,
 } from "lucide-react";
 import Nav from "../components/landing/Nav";
@@ -39,14 +40,10 @@ export default function RegisterPage() {
 
   const [activeRole, setActiveRole] = useState<RegistrationRole>(defaultRole);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpValue, setOtpValue] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [otpCountdown, setOtpCountdown] = useState(30);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  // Form State
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -55,18 +52,50 @@ export default function RegisterPage() {
     department: "",
     state: "Jharkhand",
     district: "Ranchi",
+    governmentId: "JH-RN-8801",
     uniqueCode: "",
     password: "",
     confirmPassword: "",
     agreeTerms: true,
   });
 
+  // 2-Step OTP State: "EMAIL_STEP" | "MOBILE_STEP"
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpStep, setOtpStep] = useState<"EMAIL" | "MOBILE">("EMAIL");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [mobileOtp, setMobileOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(30);
+
   const currentDistricts =
     INDIA_STATES_DISTRICTS.find((s) => s.state === formData.state)?.districts || [
       "Ranchi",
       "Dhanbad",
       "Bokaro",
+      "East Singhbhum",
+      "Palamu",
+      "Hazaribagh",
+      "Deoghar",
+      "Dumka",
     ];
+
+  // Auto-generate / fetch standard JH-XX-XXXX Government ID when district changes
+  useEffect(() => {
+    if (activeRole === "GOVERNMENT") {
+      authApi.generateGovId(formData.district)
+        .then((res) => {
+          if (res?.governmentId) {
+            setFormData((prev) => ({ ...prev, governmentId: res.governmentId }));
+          }
+        })
+        .catch(() => {
+          const code = formData.district.slice(0, 2).toUpperCase();
+          const rand = Math.floor(1000 + Math.random() * 9000);
+          setFormData((prev) => ({ ...prev, governmentId: `JH-${code}-${rand}` }));
+        });
+    }
+  }, [formData.district, activeRole]);
 
   useEffect(() => {
     let timer: any;
@@ -118,8 +147,13 @@ export default function RegisterPage() {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!formData.fullName || !formData.email || !formData.password) {
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.password) {
       setError("Please fill in all required fields.");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -128,12 +162,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (activeRole !== "CITIZEN" && !formData.uniqueCode.trim()) {
-      setError(
-        activeRole === "GOVERNMENT"
-          ? "Please provide a valid Government Authorization / AIS Desk Code."
-          : "Please provide a valid University AISHE / Lab Access Code."
-      );
+    if (activeRole === "GOVERNMENT" && !/^JH-[A-Z0-9]{2}-[A-Z0-9]{4}$/.test(formData.governmentId.trim().toUpperCase())) {
+      setError("Government ID must follow standard format: JH-XX-XXXX (e.g. JH-RN-8801).");
       return;
     }
 
@@ -141,21 +171,17 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      // Send dual OTP to Email and SMS
-      await authApi.sendOtp({
-        email: formData.email,
-        phone: formData.phone,
-        type: "REGISTRATION",
-      });
+      // Step 1: Request Email OTP
+      await authApi.requestEmailOtp(formData.email.trim());
 
+      setOtpStep("EMAIL");
       setOtpCountdown(30);
       setOtpError("");
-      setOtpValue("");
+      setEmailOtp("");
+      setMobileOtp("");
       setShowOtpModal(true);
     } catch (err: any) {
-      // If backend OTP call throws, still open modal so user can proceed
-      setOtpCountdown(30);
-      setShowOtpModal(true);
+      setError(err?.message || "Failed to dispatch verification code. Please check your email.");
     } finally {
       setIsSubmitting(false);
     }
@@ -164,50 +190,69 @@ export default function RegisterPage() {
   const handleResendOtp = async () => {
     if (otpCountdown > 0) return;
     try {
-      await authApi.sendOtp({
-        email: formData.email,
-        phone: formData.phone,
-        type: "REGISTRATION",
-      });
+      if (otpStep === "EMAIL") {
+        await authApi.requestEmailOtp(formData.email.trim());
+      } else {
+        await authApi.requestMobileOtp(formData.phone.trim() || "9876543210");
+      }
       setOtpCountdown(30);
       setOtpError("");
-    } catch (err) {}
+    } catch (err: any) {
+      setOtpError(err?.message || "Could not resend OTP. Please try again shortly.");
+    }
   };
 
-  const handleVerifyAndFinalize = async (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpValue.trim()) {
-      setOtpError("Please enter the 6-digit verification OTP.");
-      return;
-    }
-
     setIsVerifyingOtp(true);
     setOtpError("");
 
     try {
-      // Verify OTP with backend
-      await authApi.verifyOtp({
-        email: formData.email,
-        phone: formData.phone,
-        otp: otpValue.trim(),
-      });
+      if (otpStep === "EMAIL") {
+        if (!emailOtp.trim() || emailOtp.trim().length !== 6) {
+          setOtpError("Please enter the 6-digit verification OTP sent to your email.");
+          setIsVerifyingOtp(false);
+          return;
+        }
 
-      // Complete registration
-      await register({
-        name: formData.fullName,
-        email: formData.email,
-        password: formData.password,
-        role: activeRole,
-        department: formData.department || formData.organization,
-        district: formData.district,
-        phone: formData.phone,
-        organization: formData.organization,
-      });
+        await authApi.verifyEmailOtp(formData.email.trim(), emailOtp.trim());
 
-      setShowOtpModal(false);
-      setSuccess(true);
+        // Proceed to Step 2: Request Mobile OTP
+        const mobileToVerify = formData.phone.trim() || "9876543210";
+        await authApi.requestMobileOtp(mobileToVerify);
+
+        setOtpStep("MOBILE");
+        setOtpCountdown(30);
+        setOtpError("");
+      } else {
+        // Step 2: Verify Mobile OTP
+        if (!mobileOtp.trim() || mobileOtp.trim().length !== 6) {
+          setOtpError("Please enter the 6-digit verification OTP sent to your mobile phone.");
+          setIsVerifyingOtp(false);
+          return;
+        }
+
+        const mobileToVerify = formData.phone.trim() || "9876543210";
+        await authApi.verifyMobileOtp(mobileToVerify, mobileOtp.trim());
+
+        // Finalize Registration with verified credentials
+        await register({
+          name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          role: activeRole,
+          department: formData.department || formData.organization,
+          district: formData.district,
+          phone: formData.phone.trim(),
+          organization: formData.organization,
+          government_id: activeRole === "GOVERNMENT" ? formData.governmentId.trim().toUpperCase() : undefined,
+        });
+
+        setShowOtpModal(false);
+        setSuccess(true);
+      }
     } catch (err: any) {
-      setOtpError(err?.message || "Invalid or expired OTP. Please check the code sent to your email & SMS.");
+      setOtpError(err?.message || "Invalid or expired OTP. Please try again.");
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -244,12 +289,12 @@ export default function RegisterPage() {
                       {activeRole === "CITIZEN"
                         ? "Citizen"
                         : activeRole === "GOVERNMENT"
-                        ? "Government"
+                        ? "Government Officer"
                         : "University / Lab"}
                     </span>
                   </h1>
                   <p className="text-[11px] text-slate-500">
-                    Provide verified details for node activation
+                    Two-factor verified node activation on PooKar ledger
                   </p>
                 </div>
               </div>
@@ -306,8 +351,9 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                {error}
+              <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -319,8 +365,8 @@ export default function RegisterPage() {
                   {activeRole === "CITIZEN"
                     ? "Full Legal Name"
                     : activeRole === "GOVERNMENT"
-                    ? "Officer Full Legal Name & Designation"
-                    : "Faculty Lead / Principal Investigator Name"}
+                    ? "Officer Full Legal Name & Rank"
+                    : "Principal Investigator / Lab Lead"}
                 </label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -332,9 +378,9 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     placeholder={
                       activeRole === "CITIZEN"
-                        ? "e.g. Srijit Chatterjee / Priya Sharma"
+                        ? "e.g. Srijit Chatterjee"
                         : activeRole === "GOVERNMENT"
-                        ? "e.g. Shri Rajesh Soren (IAS), Joint Secretary"
+                        ? "e.g. Shri Rajesh Soren (IAS), Nodal Officer"
                         : "e.g. Dr. Priya Murmu, Head of IoT Lab"
                     }
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
@@ -347,7 +393,7 @@ export default function RegisterPage() {
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-700">
                     {activeRole === "GOVERNMENT"
-                      ? "Ministry / Department Name"
+                      ? "Department / Ministry / Agency"
                       : "University / Research Institute Name"}
                   </label>
                   <div className="relative">
@@ -369,30 +415,34 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* UNIQUE CODE FOR GOVERNMENT & UNIVERSITY */}
+              {/* UNIQUE GOVERNMENT ID (JH-XX-XXXX) */}
               {activeRole === "GOVERNMENT" && (
                 <div className="space-y-1 rounded-xl bg-amber-50/70 border border-amber-200/90 p-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-amber-950 flex items-center gap-1.5">
                       <KeyRound className="h-3 w-3 text-amber-600" />
-                      <span>Government Unique Authorization Code</span>
+                      <span>Government Officer Unique ID (JH-XX-XXXX)</span>
                     </label>
-                    <span className="text-[9px] font-semibold text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded">
-                      Required
+                    <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-200/70 px-1.5 py-0.5 rounded">
+                      Standard Verified Format
                     </span>
                   </div>
                   <input
                     type="text"
-                    name="uniqueCode"
+                    name="governmentId"
                     required
-                    value={formData.uniqueCode}
+                    value={formData.governmentId}
                     onChange={handleChange}
-                    placeholder="Enter Gov Unique Code (e.g. JH-GOV-2026-WAR)"
-                    className="w-full rounded-lg border border-amber-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-amber-950 placeholder:text-amber-400 focus:border-amber-600 focus:outline-none"
+                    placeholder="e.g. JH-RN-8801"
+                    className="w-full rounded-lg border border-amber-300 bg-white py-1.5 px-3 font-mono text-xs font-bold tracking-wider text-amber-950 placeholder:text-amber-400 focus:border-amber-600 focus:outline-none uppercase"
                   />
+                  <p className="text-[10px] text-amber-700">
+                    State code (JH) + District code ({formData.district.slice(0, 2).toUpperCase()}) + 4-char security token.
+                  </p>
                 </div>
               )}
 
+              {/* UNIQUE CODE FOR UNIVERSITY */}
               {activeRole === "INSTITUTION" && (
                 <div className="space-y-1 rounded-xl bg-indigo-50/70 border border-indigo-200/90 p-2.5">
                   <div className="flex items-center justify-between">
@@ -424,7 +474,7 @@ export default function RegisterPage() {
                       ? "Official Gov Email ID"
                       : activeRole === "INSTITUTION"
                       ? "Institutional Email ID"
-                      : "Official Email ID"}
+                      : "Email Address"}
                   </label>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -436,10 +486,10 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       placeholder={
                         activeRole === "GOVERNMENT"
-                          ? "name@gov.in / nic.in"
+                          ? "officer@jharkhand.gov.in"
                           : activeRole === "INSTITUTION"
                           ? "director@bitmesra.ac.in"
-                          : "name@example.com"
+                          : "citizen@example.com"
                       }
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
                     />
@@ -448,7 +498,7 @@ export default function RegisterPage() {
 
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-700">
-                    Mobile Number (SMS / OTP)
+                    Mobile Number (SMS Verification)
                   </label>
                   <div className="relative">
                     <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -458,7 +508,7 @@ export default function RegisterPage() {
                       required
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="+91 98765 43210"
+                      placeholder="9876543210"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
                     />
                   </div>
@@ -571,11 +621,11 @@ export default function RegisterPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Sending Verification OTP...</span>
+                      <span>Sending Verification Code...</span>
                     </>
                   ) : (
                     <>
-                      <span>Verify & Complete Registration</span>
+                      <span>Proceed to Dual OTP Verification</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -606,6 +656,11 @@ export default function RegisterPage() {
               <p>
                 <strong>Stakeholder Role:</strong> {activeRole}
               </p>
+              {activeRole === "GOVERNMENT" && (
+                <p className="font-mono text-emerald-800 font-bold">
+                  <strong>Government ID:</strong> {formData.governmentId}
+                </p>
+              )}
               <p>
                 <strong>Account Email:</strong> {formData.email || "Registered User"}
               </p>
@@ -642,7 +697,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* ================= DUAL EMAIL & SMS OTP VERIFICATION MODAL ================= */}
+        {/* ================= 2-STEP DUAL OTP VERIFICATION MODAL ================= */}
         {showOtpModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl relative">
@@ -660,39 +715,33 @@ export default function RegisterPage() {
                   <ShieldCheck className="h-6 w-6" />
                 </div>
 
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 mb-1">
+                  Step {otpStep === "EMAIL" ? "1 of 2: Email Authentication" : "2 of 2: Mobile Authentication"}
+                </div>
+
                 <h3 className="text-lg font-bold text-slate-900">
-                  Dual-Channel OTP Verification
+                  {otpStep === "EMAIL" ? "Verify Email Address" : "Verify Mobile SMS"}
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  We have dispatched a 6-digit verification code to:
+                  {otpStep === "EMAIL"
+                    ? `Enter the 6-digit cryptographic OTP sent to ${formData.email}`
+                    : `Enter the 6-digit SMS verification code sent to ${formData.phone || "+91 98765 43210"}`}
                 </p>
-
-                <div className="mt-2.5 space-y-1 rounded-xl bg-slate-50 border border-slate-200/80 p-2.5 text-left text-xs text-slate-700">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                    <span className="font-semibold truncate">{formData.email}</span>
-                  </div>
-                  {formData.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                      <span className="font-semibold">{formData.phone}</span>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {otpError && (
-                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                  {otpError}
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                  <span>{otpError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleVerifyAndFinalize} className="mt-4 space-y-3.5">
+              <form onSubmit={handleVerifyOtp} className="mt-4 space-y-3.5">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-700">
-                      Enter 6-Digit OTP
+                      {otpStep === "EMAIL" ? "Email Security OTP" : "Mobile SMS OTP"}
                     </label>
                     <button
                       type="button"
@@ -700,7 +749,7 @@ export default function RegisterPage() {
                       onClick={handleResendOtp}
                       className="text-[11px] font-semibold text-emerald-700 hover:underline disabled:text-slate-400 disabled:no-underline"
                     >
-                      {otpCountdown > 0 ? `Resend OTP (${otpCountdown}s)` : "Resend OTP"}
+                      {otpCountdown > 0 ? `Resend code (${otpCountdown}s)` : "Resend code"}
                     </button>
                   </div>
 
@@ -712,9 +761,11 @@ export default function RegisterPage() {
                       maxLength={6}
                       autoFocus
                       placeholder="e.g. 592814"
-                      value={otpValue}
+                      value={otpStep === "EMAIL" ? emailOtp : mobileOtp}
                       onChange={(e) => {
-                        setOtpValue(e.target.value.replace(/\D/g, ""));
+                        const val = e.target.value.replace(/\D/g, "");
+                        if (otpStep === "EMAIL") setEmailOtp(val);
+                        else setMobileOtp(val);
                         setOtpError("");
                       }}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-4 text-center font-mono text-base font-bold tracking-widest text-slate-900 placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
@@ -724,8 +775,8 @@ export default function RegisterPage() {
 
                 <button
                   type="submit"
-                  disabled={isVerifyingOtp || !otpValue.trim()}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:opacity-75"
+                  disabled={isVerifyingOtp || (otpStep === "EMAIL" ? emailOtp.length !== 6 : mobileOtp.length !== 6)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
                 >
                   {isVerifyingOtp ? (
                     <>
@@ -734,7 +785,7 @@ export default function RegisterPage() {
                     </>
                   ) : (
                     <>
-                      <span>Verify & Activate Node</span>
+                      <span>{otpStep === "EMAIL" ? "Verify Email & Proceed to Mobile" : "Confirm Mobile & Activate Node"}</span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}

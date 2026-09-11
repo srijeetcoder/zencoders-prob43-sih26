@@ -21,6 +21,7 @@ export interface GrievanceRecord {
   priority: string;
   classification_confidence: number;
   status: string;
+  attachments?: { photos?: string[]; video?: string };
   is_simulation: boolean;
   claimed_at?: string;
   resolved_at?: string;
@@ -43,6 +44,7 @@ export interface CreateGrievanceInput {
   severity?: string;
   priority?: string;
   classification_confidence?: number;
+  attachments?: { photos?: string[]; video?: string };
   embedding?: number[];
   is_simulation?: boolean;
 }
@@ -86,17 +88,19 @@ export class GrievanceRepository {
       }
 
       // 3. Insert grievance
+      const attachmentsJson = JSON.stringify(data.attachments || { photos: [], video: null });
+
       const insertSql = `
         INSERT INTO grievances (
           ticket_id, citizen_id, anonymous_session_id, raw_text, normalized_text,
           language, district_id, district, block, latitude, longitude,
           domain, sub_domain, severity, priority, classification_confidence,
-          status, embedding, is_simulation
+          status, attachments, embedding, is_simulation
         ) VALUES (
           $1, $2, $3, $4, $5,
           $6, $7, $8, $9, $10, $11,
           $12, $13, $14, $15, $16,
-          'OPEN', ${data.embedding ? '$17::vector' : 'NULL'}, $18
+          'OPEN', $17::jsonb, ${data.embedding ? '$18::vector' : 'NULL'}, $19
         )
         RETURNING *;
       `;
@@ -118,6 +122,7 @@ export class GrievanceRepository {
         data.severity || 'MEDIUM',
         data.priority || 'STANDARD',
         data.classification_confidence || 0.85,
+        attachmentsJson,
       ];
 
       if (data.embedding) {

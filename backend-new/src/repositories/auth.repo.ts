@@ -6,12 +6,17 @@ export interface UserRecord {
   name: string;
   email: string;
   phone?: string;
+  government_id?: string;
   password_hash: string;
   role: string;
   institution_id?: string;
   district_id?: string;
+  district_name?: string;
   department_id?: string;
+  department_name?: string;
   is_active: boolean;
+  is_email_verified?: boolean;
+  is_phone_verified?: boolean;
   refresh_token?: string;
   reset_otp?: string;
   reset_otp_expires_at?: string;
@@ -23,7 +28,11 @@ export class AuthRepository {
   async findByEmail(email: string): Promise<UserRecord | null> {
     try {
       const res = await query<UserRecord>(
-        `SELECT * FROM users WHERE email = $1 LIMIT 1;`,
+        `SELECT u.*, d.name AS district_name, dept.name AS department_name
+         FROM users u
+         LEFT JOIN districts d ON u.district_id = d.id
+         LEFT JOIN departments dept ON u.department_id = dept.id
+         WHERE u.email = $1 LIMIT 1;`,
         [email.toLowerCase().trim()]
       );
       return res.rows[0] || null;
@@ -35,8 +44,13 @@ export class AuthRepository {
   async findById(id: string): Promise<UserRecord | null> {
     try {
       const res = await query<UserRecord>(
-        `SELECT id, name, email, phone, role, institution_id, district_id, department_id, is_active, created_at, updated_at
-         FROM users WHERE id = $1 LIMIT 1;`,
+        `SELECT u.id, u.name, u.email, u.phone, u.government_id, u.role, u.institution_id, 
+                u.district_id, d.name AS district_name, u.department_id, dept.name AS department_name, 
+                u.is_active, u.is_email_verified, u.is_phone_verified, u.created_at, u.updated_at
+         FROM users u
+         LEFT JOIN districts d ON u.district_id = d.id
+         LEFT JOIN departments dept ON u.department_id = dept.id
+         WHERE u.id = $1 LIMIT 1;`,
         [id]
       );
       return res.rows[0] || null;
@@ -49,27 +63,36 @@ export class AuthRepository {
     name: string;
     email: string;
     phone?: string;
+    government_id?: string;
     password_hash: string;
     role: string;
     institution_id?: string;
     district_id?: string;
     department_id?: string;
+    is_email_verified?: boolean;
+    is_phone_verified?: boolean;
   }): Promise<UserRecord> {
     return withTransaction(async (client) => {
       // 1. Insert user
       const res = await client.query<UserRecord>(
-        `INSERT INTO users (name, email, phone, password_hash, role, institution_id, district_id, department_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, name, email, phone, role, institution_id, district_id, department_id, is_active, created_at;`,
+        `INSERT INTO users (
+           name, email, phone, government_id, password_hash, role, 
+           institution_id, district_id, department_id, is_email_verified, is_phone_verified
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id, name, email, phone, government_id, role, institution_id, district_id, department_id, is_active, is_email_verified, is_phone_verified, created_at;`,
         [
           data.name,
           data.email.toLowerCase().trim(),
           data.phone || null,
+          data.government_id || null,
           data.password_hash,
           data.role,
           data.institution_id || null,
           data.district_id || null,
           data.department_id || null,
+          data.is_email_verified ?? false,
+          data.is_phone_verified ?? false,
         ]
       );
       const user = res.rows[0];
@@ -87,6 +110,54 @@ export class AuthRepository {
       }
 
       return user;
+    });
+  }
+
+  async updateProfile(userId: string, data: { name?: string; district_id?: string }): Promise<UserRecord> {
+    try {
+      const updates: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (data.name) {
+        updates.push(`name = $${paramIndex++}`);
+        params.push(data.name);
+      }
+      if (data.district_id) {
+        updates.push(`district_id = $${paramIndex++}`);
+        params.push(data.district_id);
+      }
+
+      if (updates.length === 0) {
+        const user = await this.findById(userId);
+        if (!user) throw new DatabaseError('User not found');
+        return user;
+      }
+
+      updates.push(`updated_at = NOW()`);
+      params.push(userId);
+
+      const res = await query<UserRecord>(
+        `UPDATE users
+         SET ${updates.join(', ')}
+         WHERE id = $${paramIndex}
+         RETURNING id, name, email, phone, government_id, role, institution_id, district_id, department_id, is_active, updated_at;`,
+        params
+      );
+
+      return res.rows[0];
+    } catch (err: any) {
+      throw new DatabaseError(`Failed to update profile: ${err.message}`);
+    }
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    return withTransaction(async (client) => {
+      // 1. Delete associated notifications, tokens, etc.
+      await client.query(`DELETE FROM notifications WHERE user_id = $1;`, [userId]);
+      await client.query(`DELETE FROM user_roles WHERE user_id = $1;`, [userId]);
+      // 2. Delete user
+      await client.query(`DELETE FROM users WHERE id = $1;`, [userId]);
     });
   }
 

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { grievanceRepo } from '../repositories/grievance.repo';
 import { generateEmbedding } from '../services/embedding.service';
 import { detectAndTranslate } from '../services/translation.service';
+import { NotificationController } from './notification.controller';
 import { CreateGrievanceSchema, ClaimGrievanceSchema, GrievanceQuerySchema } from '../schemas/citizen.schema';
 import { sendSuccess } from '../utils/apiResponse';
 import { NotFoundError, AuthenticationError, ValidationError } from '../utils/errors';
@@ -11,10 +12,12 @@ export class CitizenController {
   async submitGrievance(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const input = CreateGrievanceSchema.parse(req.body);
+      const rawText = input.raw_text || input.text || input.rawDescription || input.description || input.title || '';
+      const district = input.district || 'Ranchi';
 
       // 1. Multilingual ingestion: Detect dialect & normalize to formal English
-      const translation = await detectAndTranslate(input.raw_text, input.district);
-      const normalizedText = translation.translatedText || input.raw_text;
+      const translation = await detectAndTranslate(rawText, district);
+      const normalizedText = translation.translatedText || rawText;
       const detectedLang = translation.detectedLanguage || input.language || 'English';
 
       // 2. Classify domain / severity if not provided
@@ -22,7 +25,7 @@ export class CitizenController {
       let severity = 'MEDIUM';
       let priority = 'STANDARD';
 
-      const lower = (input.raw_text + ' ' + normalizedText).toLowerCase();
+      const lower = (rawText + ' ' + normalizedText).toLowerCase();
       if (lower.includes('water') || lower.includes('arsenic') || lower.includes('fluoride') || lower.includes('borewell') || lower.includes('drainage') || lower.includes('canal')) {
         domain = 'Water Quality & Hydrology';
         severity = 'HIGH';
@@ -39,18 +42,23 @@ export class CitizenController {
         domain = 'Public Infrastructure & Roads';
       }
 
-      // 3. Generate 768-dim semantic embedding
-      const embedding = await generateEmbedding(`${normalizedText} District: ${input.district} Domain: ${domain}`);
+      // 3. Attachments processing (Max 3 photos, 1 video)
+      const photos = (input.photos || input.attachments?.photos || []).slice(0, 3);
+      const video = input.video || input.attachments?.video || undefined;
+      const attachments = { photos, video };
 
-      // 4. Create Grievance via ACID transaction with PostgreSQL sequence ticket
+      // 4. Generate 768-dim semantic embedding
+      const embedding = await generateEmbedding(`${normalizedText} District: ${district} Domain: ${domain}`);
+
+      // 5. Create Grievance via ACID transaction with PostgreSQL sequence ticket
       const citizenId = req.user?.id || undefined;
       const grievance = await grievanceRepo.createGrievance({
         citizen_id: citizenId,
         anonymous_session_id: input.anonymous_session_id,
-        raw_text: input.raw_text,
+        raw_text: rawText,
         normalized_text: normalizedText,
         language: detectedLang,
-        district: input.district,
+        district,
         block: input.block,
         latitude: input.latitude,
         longitude: input.longitude,
@@ -58,16 +66,26 @@ export class CitizenController {
         severity,
         priority,
         classification_confidence: 0.92,
+        attachments,
         embedding,
       });
 
-      // 5. If submitted anonymously, generate secure claim token (valid for 30 days)
+      // 6. If submitted anonymously, generate secure claim token (valid for 30 days)
       let claimToken: string | undefined;
       if (!citizenId) {
         claimToken = crypto.randomBytes(24).toString('hex');
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await grievanceRepo.createClaimToken(grievance.id, claimToken, expiresAt);
       }
+
+      // 7. Real-time Notification dispatch
+      await NotificationController.pushNotification({
+        userId: citizenId,
+        title: `Grievance #${grievance.ticket_id} Logged`,
+        message: `Your report for ${district} (${domain}) is recorded and dispatched for lab matching.`,
+        type: 'status_update',
+        link: `/trackprogress/${grievance.ticket_id}`,
+      });
 
       sendSuccess(res, {
         grievance: {
@@ -80,6 +98,7 @@ export class CitizenController {
           district: grievance.district,
           language: grievance.language,
           normalized_text: grievance.normalized_text,
+          attachments: grievance.attachments,
           created_at: grievance.created_at,
         },
         claimToken,
@@ -155,6 +174,7 @@ export class CitizenController {
         status: grievance.status,
         domain: grievance.domain,
         district: grievance.district,
+        attachments: grievance.attachments,
         created_at: grievance.created_at,
         updated_at: grievance.updated_at,
         resolved_at: grievance.resolved_at,

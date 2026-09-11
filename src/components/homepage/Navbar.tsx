@@ -1,55 +1,48 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, ChevronDown, Check, CheckCheck, Sparkles, AlertCircle, Info, X } from "lucide-react";
+import { Search, Bell, ChevronDown, CheckCheck, Sparkles, AlertCircle, Info, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  type: "match" | "verification" | "broadcast";
-}
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    title: "Solution Matched",
-    message: "IIT Kharagpur lab team matched to Ward 12 drainage problem.",
-    time: "10m ago",
-    read: false,
-    type: "match",
-  },
-  {
-    id: "notif-2",
-    title: "Verification Milestone",
-    message: "Regional municipal desk acknowledged community report #JS-2026.",
-    time: "1h ago",
-    read: false,
-    type: "verification",
-  },
-  {
-    id: "notif-3",
-    title: "System Update",
-    message: "PooKar 2.0 national public challenge network is active.",
-    time: "3h ago",
-    read: true,
-    type: "broadcast",
-  },
-];
+import { notificationApi, type AppNotification } from "../../services/api";
 
 function Navbar() {
   const { user, isAuthenticated } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const displayName = isAuthenticated && user?.name ? user.name : "Guest";
+  const displayName = isAuthenticated && user?.name ? user.name : "Guest Citizen";
   const displayRole = isAuthenticated && user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()) : "Citizen";
   const initial = displayName.charAt(0).toUpperCase();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial fetch of notifications
+    notificationApi.getNotifications(user?.role, user?.district)
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          setNotifications(data);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Subscribe to real-time Server-Sent Events (SSE)
+    const cleanupStream = notificationApi.streamNotifications((incoming) => {
+      if (isMounted && incoming && incoming.id) {
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === incoming.id)) return prev;
+          return [incoming, ...prev];
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      cleanupStream();
+    };
+  }, [user?.role, user?.district]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,28 +56,34 @@ function Navbar() {
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    notificationApi.markAsRead().catch(() => {});
   };
 
   const markAsRead = (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    notificationApi.markAsRead(id).catch(() => {});
   };
 
   const removeNotification = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    notificationApi.markAsRead(id).catch(() => {});
   };
 
   return (
-    <header className="sticky top-0 z-40 h-16 border-b border-slate-200 bg-white px-6">
+    <header className="sticky top-0 z-40 h-16 border-b border-slate-200 bg-white px-4 sm:px-6 shadow-xs">
       <div className="flex h-full items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Brand or title space */}
+          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-0.5 text-xs font-semibold text-emerald-800">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Jharkhand Problem Ledger Node Active
+          </span>
         </div>
 
-        <div className="flex items-center gap-5">
-          {/* Functional Notification Bell with Short Window Dropdown */}
+        <div className="flex items-center gap-4 sm:gap-5">
+          {/* Functional Notification Bell with SSE Stream Dropdown */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotificationsOpen((prev) => !prev)}
@@ -112,7 +111,7 @@ function Navbar() {
               <div className="absolute right-0 top-12 z-50 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-900/10 backdrop-blur-lg animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-[#10245e]">Notifications</h3>
+                    <h3 className="text-sm font-bold text-[#10245e]">Live Notifications</h3>
                     {unreadCount > 0 && (
                       <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
                         {unreadCount} new
@@ -153,12 +152,16 @@ function Navbar() {
                             ? "bg-emerald-100 text-emerald-700"
                             : notif.type === "verification"
                             ? "bg-blue-100 text-blue-700"
+                            : notif.type === "alert"
+                            ? "bg-rose-100 text-rose-700"
                             : "bg-purple-100 text-purple-700"
                         }`}>
                           {notif.type === "match" ? (
                             <Sparkles size={14} />
-                          ) : notif.type === "verification" ? (
+                          ) : notif.type === "alert" ? (
                             <AlertCircle size={14} />
+                          ) : notif.type === "verification" ? (
+                            <CheckCheck size={14} />
                           ) : (
                             <Info size={14} />
                           )}
@@ -169,7 +172,9 @@ function Navbar() {
                             <p className={`text-xs font-semibold ${notif.read ? "text-slate-700" : "text-[#10245e]"}`}>
                               {notif.title}
                             </p>
-                            <span className="text-[10px] text-slate-400 shrink-0">{notif.time}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0">
+                              {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
                           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
                             {notif.message}
@@ -225,7 +230,6 @@ function Navbar() {
 
             <ChevronDown size={17} className="text-slate-400" />
           </Link>
-
         </div>
       </div>
     </header>

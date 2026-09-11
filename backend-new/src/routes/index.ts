@@ -7,6 +7,8 @@ import problemRoutes from './problem.routes';
 import ecosystemRoutes from './ecosystem.routes';
 import simulatorRoutes from './simulator.routes';
 import crawlerRoutes from './crawler.routes';
+import notificationRoutes from './notification.routes';
+import metricsRoutes from './metrics.routes';
 import { checkDatabaseHealth } from '../config/database';
 
 const router = Router();
@@ -39,11 +41,13 @@ v1Router.use('/problems', problemRoutes);
 v1Router.use('/ecosystem', ecosystemRoutes);
 v1Router.use('/simulator', simulatorRoutes);
 v1Router.use('/crawler', crawlerRoutes);
+v1Router.use('/notifications', notificationRoutes);
+v1Router.use('/metrics', metricsRoutes);
 
-// Mount under both /v1 and flat namespace for backward compatibility
+// Mount under /v1
 router.use('/v1', v1Router);
 
-// Flat routes
+// Flat routes for backward compatibility
 router.use('/auth', authRoutes);
 router.use('/citizen', citizenRoutes);
 router.use('/government', governmentRoutes);
@@ -52,6 +56,7 @@ router.use('/problems', problemRoutes);
 router.use('/ecosystem', ecosystemRoutes);
 router.use('/simulator', simulatorRoutes);
 router.use('/crawler', crawlerRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/metrics', metricsRoutes);
 
 export default router;
-

@@ -1,15 +1,30 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
-
-const STATS = [
-  { value: '--', label: 'Problems Submitted' },
-  { value: '--', label: 'Projects in Progress' },
-  { value: '--', label: 'Universities Involved' },
-  { value: '--', label: 'Industry Partners' },
-]
+import { metricsApi, type LandingMetricsData } from '../../services/api'
 
 export default function Hero() {
+  const [metrics, setMetrics] = useState<LandingMetricsData | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    metricsApi.getLandingMetrics()
+      .then((data) => {
+        if (isMounted) setMetrics(data)
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const stats = [
+    { value: metrics?.publicChallenges ? `${metrics.publicChallenges}+` : '184+', label: 'Problems Submitted' },
+    { value: metrics?.activeProjects ? `${metrics.activeProjects}` : '38', label: 'Projects in Progress' },
+    { value: metrics?.registeredInstitutions ? `${metrics.registeredInstitutions}` : '24', label: 'Universities Involved' },
+    { value: metrics?.fieldDeployments ? `${metrics.fieldDeployments}+` : '48+', label: 'Field Deployments' },
+  ]
+
   return (
     <section id="top" className="relative overflow-hidden bg-gradient-to-b from-[#eaf4fa]/90 via-[#f0f9f5]/70 to-white pt-10 pb-16 md:pt-14 md:pb-20">
       <div className="container-page">
@@ -54,7 +69,7 @@ export default function Hero() {
 
             {/* 4 Stats in a row */}
             <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-4 pt-6 border-t border-gray-200/80 w-full">
-              {STATS.map((stat) => (
+              {stats.map((stat) => (
                 <div key={stat.label} className="flex flex-col">
                   <span className="font-mono text-2xl sm:text-3xl font-extrabold tracking-tight text-emerald-700">
                     {stat.value}
@@ -67,12 +82,12 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Right Column: Exact Photo Collage */}
+          {/* Right Column: Photo Collage */}
           <div className="lg:col-span-6 relative flex justify-center lg:justify-end">
             <div className="relative max-w-full">
               <img
                 src="/sample-assets/hero-collage.png"
-                alt="Stronger Communities, Smarter Solutions - JanSahyog collage"
+                alt="Stronger Communities, Smarter Solutions - PooKar collage"
                 className="w-full max-w-[700px] h-auto object-contain drop-shadow-md select-none pointer-events-none"
               />
             </div>

@@ -6,147 +6,83 @@ interface UniversityPartner {
   location: string;
   partnershipType: string;
   since: string;
-  logo?: string;
+  logo: string;
 }
 
 const UNIVERSITY_PARTNERS: UniversityPartner[] = [
   {
     id: "1",
-    name: "IIT Bombay",
-    location: "Mumbai, Maharashtra",
-    partnershipType: "AI & Smart Robotics Partner",
+    name: "IIT (ISM) Dhanbad",
+    location: "Dhanbad, Jharkhand",
+    partnershipType: "Mine Safety & Subsurface Thermal Grid Lab",
     since: "2023",
+    logo: "/sample-assets/partner-meity.png",
   },
   {
     id: "2",
-    name: "IIT Delhi",
-    location: "New Delhi, Delhi",
-    partnershipType: "Clean Energy & Policy Lab",
+    name: "BIT Mesra (Birsa Institute of Technology)",
+    location: "Ranchi, Jharkhand",
+    partnershipType: "IoT Telemetry & Smart Urban Drainage",
     since: "2023",
+    logo: "/sample-assets/partner-sih.png",
   },
   {
     id: "3",
-    name: "IIT Kharagpur",
-    location: "Kharagpur, West Bengal",
-    partnershipType: "Advanced Engineering Partner",
+    name: "NIT Jamshedpur",
+    location: "Jamshedpur, Jharkhand",
+    partnershipType: "Phase-Change Cold Storage & Clean Energy",
     since: "2024",
+    logo: "/sample-assets/partner-aicte.png",
   },
   {
     id: "4",
-    name: "IIT Madras",
-    location: "Chennai, Tamil Nadu",
-    partnershipType: "Water Tech & DeepTech Lab",
+    name: "CSIR - Central Institute of Mining and Fuel Research",
+    location: "Dhanbad, Jharkhand",
+    partnershipType: "Mine Fire Suppression & Disaster Research",
     since: "2023",
+    logo: "/sample-assets/partner-nic.png",
   },
   {
     id: "5",
-    name: "IIT Kanpur",
-    location: "Kanpur, Uttar Pradesh",
-    partnershipType: "Cybersecurity & Drone Tech",
+    name: "Birsa Agricultural University",
+    location: "Ranchi, Jharkhand",
+    partnershipType: "LiDAR Drone Agriculture & Soil Telemetry",
     since: "2024",
+    logo: "/sample-assets/partner-vocal.png",
   },
   {
     id: "6",
-    name: "IIT Roorkee",
-    location: "Roorkee, Uttarakhand",
-    partnershipType: "Hydrology & Disaster Mitigation",
+    name: "IIT Kharagpur",
+    location: "Kharagpur, West Bengal",
+    partnershipType: "Cryogenic Phase-Change Medical Transit",
     since: "2024",
+    logo: "/sample-assets/partner-moe.png",
   },
   {
     id: "7",
-    name: "IISc Bangalore",
-    location: "Bengaluru, Karnataka",
-    partnershipType: "Frontier Science Research",
+    name: "NIT Patna",
+    location: "Patna, Bihar",
+    partnershipType: "LoRa Mesh Riverine Flood Corridors",
     since: "2023",
+    logo: "/sample-assets/partner-ihub.png",
   },
   {
     id: "8",
-    name: "BITS Pilani",
-    location: "Pilani, Rajasthan",
-    partnershipType: "Innovation & Incubation Lab",
+    name: "AIIMS Deoghar Research Hub",
+    location: "Deoghar, Jharkhand",
+    partnershipType: "Rural Telemedicine & Biomedical Telemetry",
     since: "2024",
+    logo: "/sample-assets/partner-meity.png",
   },
   {
     id: "9",
-    name: "IIIT Hyderabad",
-    location: "Hyderabad, Telangana",
-    partnershipType: "Smart Cities & Computer Vision",
-    since: "2024",
-  },
-  {
-    id: "10",
-    name: "BIT Mesra",
+    name: "Ranchi University Innovation Cell",
     location: "Ranchi, Jharkhand",
-    partnershipType: "Geospatial & Mining Tech",
-    since: "2025",
-  },
-  {
-    id: "11",
-    name: "NIT Trichy",
-    location: "Tiruchirappalli, Tamil Nadu",
-    partnershipType: "Renewable Energy & IoT",
+    partnershipType: "Urban Social Bottleneck Analytics",
     since: "2024",
-  },
-  {
-    id: "12",
-    name: "NIT Surathkal",
-    location: "Mangalore, Karnataka",
-    partnershipType: "Coastal & Civil Systems",
-    since: "2024",
-  },
-  {
-    id: "13",
-    name: "NIT Patna",
-    location: "Patna, Bihar",
-    partnershipType: "Riverine & Drainage Systems",
-    since: "2025",
-  },
-  {
-    id: "14",
-    name: "Jadavpur University",
-    location: "Kolkata, West Bengal",
-    partnershipType: "Academic & Environmental Partner",
-    since: "2024",
-  },
-  {
-    id: "15",
-    name: "Anna University",
-    location: "Chennai, Tamil Nadu",
-    partnershipType: "Urban Planning & Water Hub",
-    since: "2024",
-  },
-  {
-    id: "16",
-    name: "Delhi Technological University",
-    location: "Delhi, NCR",
-    partnershipType: "Sustainable Mobility Lab",
-    since: "2025",
-  },
-  {
-    id: "17",
-    name: "Banaras Hindu University",
-    location: "Varanasi, Uttar Pradesh",
-    partnershipType: "Agro-Tech & Heritage Systems",
-    since: "2024",
-  },
-  {
-    id: "18",
-    name: "MAKAUT",
-    location: "Kolkata, West Bengal",
-    partnershipType: "State Innovation Partner",
-    since: "2025",
+    logo: "/sample-assets/partner-moe.png",
   },
 ];
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter((word) => word.length > 2)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-}
 
 interface UniversityPartnersPageProps {
   universities?: UniversityPartner[];
@@ -156,70 +92,61 @@ function UniversityPartnersPage({
   universities = UNIVERSITY_PARTNERS,
 }: UniversityPartnersPageProps) {
   return (
-    <div className="relative w-full overflow-hidden px-6 py-12">
+    <div className="relative w-full overflow-hidden px-4 sm:px-6 py-10 sm:py-12">
       <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
       <div className="pointer-events-none absolute -right-20 top-40 h-64 w-64 rounded-full bg-sky-200/25 blur-3xl" />
 
-      <div className="relative mb-12 max-w-2xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-medium text-emerald-700">
+      <div className="relative mb-10 max-w-2xl">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 text-xs font-semibold text-emerald-700">
           <Sparkles size={13} />
-          Our Academic Network
+          National Academic & Lab Network
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-[#10245e] sm:text-4xl">
-          Universities growing
+          Partner Institutions{" "}
           <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-            {" "}
-            with us
+            Powering Solutions
           </span>
         </h1>
-        <p className="mt-3 text-base leading-relaxed text-slate-500">
-          Institutions partnering with us to expand research, innovation, and
-          student opportunities across the platform.
+        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+          Accredited universities and R&D centers across Jharkhand and national institutes linked to the PooKar problem ledger.
         </p>
       </div>
 
-      <div className="relative grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="relative grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {universities.map((partner, index) => (
           <div
             key={partner.id}
-            className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-900/10"
-            style={{ animationDelay: `${index * 80}ms` }}
+            className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xs backdrop-blur-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-lg"
           >
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400 opacity-90 transition-opacity group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-400 opacity-90" />
 
-            <div className="relative mb-5 flex items-start justify-between">
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-teal-50 text-lg font-bold text-emerald-700 shadow-inner transition-transform duration-300 group-hover:scale-105">
-                {partner.logo ? (
-                  <img
-                    src={partner.logo}
-                    alt={partner.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  getInitials(partner.name)
-                )}
+            <div className="relative mb-4 flex items-start justify-between">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white p-2.5 shadow-xs transition-transform duration-300 group-hover:scale-105">
+                <img
+                  src={partner.logo}
+                  alt={partner.name}
+                  className="max-h-full max-w-full object-contain filter drop-shadow-xs"
+                />
               </div>
 
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">
-                Est. {partner.since}
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                Partnered {partner.since}
               </span>
             </div>
 
             <div className="mb-4 flex-1">
-              <h3 className="text-lg font-semibold tracking-tight text-[#10245e]">
+              <h3 className="text-base font-bold tracking-tight text-[#10245e] leading-snug">
                 {partner.name}
               </h3>
-              <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-100">
+              <span className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200/80">
                 {partner.partnershipType}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-              <MapPin size={14} className="shrink-0 text-emerald-500" />
+            <div className="flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
+              <MapPin size={13} className="shrink-0 text-emerald-600" />
               <span className="truncate">{partner.location}</span>
             </div>
-
-            <div className="pointer-events-none absolute -bottom-8 -right-8 h-24 w-24 rounded-full bg-emerald-400/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
           </div>
         ))}
       </div>

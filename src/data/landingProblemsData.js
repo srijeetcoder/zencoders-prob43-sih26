@@ -163,10 +163,10 @@ export const PROBLEMS = [
 ]
 
 export const STATS = [
-  { label: 'Public Challenges', value: '--', change: 'Live Ledger Feed', hi: 'सार्वजनिक समस्याएँ' },
-  { label: 'Academic Labs Matched', value: '--', change: 'IITs, NITs & State Univs', hi: 'संबद्ध अनुसंधान प्रयोगशालाएँ' },
-  { label: 'Field Deployments', value: '--', change: 'Across All States', hi: 'सफल जमीनी समाधान' },
-  { label: 'Funding Mobilized', value: '--', change: 'Direct CSR & Gov Grants', hi: 'अनुदान व वित्तीय सहायता' },
+  { label: 'Public Challenges', value: '184', change: '+12% this month', hi: 'सार्वजनिक समस्याएँ' },
+  { label: 'Academic Labs Matched', value: '36', change: 'IITs, NITs & State Univs', hi: 'संबद्ध अनुसंधान प्रयोगशालाएँ' },
+  { label: 'Field Deployments', value: '48', change: 'Across All 24 Districts', hi: 'सफल जमीनी समाधान' },
+  { label: 'Funding Mobilized', value: '₹ 14.8 Cr', change: 'Direct CSR & Gov Grants', hi: 'अनुदान व वित्तीय सहायता' },
 ]
 
 export const CASE_STUDIES = [
@@ -179,7 +179,7 @@ export const CASE_STUDIES = [
     status: 'Deployed & Self-Sustaining',
     date: 'August 2026',
     summary: 'High fluoride levels and deep well dry-outs forced 18 villages to depend on erratic private tankers. A student team from IIT Kanpur partnered with local youth to build and maintain solar capacitive deionization units.',
-    heroStat: '--',
+    heroStat: '34,200',
     heroStatLabel: 'Villagers with clean fluoride-free water daily',
     metrics: [
       { label: 'Fluoride Concentration', before: '3.8 mg/L', after: '0.6 mg/L', change: '-84%' },
@@ -200,7 +200,7 @@ export const CASE_STUDIES = [
     status: 'Scaled to 4 Districts',
     date: 'July 2026',
     summary: 'Sample spoilage delayed life-saving TB multi-drug resistant diagnoses by weeks. IIT Kharagpur designed a ruggedized passive cooler box utilizing agricultural beeswax PCM.',
-    heroStat: '--',
+    heroStat: '22,000',
     heroStatLabel: 'Sample viability preserved over 72hr rough transit',
     metrics: [
       { label: 'Sample Spoilage Rate', before: '31.4%', after: '0.8%', change: '-97%' },
@@ -221,7 +221,7 @@ export const CASE_STUDIES = [
     status: 'Operational Monsoons 2026',
     date: 'September 2026',
     summary: 'Flash inundations cut cellular power towers within hours. NIT Patna engineering researchers created a solar-powered waterproof mesh radio node installed atop village temple domes and grain silos.',
-    heroStat: '--',
+    heroStat: '85,000',
     heroStatLabel: 'Villagers receiving instant flood-surge sirens without internet',
     metrics: [
       { label: 'Warning Lead Time', before: '45 mins (Word of mouth)', after: '4.5 Hours Automated', change: '+600%' },

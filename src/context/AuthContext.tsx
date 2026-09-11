@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authApi } from "../services/api";
 
 export type UserRole = "CITIZEN" | "GOVERNMENT" | "INSTITUTION" | "SUPER_ADMIN" | "ADMIN";
 
@@ -11,6 +12,10 @@ export interface UserProfile {
   district?: string;
   phone?: string;
   verifiedPhone?: string;
+  government_id?: string;
+  is_email_verified?: boolean;
+  is_phone_verified?: boolean;
+  logo_url?: string;
   institution_id?: string;
   district_id?: string;
   claimedTickets?: string[];
@@ -25,6 +30,7 @@ export interface RegisterData {
   district?: string;
   phone?: string;
   organization?: string;
+  government_id?: string;
   institution_id?: string;
   district_id?: string;
 }
@@ -35,7 +41,10 @@ interface AuthContextType {
   role: UserRole | null;
   isAuthenticated: boolean;
   login: (credentials: { email?: string; password?: string; role?: UserRole }) => Promise<UserProfile>;
+  loginWithGoogle: (payload: { credential?: string; role?: UserRole; email?: string; name?: string }) => Promise<UserProfile>;
   register: (data: RegisterData) => Promise<UserProfile>;
+  updateProfile: (payload: { name?: string; district?: string }) => Promise<UserProfile>;
+  deleteAccount: (password?: string) => Promise<void>;
   logout: () => void;
   claimCitizenTicket: (ticketId: string, claimToken: string) => Promise<void>;
   switchDemoRole: (role: UserRole) => void;
@@ -54,6 +63,9 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
       role: "GOVERNMENT",
       department: "Urban Development & Housing Dept, Govt of Jharkhand",
       district: "Ranchi",
+      government_id: "JH-RN-8801",
+      is_email_verified: true,
+      is_phone_verified: true,
     },
     token: "gov-token-secret-2026",
   },
@@ -65,6 +77,8 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
       role: "INSTITUTION",
       department: "Birsa Institute of Technology (BIT Mesra) IoT Center",
       district: "Ranchi",
+      is_email_verified: true,
+      is_phone_verified: true,
     },
     token: "inst-token-secret-2026",
   },
@@ -76,6 +90,9 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
       role: "SUPER_ADMIN",
       department: "National Informatics Centre / Govt of Jharkhand",
       district: "Statewide",
+      government_id: "JH-RN-9999",
+      is_email_verified: true,
+      is_phone_verified: true,
     },
     token: "admin-token-secret-2026",
   },
@@ -87,6 +104,9 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
       role: "SUPER_ADMIN",
       department: "National Informatics Centre / Govt of Jharkhand",
       district: "Statewide",
+      government_id: "JH-RN-9999",
+      is_email_verified: true,
+      is_phone_verified: true,
     },
     token: "admin-token-secret-2026",
   },
@@ -97,6 +117,8 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
       email: "citizen@jharkhand.gov.in",
       role: "CITIZEN",
       district: "Ranchi",
+      is_email_verified: true,
+      is_phone_verified: true,
       claimedTickets: ["JS-2026-1001"],
     },
     token: "citizen-token-temp",
@@ -131,38 +153,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [token]);
 
-  // Verify / Refresh on boot
+  // Synchronize with authoritative /auth/me on mount
   useEffect(() => {
-    if (token && token.length > 30) {
-      fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data && data.success && data.data?.user) {
-            setUser(data.data.user);
+    if (token && token.length > 20) {
+      authApi.getMe()
+        .then((res: any) => {
+          if (res?.user) {
+            setUser(res.user);
+          } else if (res?.data?.user) {
+            setUser(res.data.user);
           }
         })
         .catch(() => {});
     }
-  }, []);
+  }, [token]);
 
   const login = async ({ email, password, role }: { email?: string; password?: string; role?: UserRole }): Promise<UserProfile> => {
     if (email && password) {
       try {
-        const res = await fetch(`${API_BASE}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
-        if (res.ok && data.success && data.data?.user) {
-          setUser(data.data.user);
-          setToken(data.data.token);
-          return data.data.user;
+        const res: any = await authApi.login({ email, password, role });
+        const loggedUser = res.user || res.data?.user || res;
+        const loggedToken = res.token || res.data?.token || `token-${Date.now()}`;
+        if (loggedUser && loggedUser.id) {
+          setUser(loggedUser);
+          setToken(loggedToken);
+          return loggedUser;
         }
-      } catch (err) {
-        console.warn("[Auth Login Fallback] Backend offline, using demo role profile.");
+      } catch (err: any) {
+        // Propagate real authentication error
+        throw err;
       }
     }
 
@@ -177,31 +196,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return loggedUser;
   };
 
-  const register = async (data: RegisterData): Promise<UserProfile> => {
-    if (data.email && data.password) {
-      try {
-        const res = await fetch(`${API_BASE}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: data.name,
-            email: data.email,
-            password: data.password,
-            role: data.role,
-            phone: data.phone,
-            district_id: data.district_id,
-            institution_id: data.institution_id,
-          }),
-        });
-        const resData = await res.json();
-        if (res.ok && resData.success && resData.data?.user) {
-          setUser(resData.data.user);
-          setToken(resData.data.token);
-          return resData.data.user;
-        }
-      } catch (err) {
-        console.warn("[Auth Register Fallback] Backend offline, creating local profile.");
+  const loginWithGoogle = async ({ credential, role, email, name }: { credential?: string; role?: UserRole; email?: string; name?: string }): Promise<UserProfile> => {
+    try {
+      const res: any = await authApi.googleOAuth({
+        credential,
+        role: role || "CITIZEN",
+        email,
+        name,
+      });
+
+      const loggedUser = res.user || res.data?.user;
+      const loggedToken = res.token || res.data?.token;
+      if (loggedUser) {
+        setUser(loggedUser);
+        setToken(loggedToken);
+        return loggedUser;
       }
+      throw new Error("Invalid response from Google authentication service.");
+    } catch (err: any) {
+      throw err;
+    }
+  };
+
+  const register = async (data: RegisterData): Promise<UserProfile> => {
+    try {
+      const res: any = await authApi.register({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        phone: data.phone,
+        district: data.district,
+        government_id: data.government_id,
+        district_id: data.district_id,
+        institution_id: data.institution_id,
+      });
+
+      const registeredUser = res.user || res.data?.user;
+      const registeredToken = res.token || res.data?.token || `token-${data.role.toLowerCase()}-${Date.now()}`;
+      if (registeredUser) {
+        setUser(registeredUser);
+        setToken(registeredToken);
+        return registeredUser;
+      }
+    } catch (err: any) {
+      throw err;
     }
 
     const newUser: UserProfile = {
@@ -212,11 +251,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       department: data.department || data.organization,
       district: data.district || "Ranchi",
       verifiedPhone: data.phone,
+      government_id: data.government_id,
+      is_email_verified: true,
+      is_phone_verified: true,
     };
     const newToken = `token-${data.role.toLowerCase()}-${Date.now()}`;
     setUser(newUser);
     setToken(newToken);
     return newUser;
+  };
+
+  const updateProfile = async (payload: { name?: string; district?: string }): Promise<UserProfile> => {
+    try {
+      const res: any = await authApi.updateProfile({
+        full_name: payload.name,
+        district: payload.district,
+      });
+      const updated = res.user || res.data?.user || { ...user, name: payload.name || user?.name, district: payload.district || user?.district };
+      setUser(updated);
+      return updated;
+    } catch (err: any) {
+      const updated: UserProfile = {
+        ...user!,
+        name: payload.name || user?.name || "Citizen",
+        district: payload.district || user?.district || "Ranchi",
+      };
+      setUser(updated);
+      return updated;
+    }
+  };
+
+  const deleteAccount = async (password?: string): Promise<void> => {
+    try {
+      await authApi.deleteAccount(password);
+    } finally {
+      logout();
+    }
   };
 
   const switchDemoRole = (targetRole: UserRole) => {
@@ -227,10 +297,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     if (token) {
-      fetch(`${API_BASE}/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+      authApi.logout().catch(() => {});
     }
     setUser(null);
     setToken(null);
@@ -268,7 +335,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         role: user?.role || null,
         isAuthenticated: !!user && !!token,
         login,
+        loginWithGoogle,
         register,
+        updateProfile,
+        deleteAccount,
         logout,
         claimCitizenTicket,
         switchDemoRole,
@@ -286,4 +356,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-

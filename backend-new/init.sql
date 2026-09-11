@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS institutions (
     district VARCHAR(100) NOT NULL,
     state VARCHAR(100) NOT NULL DEFAULT 'Jharkhand',
     contact_email VARCHAR(255),
+    logo_url TEXT,
     capabilities TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -69,12 +70,15 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(150) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(20),
+    government_id VARCHAR(50) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'CITIZEN',
     institution_id UUID REFERENCES institutions(id) ON DELETE SET NULL,
     district_id UUID REFERENCES districts(id) ON DELETE SET NULL,
     department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT TRUE,
+    is_email_verified BOOLEAN DEFAULT FALSE,
+    is_phone_verified BOOLEAN DEFAULT FALSE,
     refresh_token TEXT,
     reset_otp VARCHAR(10),
     reset_otp_expires_at TIMESTAMPTZ,
@@ -87,6 +91,38 @@ CREATE TABLE IF NOT EXISTS user_roles (
     role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, role_id)
 );
+
+-- 6b. Cryptographic OTP Verifications (State Machine)
+CREATE TABLE IF NOT EXISTS otp_verifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    target VARCHAR(255) NOT NULL,
+    target_type VARCHAR(20) NOT NULL, -- 'EMAIL' or 'MOBILE'
+    otp_hash VARCHAR(255) NOT NULL,
+    otp_purpose VARCHAR(50) NOT NULL DEFAULT 'REGISTRATION',
+    attempts INT DEFAULT 0,
+    max_attempts INT DEFAULT 5,
+    is_verified BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_otp_target ON otp_verifications (target, target_type, otp_purpose);
+
+-- 6c. User Notifications Ledger
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'broadcast', -- 'match', 'verification', 'broadcast', 'status_update'
+    link TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications (created_at DESC);
 
 -- 7. Citizen Grievances
 CREATE TABLE IF NOT EXISTS grievances (
@@ -109,6 +145,7 @@ CREATE TABLE IF NOT EXISTS grievances (
     priority VARCHAR(20) NOT NULL DEFAULT 'STANDARD',
     classification_confidence NUMERIC DEFAULT 0.85,
     status VARCHAR(30) NOT NULL DEFAULT 'OPEN',
+    attachments JSONB DEFAULT '{"photos":[], "video":null}',
     embedding vector(768),
     is_simulation BOOLEAN DEFAULT FALSE,
     claimed_at TIMESTAMPTZ,
