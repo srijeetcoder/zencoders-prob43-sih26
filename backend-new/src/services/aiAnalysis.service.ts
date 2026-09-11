@@ -243,11 +243,11 @@ Respond strictly with valid JSON conforming to the Cabinet Analysis schema:
           const clean = rawResponseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
           aiRawJson = JSON.parse(clean);
         } else {
-          aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId);
+          aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId, activeModule);
         }
       } catch (err: any) {
         console.warn(`[AI Analysis Service] Gemini API call notice, falling back to deterministic synthesis: ${err.message}`);
-        aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId);
+        aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId, activeModule);
       }
     }
 
@@ -399,7 +399,7 @@ Respond strictly with valid JSON conforming to the Cabinet Analysis schema:
     ];
   }
 
-  private generateDeterministicCabinetAnalysis(domain: string, district: string, prompt: string, clusterId?: string): any {
+  private generateDeterministicCabinetAnalysis(domain: string, district: string, prompt: string, clusterId?: string, module?: string): any {
     const domLower = domain.toLowerCase();
 
     if (domLower.includes('energy') || domLower.includes('transformer') || domLower.includes('electr')) {

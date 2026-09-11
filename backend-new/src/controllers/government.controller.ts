@@ -169,6 +169,7 @@ export class GovernmentController {
         domain,
         district,
         prompt,
+        module: data.module || 'master',
         apiKey,
         userId: req.user?.id,
       });
