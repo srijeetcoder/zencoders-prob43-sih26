@@ -16,51 +16,83 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getStoredProblems, saveProblems } from "../../data/mockData";
+import { getStoredProblems, saveProblems, INITIAL_LIVE_PROBLEMS } from "../../data/mockData";
 import type { LiveProblem } from "../../types";
 import { useAuth, type AcademicRole } from "../../../../context/AuthContext";
 import { citizenApi } from "../../../../services/api";
+import { fetchAllRealSubmissions } from "../../../../services/realSubmissions";
 
 export default function LiveProblemsPage() {
   const { user } = useAuth();
   const academicRole: AcademicRole = user?.academicRole || "STUDENT";
 
-  const [problems, setProblems] = useState<LiveProblem[]>(() => getStoredProblems());
+  const [problems, setProblems] = useState<LiveProblem[]>(() => {
+    const stored = getStoredProblems();
+    return stored.length > 0 ? stored : INITIAL_LIVE_PROBLEMS;
+  });
   const [activeTab, setActiveTab] = useState<"ALL" | "ACCEPTED">("ALL");
   const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [acceptedToast, setAcceptedToast] = useState<string | null>(null);
 
   useEffect(() => {
-    citizenApi.getPublicFeed().then((feed) => {
-      if (Array.isArray(feed) && feed.length > 0) {
-        const stored = getStoredProblems();
-        const mapped: LiveProblem[] = feed.map((item: any) => {
-          const matched = stored.find((s) => s.id === item.ticketId || s.ticketId === item.ticketId);
+    // 1. Fetch real citizen ground submissions
+    fetchAllRealSubmissions().then((realSubs) => {
+      const currentStored = getStoredProblems();
+      const baseList = currentStored.length > 0 ? currentStored : INITIAL_LIVE_PROBLEMS;
+      
+      if (realSubs && realSubs.length > 0) {
+        const mappedFromReal: LiveProblem[] = realSubs.map((item) => {
+          const matched = baseList.find((s) => s.id === item.id || s.ticketId === item.referenceId?.replace("#", ""));
+          let domainCategory: LiveProblem["domain"] = "Infrastructure";
+          const dText = `${item.title} ${item.description || ""} ${item.category}`.toLowerCase();
+          if (dText.includes("water") || dText.includes("fluoride") || dText.includes("drainage")) domainCategory = "Water & Sanitation";
+          else if (dText.includes("solar") || dText.includes("pv") || dText.includes("energy")) domainCategory = "Renewable Energy";
+          else if (dText.includes("fire") || dText.includes("mine") || dText.includes("mining")) domainCategory = "Mining & Geology";
+          else if (dText.includes("farm") || dText.includes("crop") || dText.includes("agro")) domainCategory = "Agriculture";
+
           return {
-            id: item.ticketId || item.id,
-            ticketId: item.ticketId,
+            id: item.id,
+            ticketId: item.referenceId?.replace("#", "") || item.id,
             title: item.title,
-            description: item.description,
-            domain: item.domainTags?.[0] || "Civic Technology",
-            urgency: item.priority === "CRITICAL" ? "CRITICAL" : item.priority === "HIGH" ? "HIGH" : "MEDIUM",
-            district: item.district,
-            department: "District Innovation Authority",
-            deadline: "30 Days",
-            estimatedBudget: "₹ 1.20 Lakhs",
+            description: item.description || "Citizen reported bottleneck requiring university R&D prototype intervention.",
+            domain: domainCategory,
+            urgency: item.severity === "High" ? "CRITICAL" : "HIGH",
+            district: item.location?.city || "Ranchi",
+            department: "District Innovation & Redressal Authority",
+            affectedPopulation: "30,000+ Local Residents",
+            estimatedBudget: "₹ 1.80 Lakhs (DMF Sanctioned)",
+            deadline: "21 Days",
             status: matched?.status || "OPEN",
             acceptedByTeam: matched?.acceptedByTeam,
             acceptedByStudent: matched?.acceptedByStudent,
           };
         });
-        setProblems(mapped);
+
+        // Merge without duplicates
+        const mergedMap = new Map<string, LiveProblem>();
+        mappedFromReal.forEach((p) => mergedMap.set(p.ticketId || p.id, p));
+        baseList.forEach((p) => {
+          if (!mergedMap.has(p.ticketId || p.id)) {
+            mergedMap.set(p.ticketId || p.id, p);
+          }
+        });
+
+        const mergedArray = Array.from(mergedMap.values());
+        setProblems(mergedArray);
+        saveProblems(mergedArray);
+      } else {
+        setProblems(baseList);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      const stored = getStoredProblems();
+      setProblems(stored.length > 0 ? stored : INITIAL_LIVE_PROBLEMS);
+    });
   }, []);
 
   const handleAcceptProblem = (problemId: string, title: string) => {
     const updated = problems.map((p) => {
-      if (p.id === problemId) {
+      if (p.id === problemId || p.ticketId === problemId) {
         return {
           ...p,
           status: "ACCEPTED" as const,
@@ -78,14 +110,19 @@ export default function LiveProblemsPage() {
 
   const filteredProblems = problems.filter((p) => {
     if (activeTab === "ACCEPTED" && p.status !== "ACCEPTED") return false;
-    if (selectedDomain !== "ALL" && p.domain !== selectedDomain) return false;
+    if (selectedDomain !== "ALL") {
+      const pDomain = (p.domain || "").toLowerCase();
+      const sDomain = selectedDomain.toLowerCase();
+      if (!pDomain.includes(sDomain) && !sDomain.includes(pDomain)) return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        p.title.toLowerCase().includes(q) ||
-        p.ticketId.toLowerCase().includes(q) ||
-        p.district.toLowerCase().includes(q) ||
-        p.department.toLowerCase().includes(q)
+        (p.title || "").toLowerCase().includes(q) ||
+        (p.ticketId || "").toLowerCase().includes(q) ||
+        (p.district || "").toLowerCase().includes(q) ||
+        (p.department || "").toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q)
       );
     }
     return true;
