@@ -323,6 +323,63 @@ export class AuthController {
         }
       }
 
+      // 4. Safely resolve Institution UUID foreign key (institutions.id is UUID; codes/AISHE strings are not UUIDs)
+      const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+      let resolvedInstitutionUuid: string | undefined = undefined;
+      if (data.institution_id) {
+        if (isUUID(data.institution_id)) {
+          resolvedInstitutionUuid = data.institution_id;
+        } else {
+          try {
+            const instRes = await query<{ id: string }>(
+              `SELECT id FROM institutions WHERE aishe_code ILIKE $1 OR name ILIKE $2 LIMIT 1;`,
+              [data.institution_id, `%${data.organization || data.institution_id}%`]
+            );
+            if (instRes.rows[0]) resolvedInstitutionUuid = instRes.rows[0].id;
+          } catch {}
+        }
+      }
+
+      // Check and claim University Invite Code if applicable
+      if (role === 'INSTITUTION' && data.institution_id) {
+        try {
+          const rawUnivCode = data.institution_id.trim().toUpperCase();
+          const uInviteRes = await query<{
+            id: string;
+            code: string;
+            institution_name: string;
+            aishe_code: string;
+            allocated_role: string;
+            max_claims: number;
+            claim_count: number;
+            is_active: boolean;
+            expires_at: Date;
+          }>(
+            `SELECT id, code, institution_name, aishe_code, allocated_role, max_claims, claim_count, is_active, expires_at
+             FROM university_invite_codes
+             WHERE code = $1 LIMIT 1;`,
+            [rawUnivCode]
+          );
+          if (uInviteRes.rows[0]) {
+            const uInvite = uInviteRes.rows[0];
+            if (uInvite.claim_count >= uInvite.max_claims) {
+              throw new ValidationError('This University Invite Code has reached its maximum permitted activations.');
+            }
+            if (new Date(uInvite.expires_at) < new Date()) {
+              throw new ValidationError('This University Invite Code has expired.');
+            }
+            await query(
+              `UPDATE university_invite_codes
+               SET claim_count = claim_count + 1, is_active = (claim_count + 1 < max_claims)
+               WHERE id = $1;`,
+              [uInvite.id]
+            );
+          }
+        } catch (uErr: any) {
+          if (uErr instanceof ValidationError) throw uErr;
+        }
+      }
+
       const passwordHash = await bcrypt.hash(data.password, 10);
       const user = await authRepo.createUser({
         name: data.name,
@@ -331,7 +388,7 @@ export class AuthController {
         government_id: governmentId,
         password_hash: passwordHash,
         role: data.role,
-        institution_id: data.institution_id,
+        institution_id: resolvedInstitutionUuid,
         district_id: districtId,
         department_id: data.department_id,
         is_email_verified: true,

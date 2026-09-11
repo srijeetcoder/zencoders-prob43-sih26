@@ -221,18 +221,21 @@ export default function GoogleHazardMap({
 
   // Render Fallback Vector Visualizer if API Key is not set or library is loading
   const renderFallbackVisualizer = () => (
-    <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 overflow-hidden shadow-sm" style={{ height }}>
-      <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-60" />
+    <div className="relative w-full rounded-2xl border border-slate-200/90 bg-white p-5 text-slate-900 shadow-sm flex flex-col justify-between">
+      <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-40 rounded-2xl pointer-events-none" />
       
       {/* Header bar */}
-      <div className="relative z-10 flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-rose-500 animate-pulse" />
-          <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#10245e]">
+      <div className="relative z-10 flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+          </span>
+          <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#10245e]">
             Jharkhand Statewide Vulnerability & Hazard Grid
           </span>
         </div>
-        <span className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-mono font-bold text-rose-700">
+        <span className="rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-[11px] font-mono font-bold text-rose-700 shadow-2xs">
           8 Active Hazard Hubs
         </span>
       </div>
@@ -248,27 +251,27 @@ export default function GoogleHazardMap({
             <button
               key={point.id}
               onClick={() => handleMarkerClick(point)}
-              className={`flex flex-col text-left rounded-xl border p-2.5 transition-all ${
+              className={`flex flex-col text-left rounded-xl border p-2.5 transition-all cursor-pointer ${
                 isSelected
-                  ? "border-emerald-500 bg-emerald-50/80 ring-1 ring-emerald-500 shadow-sm"
-                  : "border-slate-200 bg-slate-50/70 hover:border-slate-300 hover:bg-white"
+                  ? "border-emerald-500 bg-gradient-to-b from-emerald-50 to-white ring-2 ring-emerald-500/20 shadow-md translate-y-[-1px]"
+                  : "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white hover:shadow-xs"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-[#10245e]">{point.name}</span>
+              <div className="flex items-center justify-between w-full">
+                <span className="font-bold text-xs text-[#10245e] truncate">{point.name}</span>
                 <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-mono font-bold shrink-0 ${
                     isCritical
-                      ? "bg-rose-100 text-rose-700"
+                      ? "bg-rose-100 text-rose-700 border border-rose-200"
                       : isHigh
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-blue-100 text-blue-800"
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : "bg-blue-100 text-blue-800 border border-blue-200"
                   }`}
                 >
                   {point.hazardScore}
                 </span>
               </div>
-              <p className="mt-1 line-clamp-1 text-[10px] text-slate-500">{point.dominantRisk}</p>
+              <p className="mt-1 line-clamp-1 text-[10px] text-slate-500 font-medium">{point.dominantRisk}</p>
               <span className="mt-1.5 text-[9px] font-mono text-slate-400">{point.lat.toFixed(2)}°N, {point.lng.toFixed(2)}°E</span>
             </button>
           );
@@ -277,12 +280,12 @@ export default function GoogleHazardMap({
 
       {/* Detail Overlay Card */}
       {selectedPoint && (
-        <div className="relative z-10 mt-3 rounded-xl border border-slate-200 bg-gradient-to-r from-emerald-50/50 via-teal-50/20 to-white p-3.5 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+        <div className="relative z-10 mt-4 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-teal-50/30 to-white p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100/60 pb-2.5">
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="font-bold text-xs text-[#10245e]">{selectedPoint.name} District Hazard Profile</h4>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                <h4 className="font-bold text-sm text-[#10245e]">{selectedPoint.name} District Hazard Profile</h4>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   selectedPoint.riskLevel === "CRITICAL"
                     ? "bg-rose-100 text-rose-700 border border-rose-200"
                     : selectedPoint.riskLevel === "HIGH"
@@ -292,28 +295,28 @@ export default function GoogleHazardMap({
                   {selectedPoint.riskLevel} HAZARD
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600 mt-0.5">{selectedPoint.dominantRisk}</p>
+              <p className="text-xs text-slate-600 mt-1 font-medium">{selectedPoint.dominantRisk}</p>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
-              <Clock className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs self-start sm:self-auto">
+              <Clock className="h-3.5 w-3.5 text-emerald-600" />
               <span>SLA Target: {selectedPoint.slaDays} Days</span>
             </div>
           </div>
 
-          <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="flex items-start gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-slate-400 text-[9px] uppercase font-bold block">Assigned Bankable DPR</span>
-                <span className="font-semibold text-slate-800 text-[11px]">{selectedPoint.activeDprTitle}</span>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="flex items-start gap-2 bg-white/70 p-2.5 rounded-lg border border-emerald-100/50">
+              <Sparkles className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider block">Assigned Bankable DPR</span>
+                <span className="font-semibold text-slate-800 text-xs line-clamp-1">{selectedPoint.activeDprTitle}</span>
               </div>
             </div>
-            <div className="flex items-start gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
-              <div>
-                <span className="text-slate-400 text-[9px] uppercase font-bold block">Lead Institutional Partner</span>
-                <span className="font-semibold text-slate-800 text-[11px]">{selectedPoint.leadInstitution}</span>
+            <div className="flex items-start gap-2 bg-white/70 p-2.5 rounded-lg border border-emerald-100/50">
+              <Building2 className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider block">Lead Institutional Partner</span>
+                <span className="font-semibold text-slate-800 text-xs line-clamp-1">{selectedPoint.leadInstitution}</span>
               </div>
             </div>
           </div>

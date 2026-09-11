@@ -198,11 +198,11 @@ export default function RegisterPage() {
       setSuccess(true);
       setTimeout(() => {
         if (activeRole === "GOVERNMENT") {
-          navigate("/gov-dashboard");
+          navigate("/gov");
         } else if (activeRole === "INSTITUTION") {
           navigate("/university-dashboard");
         } else {
-          navigate("/user-dashboard");
+          navigate("/");
         }
       }, 1200);
     } catch (err: any) {
