@@ -21,9 +21,35 @@ import { fetchAllRealSubmissions } from "../../../services/realSubmissions";
 
 // Domain-specific solution catalog template dynamically resolved by problem cluster
 function getDomainSolutions(domain: string, district: string, sampleTitle: string) {
-  const isDrainageOrCivic = domain.toLowerCase().includes("infra") || sampleTitle.toLowerCase().includes("paani") || sampleTitle.toLowerCase().includes("drain");
-  const isEnergy = domain.toLowerCase().includes("energy") || sampleTitle.toLowerCase().includes("power") || sampleTitle.toLowerCase().includes("transformer");
-  const isHealth = domain.toLowerCase().includes("health") || sampleTitle.toLowerCase().includes("water") || sampleTitle.toLowerCase().includes("fluoride");
+  const titleLower = sampleTitle.toLowerCase();
+  const domainLower = domain.toLowerCase();
+
+  const isDrainageOrCivic =
+    domainLower.includes("infra") ||
+    domainLower.includes("civil") ||
+    titleLower.includes("drain") ||
+    titleLower.includes("waterlog") ||
+    titleLower.includes("water log") ||
+    titleLower.includes("paani") ||
+    titleLower.includes("silt") ||
+    titleLower.includes("culvert") ||
+    titleLower.includes("flood");
+
+  const isEnergy =
+    domainLower.includes("energy") ||
+    domainLower.includes("power") ||
+    titleLower.includes("power") ||
+    titleLower.includes("transformer") ||
+    titleLower.includes("voltage") ||
+    titleLower.includes("grid");
+
+  const isHealth =
+    !isDrainageOrCivic &&
+    (domainLower.includes("health") ||
+      titleLower.includes("fluoride") ||
+      titleLower.includes("arsenic") ||
+      titleLower.includes("contamination") ||
+      titleLower.includes("potable"));
 
   if (isEnergy) {
     return [
