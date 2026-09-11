@@ -43,8 +43,6 @@ function OngoingProjects() {
         </button>
       </div>
 
-      </div>
-
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-2xl bg-white border border-dashed border-slate-200">
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400 mb-3">
