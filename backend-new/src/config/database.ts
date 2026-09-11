@@ -10,11 +10,21 @@ const isCloudDb = Boolean(
    env.DATABASE_URL.includes('sslmode=require'))
 );
 
+// Permit cloud providers (Supabase pooler, Neon) self-signed SSL certificates in Node TLS
+if (isCloudDb || env.NODE_ENV === 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
+// Clean sslmode parameter from connection string so pg connection parser doesn't override with strict verification
+const cleanDbUrl = env.DATABASE_URL
+  ? env.DATABASE_URL.replace(/([?&])sslmode=[^&]+(&|$)/g, '$1').replace(/[?&]$/, '')
+  : undefined;
+
 export const pool = new Pool(
-  env.DATABASE_URL
+  cleanDbUrl
     ? {
-        connectionString: env.DATABASE_URL,
-        ssl: isCloudDb || env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        connectionString: cleanDbUrl,
+        ssl: { rejectUnauthorized: false },
         min: env.PG_POOL_MIN,
         max: env.PG_POOL_MAX,
         idleTimeoutMillis: env.PG_IDLE_TIMEOUT,
@@ -39,9 +49,13 @@ pool.on('error', (err) => {
 
 // Dedicated Vector Pool for Neon RAG database if specified
 const vectorDbUrl = env.NEON_DATABASE_URL || env.VECTOR_DATABASE_URL;
-export const vectorPool = vectorDbUrl
+const cleanVectorUrl = vectorDbUrl
+  ? vectorDbUrl.replace(/([?&])sslmode=[^&]+(&|$)/g, '$1').replace(/[?&]$/, '')
+  : undefined;
+
+export const vectorPool = cleanVectorUrl
   ? new Pool({
-      connectionString: vectorDbUrl,
+      connectionString: cleanVectorUrl,
       ssl: { rejectUnauthorized: false },
       min: 1,
       max: env.PG_POOL_MAX,
