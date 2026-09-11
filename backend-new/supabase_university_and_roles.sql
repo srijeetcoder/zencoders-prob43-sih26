@@ -366,7 +366,145 @@ CREATE POLICY "Read own or role alerts" ON university_alerts
         target_role = (SELECT academic_role FROM university_profiles WHERE user_id = auth.uid() LIMIT 1)
     );
 
+-- ==============================================================================
+-- 3B. UNIVERSITY / INSTITUTION REGISTRATION & INVITE CODES
+-- ==============================================================================
+-- Generates and verifies unique university institutional access codes
+-- (e.g. 'UNIV-BIT-2026-X7K' or 8-char tokens) with quota allocations for STUDENT, FACULTY, and ADMIN
+CREATE TABLE IF NOT EXISTS university_invite_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(30) UNIQUE NOT NULL,                      -- e.g. 'UNIV-BIT-2026-X7K' or 'UNIV-RNC-94M2'
+    institution_name VARCHAR(255) NOT NULL,                -- e.g. 'Birsa Institute of Technology (BIT Mesra)'
+    aishe_code VARCHAR(50) NOT NULL,                       -- e.g. 'AISHE-U-0268'
+    allocated_role academic_role_enum NOT NULL DEFAULT 'STUDENT', -- Role unlocked upon registration
+    department VARCHAR(150),                               -- e.g. 'Computer Science & Engineering'
+    max_claims INT NOT NULL DEFAULT 1,                     -- Total permitted activations (e.g. 50 for students batch, 1 for faculty)
+    claim_count INT NOT NULL DEFAULT 0,                    -- Current activations counter
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    allocated_to_email VARCHAR(255),                       -- Optional: pre-reserved institutional email
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '60 days'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_univ_code ON university_invite_codes (code);
+CREATE INDEX IF NOT EXISTS idx_univ_code_aishe ON university_invite_codes (aishe_code);
+
+-- Function to generate cryptographically formatted University Invite & Registration Codes
+CREATE OR REPLACE FUNCTION generate_univ_invite_code(
+    p_institution_name VARCHAR,
+    p_aishe_code VARCHAR,
+    p_role academic_role_enum DEFAULT 'STUDENT',
+    p_department VARCHAR DEFAULT NULL,
+    p_max_claims INT DEFAULT 1,
+    p_allocated_email VARCHAR DEFAULT NULL,
+    p_expires_days INT DEFAULT 60
+) RETURNS VARCHAR(30) AS $$
+DECLARE
+    v_chars TEXT := '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    v_suffix VARCHAR(6) := '';
+    v_prefix VARCHAR(10);
+    v_code VARCHAR(30) := '';
+    v_i INT;
+    v_rand INT;
+    v_exists BOOLEAN;
+BEGIN
+    -- Derive clean short abbreviation from institution or role
+    v_prefix := 'UNIV-' || UPPER(SUBSTRING(REGEXP_REPLACE(p_aishe_code, '[^a-zA-Z0-9]', '', 'g') FROM 1 FOR 4));
+    
+    LOOP
+        v_suffix := '';
+        FOR v_i IN 1..6 LOOP
+            v_rand := floor(random() * length(v_chars) + 1)::INT;
+            v_suffix := v_suffix || substr(v_chars, v_rand, 1);
+        END LOOP;
+
+        v_code := v_prefix || '-' || TO_CHAR(NOW(), 'YY') || '-' || v_suffix;
+
+        SELECT EXISTS(SELECT 1 FROM university_invite_codes WHERE code = v_code) INTO v_exists;
+        IF NOT v_exists THEN
+            EXIT;
+        END IF;
+    END LOOP;
+
+    INSERT INTO university_invite_codes (
+        code, institution_name, aishe_code, allocated_role, department, max_claims, allocated_to_email, expires_at
+    ) VALUES (
+        v_code, p_institution_name, p_aishe_code, p_role, p_department, p_max_claims, p_allocated_email, NOW() + (p_expires_days || ' days')::INTERVAL
+    );
+
+    RETURN v_code;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to validate and claim University Registration Code
+CREATE OR REPLACE FUNCTION claim_univ_invite_code(
+    p_code VARCHAR(30),
+    p_user_id UUID,
+    p_user_email VARCHAR(255),
+    p_roll_or_faculty_id VARCHAR(50) DEFAULT NULL
+) RETURNS JSONB AS $$
+DECLARE
+    v_invite RECORD;
+BEGIN
+    SELECT * INTO v_invite
+    FROM university_invite_codes
+    WHERE code = UPPER(TRIM(p_code))
+      AND is_active = TRUE
+      AND expires_at > NOW()
+      AND claim_count < max_claims
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Invalid, expired, or fully claimed University Registration Code.');
+    END IF;
+
+    IF v_invite.allocated_to_email IS NOT NULL AND LOWER(v_invite.allocated_to_email) != LOWER(TRIM(p_user_email)) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'This code was designated for an official email: ' || v_invite.allocated_to_email);
+    END IF;
+
+    -- Increment claim counter & deactivate if limit reached
+    UPDATE university_invite_codes
+    SET claim_count = claim_count + 1,
+        is_active = (claim_count + 1 < max_claims)
+    WHERE id = v_invite.id;
+
+    -- Upsert university stakeholder profile
+    INSERT INTO university_profiles (
+        user_id, academic_role, institution_name, department, roll_number, faculty_id, aishe_code
+    ) VALUES (
+        p_user_id,
+        v_invite.allocated_role,
+        v_invite.institution_name,
+        COALESCE(v_invite.department, 'General Academic'),
+        CASE WHEN v_invite.allocated_role = 'STUDENT' THEN p_roll_or_faculty_id ELSE NULL END,
+        CASE WHEN v_invite.allocated_role IN ('FACULTY', 'ADMIN') THEN p_roll_or_faculty_id ELSE NULL END,
+        v_invite.aishe_code
+    )
+    ON CONFLICT (user_id) DO UPDATE
+    SET academic_role = EXCLUDED.academic_role,
+        institution_name = EXCLUDED.institution_name,
+        department = EXCLUDED.department,
+        roll_number = COALESCE(EXCLUDED.roll_number, university_profiles.roll_number),
+        faculty_id = COALESCE(EXCLUDED.faculty_id, university_profiles.faculty_id),
+        aishe_code = EXCLUDED.aishe_code,
+        updated_at = NOW();
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'institution_name', v_invite.institution_name,
+        'academic_role', v_invite.allocated_role,
+        'department', v_invite.department,
+        'aishe_code', v_invite.aishe_code
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
 -- Government Invite Codes:
--- Only service role / state super admins can generate or inspect codes directly
-CREATE POLICY "Admins manage invite codes" ON government_invite_codes
+-- Only service role / state super admins can manage codes directly
+CREATE POLICY "Admins manage gov invite codes" ON government_invite_codes
     FOR ALL TO service_role USING (true);
+
+CREATE POLICY "Admins manage univ invite codes" ON university_invite_codes
+    FOR ALL TO service_role USING (true);
+
