@@ -9,6 +9,9 @@ import { generalLimiter } from './middleware/rateLimiter';
 export function createApp(): Application {
   const app = express();
 
+  // Trust reverse proxy headers (Render, Vercel, Cloudflare) for rate limiting & IP resolution
+  app.set('trust proxy', 1);
+
   // 1. Security Headers (Rule 40)
   app.use(helmet({
     contentSecurityPolicy: false, // Compatible with React client assets

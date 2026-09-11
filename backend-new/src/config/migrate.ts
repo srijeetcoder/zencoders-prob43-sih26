@@ -14,6 +14,23 @@ export async function runMigrations(): Promise<void> {
     } else {
       console.warn('⚠️ init.sql not found at', initSqlPath);
     }
+
+    // Ensure all critical columns exist on users table even if pre-created earlier
+    await query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS government_id VARCHAR(50);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS institution_id UUID;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS district_id UUID;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS department_id UUID;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_phone_verified BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS refresh_token TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_otp VARCHAR(10);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_otp_expires_at TIMESTAMPTZ;
+    `).catch((colErr) => {
+      console.warn('Notice while ensuring user columns:', colErr.message);
+    });
   } catch (err: any) {
     console.error('❌ Database migration error:', err.message);
   }
