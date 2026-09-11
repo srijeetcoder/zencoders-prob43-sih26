@@ -79,32 +79,32 @@ function ProblemDetail() {
             </h1>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[problem.status]}`}>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[problem.status] || "bg-navy-100 text-navy-700"}`}>
                 {problem.status}
               </span>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${SEVERITY_STYLES[problem.severity]}`}>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${SEVERITY_STYLES[problem.severity] || "bg-rose-50 text-rose-600"}`}>
                 {problem.severity}
               </span>
               <span className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
                 <MapPin size={12} />
-                {problem.location.area}, {problem.location.city}, {problem.location.state}
+                {problem.location?.area || "Ranchi Sadar"}, {problem.location?.city || "Ranchi"}, {problem.location?.state || "Jharkhand"}
               </span>
             </div>
 
             <div className="mt-5 flex items-center gap-4 text-sm text-slate-500">
               <span className="flex items-center gap-1.5">
                 <ArrowUp size={16} className="text-teal-600" />
-                {problem.upvotes} upvotes
+                {problem.upvotes ?? 1} upvotes
               </span>
               <span className="flex items-center gap-1.5">
                 <MessageCircle size={16} className="text-navy-500" />
-                {problem.commentsCount} comments
+                {problem.commentsCount ?? 0} comments
               </span>
             </div>
           </div>
 
           {/* Photo placeholder */}
-          {problem.photos.length === 0 && (
+          {(!problem.photos || problem.photos.length === 0) && (
             <div className="flex h-44 items-center justify-center rounded-3xl bg-gradient-to-br from-navy-100 to-brand-100 text-sm text-navy-500">
               Photo evidence to be attached by the reporter
             </div>
@@ -116,7 +116,7 @@ function ProblemDetail() {
             <p className="mt-3 leading-7 text-slate-600">{problem.description}</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {problem.tags.map((tag) => (
+              {(problem.tags || []).map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-700"
@@ -128,34 +128,36 @@ function ProblemDetail() {
           </div>
 
           {/* AI analysis */}
-          <div className="rounded-3xl border border-brand-200 bg-brand-50 p-6">
-            <div className="flex items-center gap-2">
-              <Sparkles size={18} className="text-brand-600" />
-              <h2 className="text-lg font-semibold text-navy-900">
-                AI Problem Analysis
-              </h2>
+          {problem.aiAnalysis && (
+            <div className="rounded-3xl border border-brand-200 bg-brand-50 p-6">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-brand-600" />
+                <h2 className="text-lg font-semibold text-navy-900">
+                  AI Problem Analysis
+                </h2>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {problem.aiAnalysis.problemUnderstanding}
+              </p>
+
+              <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-brand-700">
+                <Users size={15} />
+                {problem.aiAnalysis.peopleAffectedEstimate}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(problem.aiAnalysis.keyIssues || []).map((issue) => (
+                  <span
+                    key={issue}
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-navy-800 ring-1 ring-brand-200"
+                  >
+                    {issue}
+                  </span>
+                ))}
+              </div>
             </div>
-
-            <p className="mt-3 text-sm leading-6 text-slate-700">
-              {problem.aiAnalysis.problemUnderstanding}
-            </p>
-
-            <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-brand-700">
-              <Users size={15} />
-              {problem.aiAnalysis.peopleAffectedEstimate}
-            </p>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {problem.aiAnalysis.keyIssues.map((issue) => (
-                <span
-                  key={issue}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-navy-800 ring-1 ring-brand-200"
-                >
-                  {issue}
-                </span>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Timeline */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -165,9 +167,9 @@ function ProblemDetail() {
             </h2>
 
             <div className="mt-5 space-y-0">
-              {problem.timeline.map((step, index) => (
+              {(problem.timeline || []).map((step, index) => (
                 <div key={step.stage} className="relative flex gap-4 pb-6 last:pb-0">
-                  {index < problem.timeline.length - 1 && (
+                  {index < (problem.timeline?.length || 0) - 1 && (
                     <span
                       className={`absolute left-[11px] top-6 h-full w-0.5 ${
                         step.status === "done" ? "bg-teal-400" : "bg-slate-200"
@@ -212,7 +214,7 @@ function ProblemDetail() {
             <h2 className="text-lg font-semibold text-navy-900">Discussion</h2>
 
             <div className="mt-4 space-y-4">
-              {problem.discussion.map((comment) => (
+              {(problem.discussion || []).map((comment) => (
                 <div
                   key={`${comment.author}-${comment.postedAt}`}
                   className="rounded-2xl bg-slate-50 p-4"
@@ -247,7 +249,7 @@ function ProblemDetail() {
             </h2>
 
             <div className="mt-3 space-y-3">
-              {problem.solutionApproaches.map((solution) => (
+              {(problem.solutionApproaches || []).map((solution) => (
                 <div key={solution.title} className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-navy-900">
                     {solution.title}
@@ -267,7 +269,7 @@ function ProblemDetail() {
             </h2>
 
             <div className="mt-3 space-y-3">
-              {problem.recommendedTeams.map((team) => (
+              {(problem.recommendedTeams || []).map((team) => (
                 <div key={team.name} className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-900 text-xs font-bold text-white">
                     {team.name
@@ -296,7 +298,7 @@ function ProblemDetail() {
             </h2>
 
             <div className="mt-3 space-y-3">
-              {problem.similarProblems.map((similar) => (
+              {(problem.similarProblems || []).map((similar) => (
                 <Link
                   key={similar.id}
                   to={`/gov/live-problems/${similar.id}`}
