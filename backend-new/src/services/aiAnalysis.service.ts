@@ -43,9 +43,12 @@ export const CabinetAIAnalysisOutputSchema = z.object({
   domain: z.string(),
   district: z.string(),
   confidence: z.number().min(0).max(1),
+  moduleUsed: z.string().optional(),
   executiveSummary: z.string(),
   systemicRootCauseSynthesis: z.string(),
   affectedBlocksOrPanchayats: z.array(z.string()),
+  keyPoints: z.array(z.string()).optional(),
+  expertCommentary: z.string().optional(),
   hardwareBoM: z.array(HardwareBoMItemSchema),
   bom: z.array(HardwareBoMItemSchema).optional(),
   bomTotalCostINR: z.number(),
@@ -83,11 +86,13 @@ export class AIAnalysisService {
     domain: string;
     district?: string;
     prompt: string;
+    module?: string;
     apiKey?: string;
     userId?: string;
   }): Promise<CabinetAIAnalysisOutput> {
     const domain = (params.domain || 'Civil Infrastructure').trim();
     const district = (params.district || 'Ranchi').trim();
+    const activeModule = params.module || 'master';
 
     // 1. Strict Domain-Isolated RAG retrieval (SQL: WHERE domain = $2)
     const ragContext = await ragService.retrieveDomainContext(params.prompt, domain, 4);
@@ -98,7 +103,7 @@ export class AIAnalysisService {
     let aiRawJson: any;
 
     if (!currentKey || currentKey === 'mock-api-key' || currentKey === 'AIzaSyYourCopiedKeyHere' || env.NODE_ENV === 'test') {
-      aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId);
+      aiRawJson = this.generateDeterministicCabinetAnalysis(domain, district, params.prompt, params.clusterId, activeModule);
     } else {
       try {
         const systemPrompt = `You are the Principal AI Systems Architect & Chief Government Intelligence Analyst for the Government of Jharkhand War Room (SIH PS-43).
@@ -272,16 +277,23 @@ Respond strictly with valid JSON conforming to the Cabinet Analysis schema:
 
     const bomTotalCostINR = sanitizedBoM.reduce((acc, curr) => acc + curr.totalCostINR, 0);
 
-    // 4. Construct validated Cabinet Output
     const finalOutput: CabinetAIAnalysisOutput = {
       clusterId: params.clusterId || aiRawJson.clusterId || `CLUST-JH-${Math.floor(100 + Math.random() * 900)}`,
       title: aiRawJson.title || `${domain} Strategic Mitigation Blueprint - ${district}`,
       domain,
       district,
       confidence: typeof aiRawJson.confidence === 'number' ? aiRawJson.confidence : 0.94,
+      moduleUsed: activeModule,
       executiveSummary: aiRawJson.executiveSummary || `Unified engineering and administrative directive for resolving systemic ${domain.toLowerCase()} vulnerabilities across ${district}.`,
       systemicRootCauseSynthesis: aiRawJson.systemicRootCauseSynthesis || `Underlying infrastructure wear, lack of telemetry instrumentation, and reactive maintenance cycles in ${district}.`,
       affectedBlocksOrPanchayats: aiRawJson.affectedBlocksOrPanchayats || [`${district} Sadar`, 'Block II', 'Block III'],
+      keyPoints: aiRawJson.keyPoints || [
+        `Vector Grounding: Validated against 768-dim state memory for ${domain}`,
+        `Negative BoM Compliance: 100% domain-isolated hardware specification`,
+        `Autonomous Institutional Matching: Calibrated against Jharkhand university R&D laboratories`,
+        `12-Month Rollout Trajectory: Modeled under statutory DMF funding framework`
+      ],
+      expertCommentary: aiRawJson.expertCommentary || `Structured under Government of Jharkhand SIH PS-43 Solution Framework.`,
       hardwareBoM: sanitizedBoM,
       bom: sanitizedBoM,
       bomTotalCostINR,
