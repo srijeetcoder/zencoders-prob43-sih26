@@ -12,7 +12,10 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, allowedRoles, portalName = "Government Service" }: AuthGuardProps) {
   const { user, role, isAuthenticated } = useAuth();
 
-  const isAuthorized = isAuthenticated && role && (allowedRoles.includes(role) || role === "ADMIN");
+  const isAuthorized =
+    isAuthenticated &&
+    role &&
+    (allowedRoles.includes(role) || role === "ADMIN" || role === "SUPER_ADMIN");
 
   if (isAuthorized) {
     return <>{children}</>;

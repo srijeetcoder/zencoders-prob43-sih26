@@ -12,13 +12,13 @@ import {
   KeyRound,
   Loader2,
   ShieldCheck,
-  Smartphone,
-  Sparkles,
   AlertCircle,
   X,
+  Microscope,
+  BookOpen,
 } from "lucide-react";
 import Nav from "../components/landing/Nav";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, type AcademicRole } from "../context/AuthContext";
 import { authApi } from "../services/api";
 import AuthBackgroundSlider from "../components/auth/AuthBackgroundSlider";
 import { INDIA_STATES_DISTRICTS } from "../data/indiaStatesDistricts";
@@ -34,11 +34,19 @@ export default function RegisterPage() {
   const defaultRole: RegistrationRole =
     roleParam === "government" || roleParam === "ministry" || roleParam === "panchayat"
       ? "GOVERNMENT"
-      : roleParam === "university" || roleParam === "institution"
+      : roleParam === "university" || roleParam === "institution" || roleParam === "student" || roleParam === "faculty" || roleParam === "admin"
       ? "INSTITUTION"
       : "CITIZEN";
 
+  const defaultAcademicBranch: AcademicRole =
+    roleParam === "faculty"
+      ? "FACULTY"
+      : roleParam === "admin"
+      ? "ADMIN"
+      : "STUDENT";
+
   const [activeRole, setActiveRole] = useState<RegistrationRole>(defaultRole);
+  const [academicBranch, setAcademicBranch] = useState<AcademicRole>(defaultAcademicBranch);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -54,6 +62,7 @@ export default function RegisterPage() {
     district: "Ranchi",
     governmentId: "",
     uniqueCode: "",
+    facultyId: "",
     password: "",
     confirmPassword: "",
     agreeTerms: true,
@@ -92,6 +101,15 @@ export default function RegisterPage() {
     if (roleParam) {
       if (roleParam === "government" || roleParam === "ministry" || roleParam === "panchayat") {
         setActiveRole("GOVERNMENT");
+      } else if (roleParam === "student") {
+        setActiveRole("INSTITUTION");
+        setAcademicBranch("STUDENT");
+      } else if (roleParam === "faculty") {
+        setActiveRole("INSTITUTION");
+        setAcademicBranch("FACULTY");
+      } else if (roleParam === "admin") {
+        setActiveRole("INSTITUTION");
+        setAcademicBranch("ADMIN");
       } else if (roleParam === "university" || roleParam === "institution") {
         setActiveRole("INSTITUTION");
       } else {
@@ -126,6 +144,11 @@ export default function RegisterPage() {
     setError("");
   };
 
+  const handleAcademicBranchSelect = (branch: AcademicRole) => {
+    setAcademicBranch(branch);
+    setError("");
+  };
+
   const handleInitiateRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -133,6 +156,25 @@ export default function RegisterPage() {
     if (!formData.fullName.trim() || !formData.email.trim() || !formData.password) {
       setError("Please fill in all required fields.");
       return;
+    }
+
+    if (activeRole === "INSTITUTION") {
+      if (!formData.organization.trim()) {
+        setError("Please specify your University or Institute name.");
+        return;
+      }
+      if (academicBranch === "STUDENT" && !formData.uniqueCode.trim()) {
+        setError("Please enter your Student Roll / Registration Number.");
+        return;
+      }
+      if (academicBranch === "FACULTY" && (!formData.facultyId.trim() || !formData.uniqueCode.trim())) {
+        setError("Please provide both Faculty Employee ID and University AISHE code.");
+        return;
+      }
+      if (academicBranch === "ADMIN" && !formData.uniqueCode.trim()) {
+        setError("Please enter the official University AISHE Code.");
+        return;
+      }
     }
 
     if (formData.password.length < 8) {
@@ -219,11 +261,13 @@ export default function RegisterPage() {
           email: formData.email.trim(),
           password: formData.password,
           role: activeRole,
+          academicRole: activeRole === "INSTITUTION" ? academicBranch : undefined,
           department: formData.department || formData.organization,
           district: formData.district,
           phone: formData.phone.trim(),
           organization: formData.organization,
           government_id: activeRole === "GOVERNMENT" ? formData.governmentId.trim().toUpperCase() : undefined,
+          institution_id: activeRole === "INSTITUTION" ? formData.uniqueCode.trim().toUpperCase() : undefined,
         });
 
         setShowOtpModal(false);
@@ -234,6 +278,23 @@ export default function RegisterPage() {
     } finally {
       setIsVerifyingOtp(false);
     }
+  };
+
+  // Get active role display title
+  const getRoleHeader = () => {
+    if (activeRole === "CITIZEN") return "Citizen";
+    if (activeRole === "GOVERNMENT") return "Government Officer";
+    if (academicBranch === "STUDENT") return "Student Innovator";
+    if (academicBranch === "FACULTY") return "Faculty Guide / Evaluator";
+    return "Institution Admin / Lab Director";
+  };
+
+  const getRoleSubtitle = () => {
+    if (activeRole === "CITIZEN") return "Two-factor verified citizen node activation on PooKar ledger";
+    if (activeRole === "GOVERNMENT") return "Verified district / state administrative nodal activation";
+    if (academicBranch === "STUDENT") return "Campus student innovator node for civic problem-solving & prototypes";
+    if (academicBranch === "FACULTY") return "Academic mentor node for project validation, DPR endorsement & grants";
+    return "Institutional administrative node for R&D governance & state liaison";
   };
 
   return (
@@ -256,23 +317,21 @@ export default function RegisterPage() {
                     <User className="h-4 w-4 sm:h-5 sm:w-5" />
                   ) : activeRole === "GOVERNMENT" ? (
                     <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                  ) : (
+                  ) : academicBranch === "STUDENT" ? (
                     <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
+                  ) : academicBranch === "FACULTY" ? (
+                    <Microscope className="h-4 w-4 sm:h-5 sm:w-5" />
+                  ) : (
+                    <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                   )}
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
                     Register as{" "}
-                    <span className="text-[#047d48]">
-                      {activeRole === "CITIZEN"
-                        ? "Citizen"
-                        : activeRole === "GOVERNMENT"
-                        ? "Government Officer"
-                        : "University / Lab"}
-                    </span>
+                    <span className="text-[#047d48]">{getRoleHeader()}</span>
                   </h1>
                   <p className="text-[11px] text-slate-500">
-                    Two-factor verified node activation on PooKar ledger
+                    {getRoleSubtitle()}
                   </p>
                 </div>
               </div>
@@ -286,14 +345,14 @@ export default function RegisterPage() {
               </Link>
             </div>
 
-            {/* Role Switcher Tabs */}
+            {/* Main Role Switcher Tabs */}
             <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => handleRoleSwitch("CITIZEN")}
                 className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 transition-all ${
                   activeRole === "CITIZEN"
-                    ? "bg-white text-emerald-800 shadow-sm border border-slate-200 font-bold"
+                    ? "bg-white text-emerald-800 shadow-xs border border-slate-200 font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -306,7 +365,7 @@ export default function RegisterPage() {
                 onClick={() => handleRoleSwitch("GOVERNMENT")}
                 className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 transition-all ${
                   activeRole === "GOVERNMENT"
-                    ? "bg-white text-emerald-800 shadow-sm border border-slate-200 font-bold"
+                    ? "bg-white text-emerald-800 shadow-xs border border-slate-200 font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -319,7 +378,7 @@ export default function RegisterPage() {
                 onClick={() => handleRoleSwitch("INSTITUTION")}
                 className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 transition-all ${
                   activeRole === "INSTITUTION"
-                    ? "bg-white text-emerald-800 shadow-sm border border-slate-200 font-bold"
+                    ? "bg-white text-emerald-800 shadow-xs border border-slate-200 font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -327,6 +386,58 @@ export default function RegisterPage() {
                 <span>University</span>
               </button>
             </div>
+
+            {/* Branched Academic Role Selector (When University is active) */}
+            {activeRole === "INSTITUTION" && (
+              <div className="mb-3.5 p-2 rounded-2xl bg-indigo-50/70 border border-indigo-100">
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">
+                    Academic Role Branch
+                  </span>
+                  <span className="text-[10px] text-indigo-600 font-medium">
+                    Select your campus stakeholder role
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => handleAcademicBranchSelect("STUDENT")}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl transition-all ${
+                      academicBranch === "STUDENT"
+                        ? "bg-white text-indigo-950 font-bold shadow-xs border border-indigo-200"
+                        : "text-indigo-700/80 hover:bg-white/60"
+                    }`}
+                  >
+                    <span>🎓</span>
+                    <span>Student</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAcademicBranchSelect("FACULTY")}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl transition-all ${
+                      academicBranch === "FACULTY"
+                        ? "bg-white text-indigo-950 font-bold shadow-xs border border-indigo-200"
+                        : "text-indigo-700/80 hover:bg-white/60"
+                    }`}
+                  >
+                    <span>🔬</span>
+                    <span>Faculty</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAcademicBranchSelect("ADMIN")}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl transition-all ${
+                      academicBranch === "ADMIN"
+                        ? "bg-white text-indigo-950 font-bold shadow-xs border border-indigo-200"
+                        : "text-indigo-700/80 hover:bg-white/60"
+                    }`}
+                  >
+                    <span>🏛️</span>
+                    <span>Admin</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
@@ -344,7 +455,11 @@ export default function RegisterPage() {
                     ? "Full Legal Name"
                     : activeRole === "GOVERNMENT"
                     ? "Officer Full Legal Name & Rank"
-                    : "Principal Investigator / Lab Lead"}
+                    : academicBranch === "STUDENT"
+                    ? "Student Full Legal Name"
+                    : academicBranch === "FACULTY"
+                    ? "Faculty Full Legal Name & Designation"
+                    : "Dean / Director / Nodal Officer Name"}
                 </label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -359,19 +474,25 @@ export default function RegisterPage() {
                         ? "e.g. Srijit Chatterjee"
                         : activeRole === "GOVERNMENT"
                         ? "e.g. Shri Rajesh Soren (IAS), Nodal Officer"
-                        : "e.g. Dr. Priya Murmu, Head of IoT Lab"
+                        : academicBranch === "STUDENT"
+                        ? "e.g. Aakash Verma"
+                        : academicBranch === "FACULTY"
+                        ? "e.g. Dr. Anirban Mukherjee, Associate Professor"
+                        : "e.g. Dr. Priya Murmu, Dean R&D"
                     }
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Organization / Ministry / Department */}
+              {/* Organization / Ministry / University */}
               {activeRole !== "CITIZEN" && (
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-700">
                     {activeRole === "GOVERNMENT"
                       ? "Department / Ministry / Agency"
+                      : academicBranch === "STUDENT"
+                      ? "University / Engineering College / Institute"
                       : "University / Research Institute Name"}
                   </label>
                   <div className="relative">
@@ -386,6 +507,36 @@ export default function RegisterPage() {
                         activeRole === "GOVERNMENT"
                           ? "e.g. Urban Development & Housing Dept, Jharkhand"
                           : "e.g. Birsa Institute of Technology (BIT Mesra)"
+                      }
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Department / Branch (For University Stakeholders) */}
+              {activeRole === "INSTITUTION" && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700">
+                    {academicBranch === "STUDENT"
+                      ? "Academic Department & Branch / Major"
+                      : academicBranch === "FACULTY"
+                      ? "Department & Research Division"
+                      : "Administrative Office / Directorate"}
+                  </label>
+                  <div className="relative">
+                    <BookOpen className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      placeholder={
+                        academicBranch === "STUDENT"
+                          ? "e.g. Electronics & Communication Engineering"
+                          : academicBranch === "FACULTY"
+                          ? "e.g. Civil & Environmental Engineering"
+                          : "e.g. Office of Dean (R&D) / Innovation Cell"
                       }
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
                     />
@@ -419,8 +570,76 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* UNIQUE CODE FOR UNIVERSITY */}
-              {activeRole === "INSTITUTION" && (
+              {/* ROLE-SPECIFIC CODE: STUDENT ROLL NUMBER */}
+              {activeRole === "INSTITUTION" && academicBranch === "STUDENT" && (
+                <div className="space-y-1 rounded-xl bg-indigo-50/70 border border-indigo-200/90 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                      <KeyRound className="h-3 w-3 text-indigo-600" />
+                      <span>Student Roll / Registration Number</span>
+                    </label>
+                    <span className="text-[9px] font-semibold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded">
+                      Required
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    name="uniqueCode"
+                    required
+                    value={formData.uniqueCode}
+                    onChange={handleChange}
+                    placeholder="e.g. 2022-EC-042 or 2201389"
+                    className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
+                  />
+                  <p className="text-[10px] text-indigo-600/90">
+                    Allocated student exam/enrolment roll number for institutional innovation clearance.
+                  </p>
+                </div>
+              )}
+
+              {/* ROLE-SPECIFIC CODE: FACULTY EMPLOYEE CODE & AISHE */}
+              {activeRole === "INSTITUTION" && academicBranch === "FACULTY" && (
+                <div className="space-y-2 rounded-xl bg-indigo-50/70 border border-indigo-200/90 p-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                        <KeyRound className="h-3 w-3 text-indigo-600" />
+                        <span>Faculty Employee ID</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="facultyId"
+                        required
+                        value={formData.facultyId}
+                        onChange={handleChange}
+                        placeholder="e.g. FAC-BIT-2041"
+                        className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                        <KeyRound className="h-3 w-3 text-indigo-600" />
+                        <span>University AISHE Code</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="uniqueCode"
+                        required
+                        value={formData.uniqueCode}
+                        onChange={handleChange}
+                        placeholder="e.g. AISHE-U-0268"
+                        className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-indigo-600/90">
+                    Required for official mentor endorsement of student DPR solution plans and prototypes.
+                  </p>
+                </div>
+              )}
+
+              {/* ROLE-SPECIFIC CODE: UNIVERSITY ADMIN AISHE CODE */}
+              {activeRole === "INSTITUTION" && academicBranch === "ADMIN" && (
                 <div className="space-y-1 rounded-xl bg-indigo-50/70 border border-indigo-200/90 p-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
@@ -437,9 +656,12 @@ export default function RegisterPage() {
                     required
                     value={formData.uniqueCode}
                     onChange={handleChange}
-                    placeholder="Enter AISHE / Lab Code (e.g. AISHE-U-0124-LAB)"
-                    className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none"
+                    placeholder="Enter AISHE / Lab Code (e.g. AISHE-U-0268-LAB)"
+                    className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
                   />
+                  <p className="text-[10px] text-indigo-600/90">
+                    Ministry of Education AISHE institutional accreditation key for research grant sanctions.
+                  </p>
                 </div>
               )}
 
@@ -449,8 +671,12 @@ export default function RegisterPage() {
                   <label className="text-[11px] font-semibold text-slate-700">
                     {activeRole === "GOVERNMENT"
                       ? "Official Gov Email ID"
-                      : activeRole === "INSTITUTION"
-                      ? "Institutional Email ID"
+                      : activeRole === "INSTITUTION" && academicBranch === "STUDENT"
+                      ? "Student Institutional Email (.ac.in)"
+                      : activeRole === "INSTITUTION" && academicBranch === "FACULTY"
+                      ? "Faculty Institutional Email ID"
+                      : activeRole === "INSTITUTION" && academicBranch === "ADMIN"
+                      ? "Admin Official Email ID"
                       : "Email Address"}
                   </label>
                   <div className="relative">
@@ -464,8 +690,12 @@ export default function RegisterPage() {
                       placeholder={
                         activeRole === "GOVERNMENT"
                           ? "officer@jharkhand.gov.in"
-                          : activeRole === "INSTITUTION"
-                          ? "director@bitmesra.ac.in"
+                          : activeRole === "INSTITUTION" && academicBranch === "STUDENT"
+                          ? "student.innovator@bitmesra.ac.in"
+                          : activeRole === "INSTITUTION" && academicBranch === "FACULTY"
+                          ? "faculty.guide@bitmesra.ac.in"
+                          : activeRole === "INSTITUTION" && academicBranch === "ADMIN"
+                          ? "admin.institution@bitmesra.ac.in"
                           : "citizen@example.com"
                       }
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 sm:py-2 pl-9 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
@@ -593,7 +823,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-98 disabled:opacity-75"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-xs transition-all hover:shadow-md active:scale-98 disabled:opacity-75 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -612,7 +842,7 @@ export default function RegisterPage() {
           </div>
         ) : (
           /* ================= ACTIVATION SUCCESS ================= */
-          <div className="max-w-md mx-auto text-center rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="max-w-md mx-auto text-center rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
             <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-[#047d48]">
               <CheckCircle2 className="h-7 w-7" />
             </div>
@@ -626,16 +856,32 @@ export default function RegisterPage() {
             </h2>
 
             <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Your verified account has been activated with <strong>{activeRole}</strong> access privileges.
+              Your verified account has been activated with{" "}
+              <strong>
+                {activeRole === "INSTITUTION"
+                  ? `${academicBranch} (University Innovation Portal)`
+                  : activeRole}
+              </strong>{" "}
+              access privileges.
             </p>
 
             <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-left text-xs space-y-1">
               <p>
                 <strong>Stakeholder Role:</strong> {activeRole}
+                {activeRole === "INSTITUTION" && (
+                  <span className="ml-1.5 font-semibold text-indigo-700">
+                    ({academicBranch === "STUDENT" ? "Student Innovator" : academicBranch === "FACULTY" ? "Faculty Guide" : "Institution Admin"})
+                  </span>
+                )}
               </p>
               {activeRole === "GOVERNMENT" && formData.governmentId && (
                 <p className="font-mono text-emerald-800 font-bold">
                   <strong>Government ID:</strong> {formData.governmentId}
+                </p>
+              )}
+              {activeRole === "INSTITUTION" && formData.uniqueCode && (
+                <p className="font-mono text-indigo-800 font-bold">
+                  <strong>{academicBranch === "STUDENT" ? "Roll No:" : "AISHE / Lab Code:"}</strong> {formData.uniqueCode}
                 </p>
               )}
               <p>
@@ -658,7 +904,7 @@ export default function RegisterPage() {
                     navigate("/userdashboard");
                   }
                 }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-[#047d48] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#03663a]"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-[#047d48] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#03663a] cursor-pointer"
               >
                 <span>Open Stakeholder Portal</span>
                 <ArrowRight className="h-4 w-4" />
@@ -666,7 +912,7 @@ export default function RegisterPage() {
 
               <Link
                 to="/"
-                className="w-full sm:w-auto rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="w-full sm:w-auto rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 text-center"
               >
                 Return to Home
               </Link>
@@ -681,7 +927,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setShowOtpModal(false)}
-                className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                 aria-label="Close modal"
               >
                 <X className="h-4 w-4" />
@@ -705,6 +951,12 @@ export default function RegisterPage() {
                     ? `Enter the 6-digit cryptographic OTP sent to ${formData.email}`
                     : `Enter the 6-digit SMS verification code sent to ${formData.phone || "+91 98765 43210"}`}
                 </p>
+
+                {activeRole === "INSTITUTION" && (
+                  <div className="mt-2 inline-block px-2.5 py-0.5 rounded-full bg-indigo-50 text-[10px] font-semibold text-indigo-800 border border-indigo-200">
+                    {academicBranch === "STUDENT" ? "🎓 Student Innovator Node" : academicBranch === "FACULTY" ? "🔬 Faculty Guide Node" : "🏛️ Institution Admin Node"}
+                  </div>
+                )}
               </div>
 
               {otpError && (
@@ -724,7 +976,7 @@ export default function RegisterPage() {
                       type="button"
                       disabled={otpCountdown > 0}
                       onClick={handleResendOtp}
-                      className="text-[11px] font-semibold text-emerald-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline disabled:text-slate-400 disabled:no-underline cursor-pointer"
                     >
                       {otpCountdown > 0 ? `Resend code (${otpCountdown}s)` : "Resend code"}
                     </button>
@@ -753,7 +1005,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isVerifyingOtp || (otpStep === "EMAIL" ? emailOtp.length !== 6 : mobileOtp.length !== 6)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-xs transition-all active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isVerifyingOtp ? (
                     <>

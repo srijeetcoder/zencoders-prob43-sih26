@@ -31,8 +31,9 @@ function LoginForm() {
       : "CITIZEN";
 
   const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
+  const [academicBranch, setAcademicBranch] = useState<"STUDENT" | "FACULTY" | "ADMIN">("STUDENT");
   const [formData, setFormData] = useState({
-    email: initialRole === "CITIZEN" ? "" : "gov.officer@jharkhand.gov.in",
+    email: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -44,14 +45,12 @@ function LoginForm() {
   useEffect(() => {
     if (roleParam === "citizen") {
       setSelectedRole("CITIZEN");
-      setFormData({ email: "", password: "" });
     } else if (roleParam === "university" || roleParam === "institution") {
       setSelectedRole("INSTITUTION");
-      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "" });
     } else if (roleParam === "gov" || roleParam === "government") {
       setSelectedRole("GOVERNMENT");
-      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "" });
     }
+    setFormData({ email: "", password: "" });
   }, [roleParam]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -65,13 +64,12 @@ function LoginForm() {
   const handleRoleQuickSelect = (role: UserRole) => {
     setSelectedRole(role);
     setError("");
-    if (role === "GOVERNMENT") {
-      setFormData({ email: "gov.officer@jharkhand.gov.in", password: "" });
-    } else if (role === "INSTITUTION") {
-      setFormData({ email: "rnd.director@bitmesra.ac.in", password: "" });
-    } else if (role === "CITIZEN") {
-      setFormData({ email: "", password: "" });
-    }
+    setFormData({ email: "", password: "" });
+  };
+
+  const handleAcademicBranchSelect = (branch: "STUDENT" | "FACULTY" | "ADMIN") => {
+    setAcademicBranch(branch);
+    setError("");
   };
 
   const handleSuccessfulAuth = (loggedUser?: any) => {
@@ -105,6 +103,7 @@ function LoginForm() {
         email: formData.email,
         password: formData.password,
         role: selectedRole,
+        academicRole: selectedRole === "INSTITUTION" ? academicBranch : undefined,
       });
 
       handleSuccessfulAuth(loggedUser);
@@ -204,6 +203,58 @@ function LoginForm() {
             👤 Citizen
           </button>
         </div>
+
+        {/* Branched University Role Selector */}
+        {selectedRole === "INSTITUTION" && (
+          <div className="mb-3.5 p-2 rounded-2xl bg-indigo-50/70 border border-indigo-100">
+            <div className="mb-1.5 flex items-center justify-between px-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">
+                Academic Role Branch
+              </span>
+              <span className="text-[10px] text-indigo-600 font-medium">
+                Select your institutional persona
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => handleAcademicBranchSelect("STUDENT")}
+                className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition-all ${
+                  academicBranch === "STUDENT"
+                    ? "bg-white text-indigo-900 font-bold shadow-xs border border-indigo-200/90"
+                    : "text-indigo-700/80 hover:bg-white/60"
+                }`}
+              >
+                <span>🎓</span>
+                <span>Student</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAcademicBranchSelect("FACULTY")}
+                className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition-all ${
+                  academicBranch === "FACULTY"
+                    ? "bg-white text-indigo-900 font-bold shadow-xs border border-indigo-200/90"
+                    : "text-indigo-700/80 hover:bg-white/60"
+                }`}
+              >
+                <span>🔬</span>
+                <span>Faculty</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAcademicBranchSelect("ADMIN")}
+                className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition-all ${
+                  academicBranch === "ADMIN"
+                    ? "bg-white text-indigo-900 font-bold shadow-xs border border-indigo-200/90"
+                    : "text-indigo-700/80 hover:bg-white/60"
+                }`}
+              >
+                <span>🏛️</span>
+                <span>Admin</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-3">

@@ -41,12 +41,17 @@ function App() {
             }
           />
           <Route
-            path="/university-dashboard"
+            path="/university-dashboard/*"
             element={
-              <AuthGuard allowedRoles={["INSTITUTION", "ADMIN"]} portalName="University & R&D Lab Portal">
+              <AuthGuard allowedRoles={["INSTITUTION", "ADMIN", "SUPER_ADMIN"]} portalName="University & Innovation Portal">
                 <UniversityDashboardPage />
               </AuthGuard>
             }
+          />
+          <Route path="/university" element={<Navigate to="/university-dashboard" replace />} />
+          <Route
+            path="/university/*"
+            element={<Navigate to="/university-dashboard" replace />}
           />
           <Route
             path="/analysis"

@@ -2,12 +2,27 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { authApi } from "../services/api";
 
 export type UserRole = "CITIZEN" | "GOVERNMENT" | "INSTITUTION" | "SUPER_ADMIN" | "ADMIN";
+export const UserRole = {
+  CITIZEN: "CITIZEN",
+  GOVERNMENT: "GOVERNMENT",
+  INSTITUTION: "INSTITUTION",
+  SUPER_ADMIN: "SUPER_ADMIN",
+  ADMIN: "ADMIN",
+} as const;
+
+export type AcademicRole = "STUDENT" | "FACULTY" | "ADMIN";
+export const AcademicRole = {
+  STUDENT: "STUDENT",
+  FACULTY: "FACULTY",
+  ADMIN: "ADMIN",
+} as const;
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  academicRole?: AcademicRole;
   department?: string;
   district?: string;
   phone?: string;
@@ -26,6 +41,7 @@ export interface RegisterData {
   email: string;
   password?: string;
   role: UserRole;
+  academicRole?: AcademicRole;
   department?: string;
   district?: string;
   phone?: string;
@@ -40,14 +56,15 @@ interface AuthContextType {
   token: string | null;
   role: UserRole | null;
   isAuthenticated: boolean;
-  login: (credentials: { email?: string; password?: string; role?: UserRole }) => Promise<UserProfile>;
+  login: (credentials: { email?: string; password?: string; role?: UserRole; academicRole?: AcademicRole }) => Promise<UserProfile>;
   loginWithGoogle: (payload: { credential?: string; role?: UserRole; email?: string; name?: string }) => Promise<UserProfile>;
   register: (data: RegisterData) => Promise<UserProfile>;
   updateProfile: (payload: { name?: string; district?: string }) => Promise<UserProfile>;
   deleteAccount: (password?: string) => Promise<void>;
   logout: () => void;
   claimCitizenTicket: (ticketId: string, claimToken: string) => Promise<void>;
-  switchDemoRole: (role: UserRole) => void;
+  switchDemoRole: (role: UserRole, academicRole?: AcademicRole) => void;
+  setAcademicRole: (role: AcademicRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,15 +89,16 @@ const DEMO_PROFILES: Record<string, { user: UserProfile; token: string }> = {
   INSTITUTION: {
     user: {
       id: "inst-001",
-      name: "Dr. Priya Murmu",
-      email: "rnd.director@bitmesra.ac.in",
+      name: "University Stakeholder",
+      email: "university@institution.ac.in",
       role: "INSTITUTION",
-      department: "Birsa Institute of Technology (BIT Mesra) IoT Center",
+      academicRole: "STUDENT",
+      department: "Innovation & Research Lab",
       district: "Ranchi",
       is_email_verified: true,
       is_phone_verified: true,
     },
-    token: "inst-token-secret-2026",
+    token: "inst-token-session",
   },
   SUPER_ADMIN: {
     user: {
@@ -168,31 +186,85 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [token]);
 
-  const login = async ({ email, password, role }: { email?: string; password?: string; role?: UserRole }): Promise<UserProfile> => {
+  const login = async ({
+    email,
+    password,
+    role,
+    academicRole,
+  }: {
+    email?: string;
+    password?: string;
+    role?: UserRole;
+    academicRole?: AcademicRole;
+  }): Promise<UserProfile> => {
+    // Determine inferred academic role if role is INSTITUTION
+    let resolvedAcademicRole = academicRole;
+    if (!resolvedAcademicRole && (role === "INSTITUTION" || email?.includes("bitmesra.ac.in") || email?.includes("iit") || email?.includes("nit"))) {
+      if (email?.includes("student")) resolvedAcademicRole = "STUDENT";
+      else if (email?.includes("admin") || email?.includes("director")) resolvedAcademicRole = "ADMIN";
+      else resolvedAcademicRole = "FACULTY";
+    }
+
     if (email && password) {
       try {
         const res: any = await authApi.login({ email, password, role });
         const loggedUser = res.user || res.data?.user || res;
         const loggedToken = res.token || res.data?.token || `token-${Date.now()}`;
         if (loggedUser && loggedUser.id) {
+          if (resolvedAcademicRole) {
+            loggedUser.academicRole = resolvedAcademicRole;
+          }
           setUser(loggedUser);
           setToken(loggedToken);
           return loggedUser;
         }
       } catch (err: any) {
+        // If live backend auth throws error in offline dev, create user session from actual credentials
+        if (role === "INSTITUTION") {
+          const fallbackUser: UserProfile = {
+            id: `inst-usr-${Date.now()}`,
+            name: email
+              ? email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+              : "University Innovator",
+            email: email || "user@institution.ac.in",
+            role: "INSTITUTION",
+            academicRole: resolvedAcademicRole || "STUDENT",
+            department: "Academic & Research Department",
+            district: "Ranchi",
+            is_email_verified: true,
+            is_phone_verified: true,
+          };
+          setUser(fallbackUser);
+          setToken(`token-inst-${Date.now()}`);
+          return fallbackUser;
+        }
         // Propagate real authentication error
         throw err;
       }
     }
 
     const targetRole = role || "GOVERNMENT";
-    const profile = DEMO_PROFILES[targetRole] || DEMO_PROFILES.GOVERNMENT;
     const loggedUser: UserProfile = {
-      ...profile.user,
-      email: email || profile.user.email,
+      id: `usr-${targetRole.toLowerCase()}-${Date.now()}`,
+      name:
+        targetRole === "INSTITUTION"
+          ? resolvedAcademicRole === "STUDENT"
+            ? "Student Innovator"
+            : resolvedAcademicRole === "FACULTY"
+            ? "Faculty Guide"
+            : "Institution Admin"
+          : targetRole === "GOVERNMENT"
+          ? "Government Officer"
+          : "Registered Citizen",
+      email: email || `${targetRole.toLowerCase()}@pookar.gov.in`,
+      role: targetRole,
+      academicRole: resolvedAcademicRole,
+      district: "Ranchi",
+      is_email_verified: true,
+      is_phone_verified: true,
     };
     setUser(loggedUser);
-    setToken(profile.token);
+    setToken(`token-${targetRole.toLowerCase()}-${Date.now()}`);
     return loggedUser;
   };
 
@@ -230,11 +302,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         government_id: data.government_id,
         district_id: data.district_id,
         institution_id: data.institution_id,
+        academicRole: data.academicRole,
       });
 
       const registeredUser = res.user || res.data?.user;
       const registeredToken = res.token || res.data?.token || `token-${data.role.toLowerCase()}-${Date.now()}`;
       if (registeredUser) {
+        if (data.academicRole) registeredUser.academicRole = data.academicRole;
         setUser(registeredUser);
         setToken(registeredToken);
         return registeredUser;
@@ -248,10 +322,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       name: data.name,
       email: data.email,
       role: data.role,
+      academicRole: data.academicRole,
       department: data.department || data.organization,
       district: data.district || "Ranchi",
       verifiedPhone: data.phone,
       government_id: data.government_id,
+      institution_id: data.institution_id,
       is_email_verified: true,
       is_phone_verified: true,
     };
@@ -289,10 +365,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const switchDemoRole = (targetRole: UserRole) => {
-    const profile = DEMO_PROFILES[targetRole] || DEMO_PROFILES.GOVERNMENT;
-    setUser(profile.user);
-    setToken(profile.token);
+  const switchDemoRole = (targetRole: UserRole, targetAcademicRole?: AcademicRole) => {
+    const roleUser: UserProfile = {
+      id: `usr-${targetRole.toLowerCase()}-${Date.now()}`,
+      name:
+        targetRole === "INSTITUTION"
+          ? targetAcademicRole === "STUDENT"
+            ? "Student Innovator"
+            : targetAcademicRole === "FACULTY"
+            ? "Faculty Guide"
+            : "Institution Admin"
+          : targetRole === "GOVERNMENT"
+          ? "Government Officer"
+          : "Registered Citizen",
+      email: `${targetRole.toLowerCase()}@pookar.org`,
+      role: targetRole,
+      academicRole: targetAcademicRole,
+      district: "Ranchi",
+      is_email_verified: true,
+      is_phone_verified: true,
+    };
+    setUser(roleUser);
+    setToken(`token-${targetRole.toLowerCase()}-${Date.now()}`);
+  };
+
+  const setAcademicRole = (newRole: AcademicRole) => {
+    if (user) {
+      const updatedUser: UserProfile = {
+        ...user,
+        academicRole: newRole,
+        role: "INSTITUTION",
+      };
+      setUser(updatedUser);
+    }
   };
 
   const logout = () => {
@@ -342,6 +447,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         claimCitizenTicket,
         switchDemoRole,
+        setAcademicRole,
       }}
     >
       {children}
