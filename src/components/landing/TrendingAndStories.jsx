@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import ProblemDetailModal from './ProblemDetailModal'
 import { PROBLEMS } from '../../data/landingProblemsData'
-import { metricsApi, type LandingMetricsData } from '../../services/api'
+import { metricsApi } from '../../services/api'
 
 const TRENDING = [
   {
@@ -74,7 +74,7 @@ export default function TrendingAndStories() {
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [metrics, setMetrics] = useState<LandingMetricsData | null>(null)
+  const [metrics, setMetrics] = useState(null)
   const INTERVAL_MS = 6000
 
   useEffect(() => {

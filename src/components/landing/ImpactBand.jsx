@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2, Hourglass } from 'lucide-react'
 import { STATS } from '../../data/landingProblemsData'
-import { metricsApi, type LandingMetricsData } from '../../services/api'
+import { metricsApi } from '../../services/api'
 
 function parseValue(value) {
   const m = String(value).match(/^([^\d]*)([\d.]+)(.*)$/)
@@ -64,7 +64,7 @@ function Counter({ num, prefix, suffix, decimals }) {
 }
 
 export default function ImpactBand() {
-  const [liveMetrics, setLiveMetrics] = useState<LandingMetricsData | null>(null)
+  const [liveMetrics, setLiveMetrics] = useState(null)
 
   useEffect(() => {
     let isMounted = true

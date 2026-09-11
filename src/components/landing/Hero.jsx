@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
-import { metricsApi, type LandingMetricsData } from '../../services/api'
+import { metricsApi } from '../../services/api'
 
 export default function Hero() {
-  const [metrics, setMetrics] = useState<LandingMetricsData | null>(null)
+  const [metrics, setMetrics] = useState(null)
 
   useEffect(() => {
     let isMounted = true
