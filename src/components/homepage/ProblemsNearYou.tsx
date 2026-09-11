@@ -4,8 +4,10 @@ import { MapPin, Clock, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
 import GoogleHazardMap from "../maps/GoogleHazardMap";
 import { citizenApi, type ProblemFeedItem } from "../../services/api";
 
+import { fetchAllRealSubmissions } from "../../services/realSubmissions";
+
 function ProblemsNearYou() {
-  const [problems, setProblems] = useState<ProblemFeedItem[]>([]);
+  const [problems, setProblems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,9 +17,40 @@ function ProblemsNearYou() {
       .then((data) => {
         if (isMounted && Array.isArray(data) && data.length > 0) {
           setProblems(data.slice(0, 4));
+        } else {
+          // Fallback to real user submissions
+          fetchAllRealSubmissions().then((subs) => {
+            if (isMounted && subs && subs.length > 0) {
+              const mapped = subs.slice(0, 4).map((s) => ({
+                id: s.id,
+                ticketId: s.referenceId?.replace("#", "") || s.id,
+                title: s.title,
+                district: s.location?.city || "Ranchi",
+                priority: s.severity === "High" ? "CRITICAL" : "HIGH",
+                status: s.status,
+                createdAt: s.submittedAt || new Date().toISOString(),
+              }));
+              setProblems(mapped);
+            }
+          });
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        fetchAllRealSubmissions().then((subs) => {
+          if (isMounted && subs && subs.length > 0) {
+            const mapped = subs.slice(0, 4).map((s) => ({
+              id: s.id,
+              ticketId: s.referenceId?.replace("#", "") || s.id,
+              title: s.title,
+              district: s.location?.city || "Ranchi",
+              priority: s.severity === "High" ? "CRITICAL" : "HIGH",
+              status: s.status,
+              createdAt: s.submittedAt || new Date().toISOString(),
+            }));
+            setProblems(mapped);
+          }
+        });
+      })
       .finally(() => {
         if (isMounted) setLoading(false);
       });

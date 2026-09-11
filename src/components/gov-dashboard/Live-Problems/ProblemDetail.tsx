@@ -93,6 +93,7 @@ function ProblemDetail() {
       }
 
       localStorage.setItem("pookar_user_submissions", JSON.stringify(existingList));
+      window.dispatchEvent(new Event("storage"));
 
       // 2. Update local state
       setProblem((prev: any) => ({
@@ -132,11 +133,23 @@ function ProblemDetail() {
     );
   }
 
-  const photosList = problem.photos && problem.photos.length > 0
-    ? problem.photos
-    : problem.thumbnailUrl
-      ? [problem.thumbnailUrl]
-      : ["https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80"];
+  const rawPhotos = [
+    ...(Array.isArray(problem.photos) ? problem.photos : []),
+    ...(Array.isArray(problem.attachments) ? problem.attachments : []),
+    problem.thumbnailUrl,
+    problem.image,
+  ];
+
+  const validPhotos = rawPhotos.filter(
+    (p: any) => typeof p === "string" && p.trim().length > 5 && !p.startsWith("blob:null")
+  );
+
+  const photosList = validPhotos.length > 0
+    ? Array.from(new Set(validPhotos))
+    : [
+        "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+      ];
 
   return (
     <div className="px-6 py-6 sm:px-8 max-w-7xl mx-auto space-y-6">

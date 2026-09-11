@@ -50,11 +50,21 @@ export function getProblemById(id: string): ProblemDetail | undefined {
     commentsCount: foundItem.commentsCount || 1,
     description: foundItem.normalizedText || foundItem.rawDescription || foundItem.description || foundItem.text || "Citizen bottleneck recorded in state ledger.",
     tags: foundItem.domainTags || ["Civil Infrastructure", "Urban Drainage", "Telemetry"],
-    photos: foundItem.attachments && foundItem.attachments.length > 0 
-      ? foundItem.attachments 
-      : foundItem.photos && foundItem.photos.length > 0 
-        ? foundItem.photos 
-        : [foundItem.thumbnailUrl || foundItem.image || "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80"],
+    photos: (() => {
+      const raw = [
+        ...(Array.isArray(foundItem.attachments) ? foundItem.attachments : []),
+        ...(Array.isArray(foundItem.photos) ? foundItem.photos : []),
+        foundItem.thumbnailUrl,
+        foundItem.image,
+      ];
+      const valid = raw.filter((p: any) => typeof p === "string" && p.trim().length > 5 && !p.startsWith("blob:null"));
+      return valid.length > 0
+        ? Array.from(new Set(valid))
+        : [
+            "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+          ];
+    })(),
     aiAnalysis: {
       problemUnderstanding: `Systemic stormwater conduit choking and acoustic silt monitoring deficit across ${dist} arterial routes.`,
       peopleAffectedEstimate: "~15,000 residents and daily commuters",

@@ -16,17 +16,82 @@ function Navbar() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const DEFAULT_ALERTS: AppNotification[] = [
+    {
+      id: "alert-5167",
+      title: "🚨 New Critical Problem Ingested #JS-2026-5167",
+      message: "Ranchi: Urban Drainage Choking & Stormwater Telemetry Redressal submitted via Citizen Portal.",
+      type: "alert",
+      read: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+      actionUrl: "/gov/live-problems",
+    },
+    {
+      id: "alert-cluster",
+      title: "⚡ Dynamic Vector Cluster Formed",
+      message: "3 citizen grievances merged under Civil Infrastructure - Ranchi Sadar Corridor.",
+      type: "verification",
+      read: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      actionUrl: "/gov/ai-analysis",
+    },
+    {
+      id: "alert-lab",
+      title: "🎓 Academic Match Verified (BIT Mesra)",
+      message: "IoT Telemetry Lab assigned to review smart acoustic telemetry blueprint.",
+      type: "info",
+      read: true,
+      createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+      actionUrl: "/gov/solution-matching",
+    },
+    {
+      id: "alert-sla",
+      title: "⏱️ SLA Target Window Active",
+      message: "72-hour field redressal clock running for Palamu & Ranchi critical nodes.",
+      type: "alert",
+      read: true,
+      createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
+      actionUrl: "/gov/live-problems",
+    },
+  ];
+
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Initial fetch of notifications for government role
+    // 1. Initial fetch of notifications for government role or fallback to defaults
     notificationApi.getNotifications("GOVERNMENT", user?.district)
       .then((data) => {
-        if (isMounted && Array.isArray(data)) {
-          setNotifications(data);
+        if (isMounted) {
+          if (Array.isArray(data) && data.length > 0) {
+            setNotifications(data);
+          } else {
+            // Load from user submissions if available
+            try {
+              const local = localStorage.getItem("pookar_user_submissions");
+              if (local) {
+                const parsed = JSON.parse(local);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  const dynamicAlerts = parsed.map((p: any, idx: number) => ({
+                    id: `notif-${p.ticketId || idx}`,
+                    title: `📌 Citizen Grievance #${p.ticketId || `JS-${idx + 1}`}`,
+                    message: `${p.district || "Ranchi"}: ${p.title || "Reported societal bottleneck"}`,
+                    type: p.priority === "CRITICAL" ? "alert" : "info",
+                    read: idx > 1,
+                    createdAt: p.createdAt || new Date().toISOString(),
+                    actionUrl: "/gov/live-problems",
+                  }));
+                  setNotifications(dynamicAlerts);
+                  return;
+                }
+              }
+            } catch {}
+            setNotifications(DEFAULT_ALERTS);
+          }
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (isMounted) setNotifications(DEFAULT_ALERTS);
+      });
 
     // 2. Subscribe to real-time Server-Sent Events (SSE)
     const cleanupStream = notificationApi.streamNotifications((incoming) => {
@@ -38,9 +103,35 @@ function Navbar() {
       }
     });
 
+    // 3. Listen to local storage updates from citizen submissions
+    const handleStorageChange = () => {
+      try {
+        const local = localStorage.getItem("pookar_user_submissions");
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const first = parsed[0];
+            const newNotif: AppNotification = {
+              id: `notif-live-${Date.now()}`,
+              title: `⚡ Live Citizen Submission #${first.ticketId || "JS-2026"}`,
+              message: `${first.district || "Ranchi"}: ${first.title}`,
+              type: "alert",
+              read: false,
+              createdAt: new Date().toISOString(),
+              actionUrl: "/gov/live-problems",
+            };
+            setNotifications((prev) => [newNotif, ...prev.filter(n => n.id !== newNotif.id)]);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
       isMounted = false;
       cleanupStream();
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, [user?.district]);
 

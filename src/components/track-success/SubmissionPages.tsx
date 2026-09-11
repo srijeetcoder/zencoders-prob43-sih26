@@ -112,48 +112,84 @@ export default function SubmissionDetail() {
   useEffect(() => {
     let isMounted = true;
 
+    function mapGovStatus(govStatus?: string): any {
+      if (!govStatus) return "submitted";
+      const s = govStatus.toLowerCase();
+      if (s.includes("resolve")) return "resolved";
+      if (s.includes("progress") || s.includes("implement")) return "implementation";
+      if (s.includes("review")) return "review";
+      if (s.includes("solution") || s.includes("plan")) return "solution_development";
+      if (s.includes("match") || s.includes("team")) return "matched";
+      if (s.includes("analysis") || s.includes("ai")) return "ai_analysis";
+      return "submitted";
+    }
+
     async function resolveSubmission() {
-      setLoading(true);
-
-      // 1. Check static SUBMISSIONS list
-      const staticMatch = SUBMISSIONS.find((s) => s.id === id || s.psCode === id);
-      if (staticMatch) {
-        if (isMounted) {
-          setSubmission(staticMatch);
-          setLoading(false);
-        }
-        return;
-      }
-
-      // 2. Check local user submissions in localStorage
+      // 1. Check local user submissions in localStorage first (priority for live admin edits)
       try {
         const local = localStorage.getItem("pookar_user_submissions");
         if (local) {
           const parsed = JSON.parse(local);
-          const found = parsed.find((item: any) => item.id === id || item.ticketId === id);
+          const cleanId = id?.replace("#", "");
+          const found = parsed.find(
+            (item: any) =>
+              item.id === id ||
+              item.ticketId === id ||
+              item.ticketId === cleanId ||
+              item.id === cleanId
+          );
           if (found) {
+            const mappedStatus = mapGovStatus(found.status);
+            const calcProgress =
+              found.progressPercent !== undefined
+                ? found.progressPercent
+                : mappedStatus === "resolved"
+                ? 100
+                : mappedStatus === "implementation"
+                ? 85
+                : mappedStatus === "solution_development"
+                ? 65
+                : mappedStatus === "matched"
+                ? 45
+                : mappedStatus === "ai_analysis"
+                ? 25
+                : 15;
+
+            const updatesList = [
+              {
+                id: "up-1",
+                title: "Grievance Indexed & Normalized",
+                date: "Today",
+                author: "PooKar Neural Intelligence Engine",
+                summary: "Problem description triaged and mapped to municipal intervention ledger.",
+                type: "official" as const,
+              },
+            ];
+
+            if (found.adminRemarks) {
+              updatesList.unshift({
+                id: "up-admin",
+                title: "State War Room Directive Dispatched",
+                date: found.updatedAt ? new Date(found.updatedAt).toLocaleTimeString() : "Just now",
+                author: "District Magistrate & War Room Desk",
+                summary: found.adminRemarks,
+                type: "official" as const,
+              });
+            }
+
             const formatted: Submission = {
               id: found.ticketId || found.id,
               psCode: found.ticketId || "JS-2026-LIVE",
               title: found.title || found.rawDescription?.slice(0, 80) || "Citizen Reported Bottleneck",
               category: "drainage",
-              status: found.status === "RESOLVED" ? "resolved" : found.status === "LAB_MATCHED" ? "matched" : "submitted",
+              status: mappedStatus,
               submittedOn: found.createdAt ? new Date(found.createdAt).toLocaleDateString() : "Today",
               location: found.district ? `${found.district}, Jharkhand` : "Ranchi, Jharkhand",
-              description: found.normalizedText || found.rawDescription || "Citizen grievance indexed in pgvector memory.",
-              progressPercent: 35,
+              description: found.normalizedText || found.rawDescription || found.description || "Citizen grievance indexed in pgvector memory.",
+              progressPercent: calcProgress,
               team: "Birsa Institute of Technology (BIT Mesra) IoT Lab",
               teamExpertise: "Smart sensor telemetry and drainage siltation mitigation engineering.",
-              updates: [
-                {
-                  id: "up-1",
-                  title: "Grievance Indexed & Normalized",
-                  date: "Today",
-                  author: "PooKar Neural Intelligence Engine",
-                  summary: "Problem description triaged and mapped to municipal intervention ledger.",
-                  type: "official",
-                },
-              ],
+              updates: updatesList,
             };
 
             if (isMounted) {
@@ -164,6 +200,16 @@ export default function SubmissionDetail() {
           }
         }
       } catch {}
+
+      // 2. Check static SUBMISSIONS list
+      const staticMatch = SUBMISSIONS.find((s) => s.id === id || s.psCode === id);
+      if (staticMatch) {
+        if (isMounted) {
+          setSubmission(staticMatch);
+          setLoading(false);
+        }
+        return;
+      }
 
       // 3. Fallback to API status inquiry
       try {
@@ -204,13 +250,13 @@ export default function SubmissionDetail() {
         setSubmission({
           id: id || "JS-2026-LIVE",
           psCode: id || "JS-2026-LIVE",
-          title: "Municipal Infrastructure & Bottleneck Redressal",
+          title: "Urban Drainage Choking & Stormwater Telemetry Redressal",
           category: "drainage",
           status: "submitted",
           submittedOn: "Today",
           location: "Ranchi, Jharkhand",
           description: "This grievance is registered in the state problem ledger and is undergoing AI classification.",
-          progressPercent: 20,
+          progressPercent: 25,
           team: "Birsa Institute of Technology (BIT Mesra)",
           teamExpertise: "IoT and urban infrastructure innovation cell.",
           updates: [
@@ -229,8 +275,16 @@ export default function SubmissionDetail() {
     }
 
     resolveSubmission();
+
+    const handleStorageUpdate = () => {
+      resolveSubmission();
+    };
+
+    window.addEventListener("storage", handleStorageUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("storage", handleStorageUpdate);
     };
   }, [id]);
 

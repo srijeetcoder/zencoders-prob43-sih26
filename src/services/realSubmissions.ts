@@ -10,6 +10,13 @@ const DEFAULT_REAL_SUBMISSIONS = [
     district: "Ranchi",
     area: "Harmu Bypass & Ward 12",
     description: "Hame yaha barish ke karan paani hai road ma, water logging Notes: Bohut zyada barish ke wajah se yeh sabh hua hai",
+    thumbnailUrl: "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+    photos: [
+      "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+    ],
+    status: "Under Analysis",
+    progressPercent: 35,
     createdAt: new Date().toISOString(),
   },
   {
@@ -20,6 +27,12 @@ const DEFAULT_REAL_SUBMISSIONS = [
     district: "Ranchi",
     area: "Ranchi Sadar",
     description: "Hame yaha barish ke karan paani hai road ma, water logging Notes: Bohut zyada barish ke wajah se yeh sabh hua hai",
+    thumbnailUrl: "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+    photos: [
+      "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+    ],
+    status: "Under Analysis",
+    progressPercent: 35,
     createdAt: new Date().toISOString(),
   },
   {
@@ -30,6 +43,12 @@ const DEFAULT_REAL_SUBMISSIONS = [
     district: "Ranchi",
     area: "Ranchi Sadar",
     description: "Hame yaha barish ke karan paani hai road ma, water logging Notes: Bohut zyada barish ke wajah se yeh sabh hua hai",
+    thumbnailUrl: "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+    photos: [
+      "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+    ],
+    status: "Under Analysis",
+    progressPercent: 35,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -73,12 +92,28 @@ export async function fetchAllRealSubmissions(): Promise<ProblemDetail[]> {
         else if (titleDesc.includes("school") || titleDesc.includes("student") || titleDesc.includes("class")) category = "Education";
         else if (titleDesc.includes("crop") || titleDesc.includes("farm") || titleDesc.includes("produce")) category = "Agriculture";
 
+        const rawPhotos = [
+          ...(Array.isArray(item.photos) ? item.photos : []),
+          ...(Array.isArray(item.attachments) ? item.attachments : []),
+          item.thumbnailUrl,
+          item.image,
+        ];
+        const validPhotos = rawPhotos.filter(
+          (p: any) => typeof p === "string" && p.trim().length > 5 && !p.startsWith("blob:null")
+        );
+        const photos = validPhotos.length > 0
+          ? Array.from(new Set(validPhotos))
+          : [
+              "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+              "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+            ];
+
         merged.push({
           id,
           referenceId: id.startsWith("#") ? id : `#${id}`,
           title: item.title || item.rawDescription || "Citizen Reported Issue",
           category,
-          status: item.status === "RESOLVED" ? "Resolved" : item.status === "IN_PROGRESS" ? "In Progress" : "Under Analysis",
+          status: item.status || "Under Analysis",
           severity: (item.priority === "CRITICAL" ? "High" : item.priority === "HIGH" ? "High" : "Medium") as Severity,
           location: {
             area: item.area || item.district || "Ranchi",
@@ -87,12 +122,12 @@ export async function fetchAllRealSubmissions(): Promise<ProblemDetail[]> {
             distanceKm: 1.2,
           },
           submittedAt: item.createdAt || new Date().toISOString(),
-          thumbnailUrl: item.thumbnailUrl || "",
+          thumbnailUrl: photos[0],
           upvotes: item.upvotes || 1,
           commentsCount: item.commentsCount || 0,
           description: item.normalizedText || item.rawDescription || item.description || item.text || "Citizen grievance recorded.",
           tags: item.domainTags || ["Civil Infrastructure", "Urban Drainage"],
-          photos: item.attachments || [],
+          photos,
         });
       }
     });
