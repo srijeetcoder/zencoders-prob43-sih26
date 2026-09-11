@@ -468,20 +468,6 @@ export const governmentApi = {
     return fetchWithCircuitBreaker<ActiveProject[]>('/government/projects', undefined, []);
   },
 
-        district: 'Bokaro',
-        leadInstitution: 'Birsa Agricultural University & BIT Sindri',
-        department: 'Drinking Water & Sanitation Dept',
-        budgetSanctioned: '₹ 18.0 Lakhs',
-        progressPercentage: 45,
-        readinessScore: 79,
-        status: 'PROTOTYPING',
-        hardwareBoMCount: 16,
-        startDate: '2026-08-01',
-        expectedCompletion: '2027-01-20',
-      },
-    ];
-    return fetchWithCircuitBreaker<ActiveProject[]>('/government/projects', undefined, fallback);
-  },
 
   dispatchAction: async (payload: { problemId: string; targetDepartment: string; directives: string; escalationLevel?: string }) => {
     const fallback = {
