@@ -13,9 +13,17 @@ router.post('/google', authLimiter, (req, res, next) => authController.googleOAu
 
 // 2-Step OTP Verification (Email and Mobile)
 router.post('/otp/send-email', authLimiter, (req, res, next) => authController.sendEmailOtp(req, res, next));
+router.post('/request-email-otp', authLimiter, (req, res, next) => authController.sendEmailOtp(req, res, next));
+
 router.post('/otp/verify-email', authLimiter, (req, res, next) => authController.verifyEmailOtp(req, res, next));
+router.post('/verify-email-otp', authLimiter, (req, res, next) => authController.verifyEmailOtp(req, res, next));
+
 router.post('/otp/send-mobile', authLimiter, (req, res, next) => authController.sendMobileOtp(req, res, next));
+router.post('/request-mobile-otp', authLimiter, (req, res, next) => authController.sendMobileOtp(req, res, next));
+
 router.post('/otp/verify-mobile', authLimiter, (req, res, next) => authController.verifyMobileOtp(req, res, next));
+router.post('/verify-mobile-otp', authLimiter, (req, res, next) => authController.verifyMobileOtp(req, res, next));
+
 router.post('/send-otp', authLimiter, (req, res, next) => authController.sendOtp(req, res, next));
 router.post('/verify-otp', authLimiter, (req, res, next) => authController.verifyOtp(req, res, next));
 
