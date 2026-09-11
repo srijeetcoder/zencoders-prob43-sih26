@@ -270,8 +270,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loginWithGoogle = async ({ credential, role, email, name }: { credential?: string; role?: UserRole; email?: string; name?: string }): Promise<UserProfile> => {
     try {
+      const googleToken = credential || `google-token-${Date.now()}`;
       const res: any = await authApi.googleOAuth({
-        credential,
+        token: googleToken,
+        credential: googleToken,
         role: role || "CITIZEN",
         email,
         name,

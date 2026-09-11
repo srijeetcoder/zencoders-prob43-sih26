@@ -34,7 +34,9 @@ export const LoginSchema = z.object({
 });
 
 export const GoogleOAuthSchema = z.object({
-  token: z.string().min(1, 'OAuth token or credential is required'),
+  token: z.string().optional(),
+  credential: z.string().optional(),
+  idToken: z.string().optional(),
   role: z.string().default('CITIZEN'),
   email: z.string().email().optional(),
   name: z.string().optional(),

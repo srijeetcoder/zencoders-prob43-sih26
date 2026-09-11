@@ -88,10 +88,14 @@ export class OtpService {
       console.warn('[OtpService] Database storage notice:', err.message);
     }
 
-    // Dispatch logs (In production SMS/Email gateways trigger here)
+    // Dispatch logs and real SMTP mailer
     console.log(`[🔐 SECURE 6-DIGIT OTP ISSUED] Target: ${target} (${params.targetType}) | Purpose: ${purpose}`);
     if (process.env.NODE_ENV !== 'production') {
       console.log(`  👉 DEV OTP CODE: ${rawOtp}`);
+    }
+
+    if (params.targetType === 'EMAIL') {
+      await this.sendEmailDispatch(target, rawOtp);
     }
 
     return {
@@ -99,6 +103,62 @@ export class OtpService {
       expiresInSeconds,
       debugOtp: process.env.NODE_ENV !== 'production' ? rawOtp : undefined,
     };
+  }
+
+  /**
+   * Dispatches 6-digit verification code to user email via Gmail SMTP
+   */
+  async sendEmailDispatch(to: string, otp: string): Promise<void> {
+    const gmailUser = process.env.GMAIL_USER || process.env.SMTP_USER;
+    const gmailPass = (process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+
+    if (gmailUser && gmailPass) {
+      try {
+        const nodemailer = await import('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false, // TLS
+          auth: {
+            user: gmailUser,
+            pass: gmailPass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: `"PooKar Ledger" <${gmailUser}>`,
+          to,
+          subject: `${otp} is your PooKar Verification Code`,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047d48; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase;">
+                  National Problem Governance Ledger
+                </span>
+                <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px;">Verify Your Identity</h2>
+                <p style="color: #64748b; font-size: 13px; margin: 0;">Enter this 6-digit code in the registration window.</p>
+              </div>
+
+              <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 18px; text-align: center; margin: 18px 0;">
+                <div style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #10245e; font-family: monospace;">
+                  ${otp}
+                </div>
+                <span style="font-size: 11px; color: #94a3b8; display: block; margin-top: 6px;">Valid for 10 minutes &bull; Do not disclose</span>
+              </div>
+
+              <div style="border-top: 1px solid #f1f5f9; padding-top: 12px; text-align: center; font-size: 11px; color: #94a3b8;">
+                Government of Jharkhand &bull; Societal Innovation Intelligence Engine
+              </div>
+            </div>
+          `,
+        });
+        console.log(`✉️ [EMAIL SENT] Verification code successfully sent to ${to}`);
+      } catch (err: any) {
+        console.error('❌ [EMAIL ERROR] Failed to send email via Gmail SMTP:', err.message);
+      }
+    } else {
+      console.log(`ℹ️ [NOTICE] GMAIL_USER and GMAIL_APP_PASSWORD not configured on server. Check Render environment variables.`);
+    }
   }
 
   /**
