@@ -65,8 +65,7 @@ function ProblemsNearYou() {
                 No active civic bottlenecks currently reported. As citizens submit problems, they will appear here in real time.
               </p>
             </div>
-          ) : (
-            problems.map((problem) => (
+          ) : problems.map((problem) => (
               <Link
               to={`/trackprogress/${problem.ticketId || problem.id}`}
               key={problem.id || problem.ticketId}
