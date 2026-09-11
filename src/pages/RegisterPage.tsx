@@ -222,11 +222,11 @@ export default function RegisterPage() {
   };
 
   const getRoleSubtitle = () => {
-    if (activeRole === "CITIZEN") return "Two-factor verified citizen node activation on PooKar ledger";
-    if (activeRole === "GOVERNMENT") return "Verified district / state administrative nodal activation";
-    if (academicBranch === "STUDENT") return "Campus student innovator node for civic problem-solving & prototypes";
-    if (academicBranch === "FACULTY") return "Academic mentor node for project validation, DPR endorsement & grants";
-    return "Institutional administrative node for R&D governance & state liaison";
+    if (activeRole === "CITIZEN") return "Direct citizen node activation on PooKar ledger";
+    if (activeRole === "GOVERNMENT") return "Instant Government Key Verification (No Email or SMS OTP)";
+    if (academicBranch === "STUDENT") return "Instant Student ID Verification (No Email or SMS OTP)";
+    if (academicBranch === "FACULTY") return "Instant Faculty ID & AISHE Verification (No Email or SMS OTP)";
+    return "Instant AISHE Institutional Verification (No Email or SMS OTP)";
   };
 
   return (
@@ -477,27 +477,29 @@ export default function RegisterPage() {
               )}
 
               {/* OFFICIAL GOVERNMENT / EMPLOYEE ID (IF PROVIDED) */}
+              {/* OFFICIAL GOVERNMENT VERIFICATION KEY / INVITE CODE */}
               {activeRole === "GOVERNMENT" && (
-                <div className="space-y-1 rounded-xl bg-slate-50/80 border border-slate-200/90 p-2.5">
+                <div className="space-y-1 rounded-xl bg-emerald-50/80 border border-emerald-200/90 p-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                    <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1.5">
                       <KeyRound className="h-3 w-3 text-emerald-600" />
-                      <span>Official Government / Employee ID (Optional)</span>
+                      <span>Official Government Verification Key / Invite Code</span>
                     </label>
-                    <span className="text-[9px] font-semibold text-slate-500 bg-slate-200/70 px-1.5 py-0.5 rounded">
-                      If Provided
+                    <span className="text-[9px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                      Required · Code Only
                     </span>
                   </div>
                   <input
                     type="text"
                     name="governmentId"
+                    required
                     value={formData.governmentId}
                     onChange={handleChange}
-                    placeholder="Enter official designation / employee code (if provided)"
-                    className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-3 font-mono text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:outline-none uppercase"
+                    placeholder="Enter 7-character invite key (e.g. TNNK2TA)"
+                    className="w-full rounded-lg border border-emerald-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-emerald-950 placeholder:text-emerald-400 focus:border-emerald-600 focus:outline-none uppercase"
                   />
-                  <p className="text-[10px] text-slate-500">
-                    Official state / district government code if assigned by your department.
+                  <p className="text-[10px] text-emerald-700 font-medium">
+                    ⚡ Unique code verification only. No email or SMS verification required.
                   </p>
                 </div>
               )}
@@ -511,7 +513,7 @@ export default function RegisterPage() {
                       <span>Student Roll / Registration Number</span>
                     </label>
                     <span className="text-[9px] font-semibold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded">
-                      Required
+                      Required · Code Only
                     </span>
                   </div>
                   <input
@@ -523,8 +525,8 @@ export default function RegisterPage() {
                     placeholder="e.g. 2022-EC-042 or 2201389"
                     className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
                   />
-                  <p className="text-[10px] text-indigo-600/90">
-                    Allocated student exam/enrolment roll number for institutional innovation clearance.
+                  <p className="text-[10px] text-indigo-700 font-medium">
+                    ⚡ Unique code verification only. No email or SMS verification required.
                   </p>
                 </div>
               )}
@@ -564,8 +566,8 @@ export default function RegisterPage() {
                       />
                     </div>
                   </div>
-                  <p className="text-[10px] text-indigo-600/90">
-                    Required for official mentor endorsement of student DPR solution plans and prototypes.
+                  <p className="text-[10px] text-indigo-700 font-medium">
+                    ⚡ Unique academic code verification only. No email or SMS verification required.
                   </p>
                 </div>
               )}
@@ -579,7 +581,7 @@ export default function RegisterPage() {
                       <span>University AISHE / Lab Unique Code</span>
                     </label>
                     <span className="text-[9px] font-semibold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded">
-                      Required
+                      Required · Code Only
                     </span>
                   </div>
                   <input
@@ -591,8 +593,8 @@ export default function RegisterPage() {
                     placeholder="Enter AISHE / Lab Code (e.g. AISHE-U-0268-LAB)"
                     className="w-full rounded-lg border border-indigo-300 bg-white py-1.5 px-3 font-mono text-xs font-semibold tracking-wider text-indigo-950 placeholder:text-indigo-400 focus:border-indigo-600 focus:outline-none uppercase"
                   />
-                  <p className="text-[10px] text-indigo-600/90">
-                    Ministry of Education AISHE institutional accreditation key for research grant sanctions.
+                  <p className="text-[10px] text-indigo-700 font-medium">
+                    ⚡ Unique AISHE accreditation verification only. No email or SMS verification required.
                   </p>
                 </div>
               )}
