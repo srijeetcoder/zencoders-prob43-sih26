@@ -8,7 +8,7 @@ import {
   Legend,
 } from "recharts";
 import { MapPin } from "lucide-react";
-import { citizenApi } from "../../../../services/api";
+import { fetchAllRealSubmissions } from "../../../../services/realSubmissions";
 
 const areaColors = [
   "#153157",
@@ -26,12 +26,12 @@ function AreaWiseProblems() {
 
   useEffect(() => {
     let isMounted = true;
-    citizenApi.getPublicFeed()
+    fetchAllRealSubmissions()
       .then((feed) => {
         if (isMounted && Array.isArray(feed) && feed.length > 0) {
           const counts: Record<string, number> = {};
           feed.forEach((item) => {
-            const dist = item.district || "Ranchi";
+            const dist = item.location?.city || "Ranchi";
             counts[dist] = (counts[dist] || 0) + 1;
           });
           const mapped = Object.entries(counts).map(([name, value]) => ({ name, value }));

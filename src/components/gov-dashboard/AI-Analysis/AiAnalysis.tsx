@@ -666,7 +666,7 @@ Respond with pure JSON matching this structure:
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(val: any, name: any, item: any) => [`${val}% (${item.payload.count} items)`, name]}
+                    formatter={(val: any, name: any, item: any) => [`${val}% (${item?.payload?.count ?? 0} items)`, name]}
                     contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
                   />
                   <Legend

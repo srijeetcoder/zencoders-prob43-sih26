@@ -10,6 +10,18 @@ import {
 } from "recharts";
 import { BarChart3 } from "lucide-react";
 import { governmentApi, type SectorItem } from "../../../../services/api";
+import { fetchAllRealSubmissions } from "../../../../services/realSubmissions";
+
+const SECTOR_COLORS: Record<string, string> = {
+  "Infrastructure": "#153157",
+  "Civil Infrastructure": "#153157",
+  "Healthcare": "#0d9488",
+  "Environment": "#10b981",
+  "Energy": "#f59e0b",
+  "Education": "#6366f1",
+  "Agriculture": "#84cc16",
+  "Others": "#64748b",
+};
 
 function CasesByDomain() {
   const [sectors, setSectors] = useState<SectorItem[]>([]);
@@ -17,10 +29,27 @@ function CasesByDomain() {
 
   useEffect(() => {
     let isMounted = true;
-    governmentApi.getSectors()
-      .then((data) => {
+    fetchAllRealSubmissions()
+      .then((subs) => {
         if (isMounted) {
-          setSectors(Array.isArray(data) ? data : []);
+          if (subs.length > 0) {
+            const counts: Record<string, number> = {};
+            subs.forEach((p) => {
+              const cat = p.category === "Infrastructure" ? "Civil Infrastructure" : p.category;
+              counts[cat] = (counts[cat] || 0) + 1;
+            });
+            const total = subs.length;
+            const mapped = Object.entries(counts).map(([name, count]) => ({
+              name,
+              count,
+              percentage: Math.round((count / total) * 100),
+              status: count > 1 ? "Critical Cluster" : "Active",
+              color: SECTOR_COLORS[name] || "#153157",
+            }));
+            setSectors(mapped);
+          } else {
+            setSectors([]);
+          }
           setLoading(false);
         }
       })

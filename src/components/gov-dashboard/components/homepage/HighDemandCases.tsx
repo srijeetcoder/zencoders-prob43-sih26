@@ -1,26 +1,42 @@
 import { useState, useEffect } from "react";
 import { ArrowUp, MapPin, Flame, Inbox } from "lucide-react";
 import { citizenApi, type ProblemFeedItem } from "../../../../services/api";
+import { fetchAllRealSubmissions } from "../../../../services/realSubmissions";
 
 const STATUS_STYLES: Record<string, string> = {
   OPEN: "bg-rose-50 text-rose-600 border border-rose-200",
   Open: "bg-rose-50 text-rose-600 border border-rose-200",
+  "Under Analysis": "bg-navy-100 text-navy-700",
   LAB_MATCHED: "bg-navy-100 text-navy-700",
   BLUEPRINT_GENERATED: "bg-indigo-100 text-indigo-700",
   IN_REVIEW: "bg-amber-50 text-amber-600 border border-amber-200",
   RESOLVED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  Resolved: "bg-emerald-50 text-emerald-700 border border-emerald-200",
 };
 
 function HighDemandCases() {
-  const [cases, setCases] = useState<ProblemFeedItem[]>([]);
+  const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    citizenApi.getPublicFeed()
+    fetchAllRealSubmissions()
       .then((data) => {
         if (isMounted) {
-          setCases(Array.isArray(data) ? data : []);
+          const mapped = data.map((d) => ({
+            id: d.id,
+            ticketId: d.referenceId,
+            title: d.title,
+            description: d.description,
+            district: d.location?.city || "Ranchi",
+            domainTags: d.tags || ["Civil Infrastructure"],
+            priority: d.severity === "High" ? "CRITICAL" : "HIGH",
+            status: d.status,
+            createdAt: d.submittedAt,
+            upvotes: d.upvotes || 1,
+            commentsCount: d.commentsCount || 0,
+          }));
+          setCases(mapped);
           setLoading(false);
         }
       })
