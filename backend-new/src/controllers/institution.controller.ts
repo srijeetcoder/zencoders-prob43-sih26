@@ -161,7 +161,7 @@ export class InstitutionController {
         userId: req.user?.id,
       });
 
-      const bomCheck = bomGuard.validateBom(dpr.domain, analysis.bom);
+      const bomCheck = bomGuard.validateBom(dpr.domain, ((analysis.bom || analysis.hardwareBoM || []) as any));
 
       const metric = await institutionRepo.saveCalibrationMetric(dprId, {
         prediction_confidence: analysis.confidence,
