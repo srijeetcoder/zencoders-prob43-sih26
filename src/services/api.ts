@@ -490,6 +490,40 @@ export const governmentApi = {
     );
   },
 
+  getClusters: async (district?: string, domain?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (district && district !== 'All') params.set('district', district);
+    if (domain && domain !== 'All') params.set('domain', domain);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return fetchWithCircuitBreaker<any[]>(`/government/clusters${qs}`, undefined, []);
+  },
+
+  runCabinetAiAnalysis: async (payload: {
+    title: string;
+    district: string;
+    domain?: string;
+    category?: string;
+    description?: string;
+    prompt?: string;
+    clusterId?: string;
+    apiKey?: string;
+  }): Promise<any> => {
+    return fetchWithCircuitBreaker<any>(
+      '/government/cluster-analysis',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title: payload.title,
+          district: payload.district,
+          domain: payload.domain || payload.category || 'Civil Infrastructure',
+          prompt: payload.prompt || payload.description || payload.title,
+          clusterId: payload.clusterId,
+          apiKey: payload.apiKey,
+        }),
+      }
+    );
+  },
+
   runAiAnalysis: async (payload: {
     title: string;
     district: string;

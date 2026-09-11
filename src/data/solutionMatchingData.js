@@ -12,13 +12,13 @@ export const sidebarNav = [
 ];
 
 export const problemData = {
-  id: "JS-2026-1043",
+  id: "PK-2026-1043",
   title: "Solution & Team Matching",
-  subtitle: "AI-powered recommendations to find the best solutions and partners for this problem.",
-  location: "Water Logging in Ward 12, Kolkata, West Bengal",
-  submittedDate: "12 Mar 2026",
-  analyzedDate: "12 Mar 2026",
-  updatedDate: "12 Mar 2026, 11:30 AM",
+  subtitle: "AI-powered recommendations connecting citizen challenges with verified research labs, universities, and enterprise innovators across Jharkhand.",
+  location: "Harmu River Basin & Urban Conduits, Ranchi, Jharkhand",
+  submittedDate: "10 Sep 2026",
+  analyzedDate: "11 Sep 2026",
+  updatedDate: "11 Sep 2026, 04:30 PM",
 };
 
 export const tabs = [
@@ -29,19 +29,19 @@ export const tabs = [
 ];
 
 export const stats = [
-  { id: 1, value: "12", label: "Potential Solutions", sub: "Identified by AI", icon: "lightbulb", color: "#f59e0b" },
-  { id: 2, value: "8", label: "Matched Teams", sub: "from universities & industry", icon: "users", color: "#0891b2" },
-  { id: 3, value: "3", label: "High Feasibility", sub: "solutions", icon: "target", color: "#ef4444" },
-  { id: 4, value: "6 - 12 months", label: "Estimated Time", sub: "for top solutions", icon: "clock", color: "#164e63" },
+  { id: 1, value: "14", label: "Potential Solutions", sub: "Identified by Gemini AI", icon: "lightbulb", color: "#f59e0b" },
+  { id: 2, value: "9", label: "Matched Teams", sub: "from Jharkhand universities & R&D", icon: "users", color: "#0891b2" },
+  { id: 3, value: "4", label: "High Feasibility", sub: "bankable DPR solutions", icon: "target", color: "#ef4444" },
+  { id: 4, value: "3 – 6 months", label: "Estimated Time", sub: "for top field deployments", icon: "clock", color: "#164e63" },
 ];
 
 export const filterOptions = {
   domains: [
     { id: "infrastructure", label: "Infrastructure", checked: true },
-    { id: "iot-monitoring", label: "IoT & Monitoring", checked: false },
+    { id: "iot-monitoring", label: "IoT & Telemetry", checked: false },
     { id: "nature-based", label: "Nature-based Solutions", checked: false },
-    { id: "policy", label: "Policy & Management", checked: false },
-    { id: "community", label: "Community Engagement", checked: false },
+    { id: "policy", label: "Policy & Operations", checked: false },
+    { id: "community", label: "Community Driven", checked: false },
   ],
   feasibility: [
     { id: "high", label: "High", checked: true },
@@ -65,68 +65,68 @@ export const filterOptions = {
 export const solutions = [
   {
     id: 1,
-    title: "Smart Drainage & Permeable Pavement System",
+    title: "Smart Drainage & Permeable Pavement Acoustic Telemetry",
     matchType: "High Match",
-    matchPercent: 92,
-    description: "Upgrade drainage system with smart sensors and permeable pavements to improve water flow and reduce surface run-off.",
+    matchPercent: 94,
+    description: "Upgrade urban conduit drainage with IP68 ultrasonic silt sensors, non-invasive Doppler flow telemetry, and permeable pavements.",
     tags: ["Infrastructure", "IoT", "Urban Planning"],
-    duration: "6 – 12 months",
-    cost: "₹ 1.2 – 2 Cr",
+    duration: "4 – 6 months",
+    cost: "₹ 1.2 – 1.8 Cr",
     impact: "High Impact",
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=250&fit=crop",
+    image: "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=600&auto=format&fit=crop&q=80",
   },
   {
     id: 2,
-    title: "Real-time Water Level Monitoring",
+    title: "Real-time Silt Depth & Water Level Ultrasonic Monitoring",
     matchType: "High Match",
-    matchPercent: 87,
-    description: "Install IoT-based sensors to monitor water levels and provide early alerts to municipal authorities and citizens.",
+    matchPercent: 89,
+    description: "Install solar LoRaWAN ultrasonic level sensors and early flash warning telemetry nodes for municipal war room dispatch.",
     tags: ["IoT", "Early Warning", "Data Analytics"],
-    duration: "3 – 6 months",
-    cost: "₹ 50 Lakh – 1 Cr",
+    duration: "2 – 4 months",
+    cost: "₹ 35 – 65 Lakh",
     impact: "High Impact",
-    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=250&fit=crop",
+    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=600&auto=format&fit=crop&q=80",
   },
   {
     id: 3,
-    title: "Decentralized Rainwater Harvesting",
+    title: "Decentralized Bioswale & Rainwater Percolation Grid",
     matchType: "Medium Match",
     matchPercent: 78,
-    description: "Implement rainwater harvesting systems in public spaces, schools and residential complexes to reduce surface run-off.",
+    description: "Deploy community bioswales and decentralized subsurface filtration sumps to catch runoff before entering choked arterial conduits.",
     tags: ["Nature-based", "Sustainability", "Community Driven"],
-    duration: "6 – 12 months",
-    cost: "₹ 50 Lakh – 1.5 Cr",
+    duration: "6 – 9 months",
+    cost: "₹ 45 – 90 Lakh",
     impact: "Moderate Impact",
-    image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&h=250&fit=crop",
+    image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=600&auto=format&fit=crop&q=80",
   },
   {
     id: 4,
-    title: "Drainage Desilting & Maintenance Plan",
+    title: "Automated Trash Rack & Heavy Silt Dredging Plan",
     matchType: "Medium Match",
     matchPercent: 74,
-    description: "Regular desilting of existing drains with a monitored maintenance schedule to ensure smooth water flow.",
+    description: "Mechanical trash barriers at 8 key stormwater junctions paired with scheduled AI-guided hydraulic desilting rotations.",
     tags: ["Operations", "Municipal Management", "Short-term Fix"],
-    duration: "3 – 6 months",
-    cost: "₹ 20 – 50 Lakh",
+    duration: "1 – 3 months",
+    cost: "₹ 20 – 45 Lakh",
     impact: "Moderate Impact",
-    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=250&fit=crop",
+    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&auto=format&fit=crop&q=80",
   },
 ];
 
 export const topTeam = {
-  name: "IIT Kharagpur",
-  department: "Dept. of Civil Engineering",
-  matchPercent: 92,
-  description: "Expertise in urban drainage systems, IoT monitoring and sustainable infrastructure. Previously worked on 5 similar projects.",
+  name: "Birsa Institute of Technology (BIT Mesra)",
+  department: "IoT Telemetry & Embedded Urban Systems Lab",
+  matchPercent: 94,
+  description: "Specialized in urban conduit telemetry, LoRaWAN mesh communication, and flood risk modeling. Previously executed 5 similar municipal projects in Jharkhand.",
   stats: [
     { label: "Similar Projects", value: 5 },
     { label: "Faculty Experts", value: 8 },
-    { label: "Ongoing Collaborations", value: 3 },
+    { label: "Ongoing Pilots", value: 3 },
   ],
 };
 
 export const otherTeams = [
-  { id: 1, name: "Jadavpur University", department: "Dept. of Environmental Science", matchPercent: 87 },
-  { id: 2, name: "MAKAUT", department: "Dept. of IoT & Smart Systems", matchPercent: 80 },
-  { id: 3, name: "Tata Projects (Industry Partner)", department: "Urban Infrastructure Solutions", matchPercent: 76 },
+  { id: 1, name: "IIT (ISM) Dhanbad", department: "Dept. of Environmental Engineering & Hydrology", matchPercent: 91 },
+  { id: 2, name: "NIT Jamshedpur", department: "Dept. of Civil & Smart Systems", matchPercent: 86 },
+  { id: 3, name: "Tata Steel Urban Tech Cell", department: "Infrastructure Innovation Center", matchPercent: 82 },
 ];

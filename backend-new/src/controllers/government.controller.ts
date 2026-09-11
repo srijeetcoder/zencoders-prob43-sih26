@@ -3,6 +3,7 @@ import { governmentRepo } from '../repositories/government.repo';
 import { grievanceRepo } from '../repositories/grievance.repo';
 import { auditRepo } from '../repositories/audit.repo';
 import { aiAnalysisService } from '../services/aiAnalysis.service';
+import { clusteringService } from '../services/clustering.service';
 import { DispatchOrderSchema, EscalationSchema, UpdateStatusSchema, GovernmentAIAnalysisSchema } from '../schemas/government.schema';
 import { GrievanceQuerySchema } from '../schemas/citizen.schema';
 import { sendSuccess } from '../utils/apiResponse';
@@ -50,6 +51,17 @@ export class GovernmentController {
         search: query.search,
       });
       sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getClusters(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const district = (req.query.district as string) || undefined;
+      const domain = (req.query.domain as string) || undefined;
+      const clusters = await clusteringService.clusterGrievances({ district, domain });
+      sendSuccess(res, clusters);
     } catch (err) {
       next(err);
     }
@@ -144,12 +156,20 @@ export class GovernmentController {
 
   async triggerAIAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = GovernmentAIAnalysisSchema.parse(req.body);
+      const data = req.body;
+      const domain = data.domain || data.category || 'Civil Infrastructure';
+      const prompt = data.prompt || data.description || data.title || 'Systemic issue analysis';
+      const district = data.district || 'Ranchi';
+      const apiKey = (req.headers['x-gemini-api-key'] as string) || data.apiKey || undefined;
+
       const result = await aiAnalysisService.executeAnalysis({
-        entityType: data.entity_type,
-        entityId: data.entity_id,
-        domain: data.domain,
-        prompt: data.prompt,
+        entityType: data.entity_type || 'CLUSTER',
+        entityId: data.entity_id || data.clusterId,
+        clusterId: data.clusterId,
+        domain,
+        district,
+        prompt,
+        apiKey,
         userId: req.user?.id,
       });
 
@@ -157,10 +177,10 @@ export class GovernmentController {
         user_id: req.user?.id,
         role: req.user?.role,
         action: 'AI_ANALYSIS_EXECUTED',
-        resource_type: data.entity_type,
-        resource_id: data.entity_id,
+        resource_type: data.entity_type || 'CLUSTER',
+        resource_id: data.entity_id || data.clusterId,
         ip_address: req.ip,
-        metadata: { domain: data.domain, confidence: result.confidence },
+        metadata: { domain, confidence: result.confidence },
       });
 
       sendSuccess(res, result);
