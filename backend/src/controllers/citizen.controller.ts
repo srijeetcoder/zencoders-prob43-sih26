@@ -227,64 +227,7 @@ export async function getPublicFeed(req: Request, res: Response, next: NextFunct
       console.warn(`[CitizenController] Public feed DB fallback: ${err.message}`);
     }
 
-    // If empty DB, return rich realistic seed feed
-    if (items.length === 0) {
-      items = [
-        {
-          id: 'b1a2c3d4-0001-4000-8000-000000000001',
-          ticketId: 'JS-2026-8812',
-          title: 'Harmu River Severe Urban Waterlogging & Drain Choking',
-          description: 'Harmu Nadi ke paas barish me pura pani bhar jata hai aur kachra jam jata hai. Drainage blockage creates severe foul smell and health hazard.',
-          district: 'Ranchi',
-          domainTags: ['Civic Infrastructure', 'IoT Water Telemetry', 'Drainage Management'],
-          priority: 'CRITICAL',
-          dialect: 'Nagpuri / Hinglish',
-          upvotes: 84,
-          status: 'LAB_MATCHED',
-          createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-        },
-        {
-          id: 'b1a2c3d4-0002-4000-8000-000000000002',
-          ticketId: 'JS-2026-9041',
-          title: 'Jharia Coalfield Subsurface Mine Fire Thermal Hazard',
-          description: 'Bastee ke niche aag aur dhuan nikal raha hai. Road cracks and toxic sulphur dioxide fumes endangering over 4,000 households.',
-          district: 'Dhanbad',
-          domainTags: ['Mining Engineering', 'Thermal Hazard', 'Environmental Safety'],
-          priority: 'HIGH',
-          dialect: 'Khortha / Hindi',
-          upvotes: 142,
-          status: 'BLUEPRINT_GENERATED',
-          createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-        },
-        {
-          id: 'b1a2c3d4-0003-4000-8000-000000000003',
-          ticketId: 'JS-2026-7730',
-          title: 'Solar Microgrid Inverter Failure in Tribal Anganwadi Centers',
-          description: 'Hatia rural school solar backup system completely tripped after lightning storm. Battery charge controllers burned.',
-          district: 'Ranchi',
-          domainTags: ['Renewable Energy', 'Rural Electrification', 'Hardware BoM'],
-          priority: 'MEDIUM',
-          dialect: 'Santali / Hindi',
-          upvotes: 39,
-          status: 'IN_REVIEW',
-          createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-        },
-        {
-          id: 'b1a2c3d4-0004-4000-8000-000000000004',
-          ticketId: 'JS-2026-6192',
-          title: 'Chitarpur Rural Health Sub-center Cold Chain Temperature Drops',
-          description: 'Vaccine cold storage refrigerators failing due to erratic voltage fluctuations. Child immunization schedule stalled.',
-          district: 'Ramgarh',
-          domainTags: ['Healthcare Systems', 'IoT Cold-Chain Telemetry', 'Biomedical'],
-          priority: 'HIGH',
-          dialect: 'Hinglish',
-          upvotes: 67,
-          status: 'LAB_MATCHED',
-          createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
-        },
-      ];
-    }
-
+    // Clean realtime response directly from database query
     res.status(200).json({
       success: true,
       data: items,

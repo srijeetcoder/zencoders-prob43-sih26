@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, MessageCircle, ArrowUp, Radio } from "lucide-react";
-import type { Category, Severity } from "../types/problem";
+import { Search, MapPin, MessageCircle, ArrowUp, Radio, Sparkles } from "lucide-react";
+import type { Category, Severity, ProblemDetail } from "../types/problem";
 import { PROBLEMS } from "./mockData";
+import { citizenApi } from "../../../services/api";
 
 const CATEGORY_TABS: Array<Category | "All"> = [
   "All",
@@ -39,11 +40,38 @@ function timeAgo(iso: string) {
 }
 
 function LiveProblems() {
+  const [problemsList, setProblemsList] = useState<ProblemDetail[]>(PROBLEMS);
   const [activeCategory, setActiveCategory] = useState<Category | "All">("All");
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    citizenApi.getPublicFeed().then((feed) => {
+      if (Array.isArray(feed) && feed.length > 0) {
+        const mapped: ProblemDetail[] = feed.map((item: any) => ({
+          id: item.ticketId || item.id,
+          referenceId: `#${item.ticketId || item.id}`,
+          title: item.title,
+          category: "Infrastructure",
+          status: item.status === "RESOLVED" ? "Resolved" : "Under Analysis",
+          severity: (item.priority === "CRITICAL" ? "High" : item.priority === "HIGH" ? "Medium" : "Low") as Severity,
+          location: { area: item.district || "Ranchi", city: item.district || "Ranchi", state: "Jharkhand", distanceKm: 0.5 },
+          submittedAt: item.createdAt || new Date().toISOString(),
+          thumbnailUrl: "",
+          upvotes: 0,
+          commentsCount: 0,
+          description: item.description,
+          tags: item.domainTags || [],
+          photos: [],
+        }));
+        setProblemsList(mapped);
+      } else {
+        setProblemsList([]);
+      }
+    }).catch(() => setProblemsList([]));
+  }, []);
+
   const filtered = useMemo(() => {
-    return PROBLEMS.filter((problem) => {
+    return problemsList.filter((problem) => {
       const matchesCategory =
         activeCategory === "All" || problem.category === activeCategory;
       const q = query.trim().toLowerCase();
@@ -53,7 +81,7 @@ function LiveProblems() {
         problem.location.area.toLowerCase().includes(q);
       return matchesCategory && matchesQuery;
     });
-  }, [activeCategory, query]);
+  }, [problemsList, activeCategory, query]);
 
   return (
     <div className="px-6 py-6 sm:px-8">
@@ -172,8 +200,14 @@ function LiveProblems() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="mt-10 rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-500">
-          No problems match this search. Try a different keyword or category.
+        <div className="mt-10 rounded-2xl border border-dashed border-slate-300 bg-white py-14 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 mb-3">
+            <Sparkles className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-bold text-navy-900">No Data to Show</p>
+          <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+            All live district issues reported by citizens on the state ledger will appear here in real time.
+          </p>
         </div>
       )}
     </div>

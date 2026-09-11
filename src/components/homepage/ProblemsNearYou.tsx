@@ -55,8 +55,19 @@ function ProblemsNearYou() {
         </div>
 
         <div className="space-y-3">
-          {problems.map((problem) => (
-            <Link
+          {problems.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-3">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <p className="text-sm font-bold text-[#10245e]">No Data to Show</p>
+              <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+                No active civic bottlenecks currently reported. As citizens submit problems, they will appear here in real time.
+              </p>
+            </div>
+          ) : (
+            problems.map((problem) => (
+              <Link
               to={`/trackprogress/${problem.ticketId || problem.id}`}
               key={problem.id || problem.ticketId}
               className="

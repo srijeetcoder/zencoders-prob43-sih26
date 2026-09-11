@@ -110,8 +110,12 @@ export default function StudentDashboard() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-semibold">Prototype Sanctions</p>
-            <p className="text-xl font-extrabold text-[#10245e]">₹ 1.25 L</p>
-            <span className="text-[10px] text-amber-700 font-bold">Approved for Hardware</span>
+            <p className="text-xl font-extrabold text-[#10245e]">
+              {plans.length > 0 ? `₹ ${(plans.length * 0.85).toFixed(2)} L` : "₹ 0"}
+            </p>
+            <span className="text-[10px] text-amber-700 font-bold">
+              {plans.length > 0 ? "Sanctioned Allocations" : "No Active Sanctions"}
+            </span>
           </div>
         </div>
       </div>
@@ -119,64 +123,65 @@ export default function StudentDashboard() {
       {/* Active Project & Solution Milestone Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-base font-bold text-[#10245e]">
-                Active Project: HydroMesh-JH Telemetry Node
-              </h2>
-              <p className="text-xs text-slate-500">
-                Culvert Telemetry Array &bull; Ward 24, Harmu River Culvert, Ranchi
+          {plans.length === 0 && teams.length === 0 ? (
+            <div className="py-12 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <Sparkles size={24} />
+              </div>
+              <h2 className="text-base font-bold text-[#10245e]">No Active Projects Yet</h2>
+              <p className="text-xs text-slate-500 max-w-sm">
+                You haven't accepted any civic bottlenecks or formed a solution team. Browse the live problem ledger to start an R&D intervention.
               </p>
+              <Link
+                to="/university-dashboard/live-problems"
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs"
+              >
+                <span>Browse Live Problems</span>
+                <ArrowRight size={13} />
+              </Link>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-              <CheckCircle2 size={12} />
-              FACULTY ENDORSED
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-              <span>Prototype Development & Silt Calibration Progress</span>
-              <span className="text-indigo-600 font-bold">68%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-              <div
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                style={{ width: "68%" }}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[11px]">
-              <div className="p-2 rounded-lg bg-white border border-slate-200">
-                <span className="text-slate-400 block text-[10px]">Phase 1</span>
-                <span className="font-bold text-emerald-700 flex items-center justify-center gap-1">
-                  <CheckCircle2 size={11} /> Bench Test OK
+          ) : (
+            <>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-[#10245e]">
+                    Active Project: {plans[0]?.solutionName || teams[0]?.teamName || "Innovation Prototype"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {teams[0]?.problemTitle || "Civic Problem Solution Desk"}
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                  <CheckCircle2 size={12} />
+                  {plans[0]?.status ? plans[0].status.replace("_", " ") : "ACTIVE TEAM"}
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200">
-                <span className="text-indigo-500 block text-[10px]">Phase 2</span>
-                <span className="font-bold text-indigo-900">LoRa Mesh Active</span>
-              </div>
-              <div className="p-2 rounded-lg bg-white border border-slate-200">
-                <span className="text-slate-400 block text-[10px]">Phase 3</span>
-                <span className="font-semibold text-slate-600">Gov War Room API</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <Cpu size={14} className="text-indigo-600" />
-              <span>Assigned Guide: <strong>Dr. Anirban Mukherjee</strong></span>
-            </div>
-            <Link
-              to="/university-dashboard/form-team"
-              className="text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1"
-            >
-              <span>View Submitted Plan & BoM</span>
-              <ArrowRight size={13} />
-            </Link>
-          </div>
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span>Prototype Development Progress</span>
+                  <span className="text-indigo-600 font-bold">45%</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                  <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: "45%" }} />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Cpu size={14} className="text-indigo-600" />
+                  <span>Lead Student: <strong>{user?.name || "Student Innovator"}</strong></span>
+                </div>
+                <Link
+                  to="/university-dashboard/form-team"
+                  className="text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1"
+                >
+                  <span>Manage Team Workspace</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Quick Innovation Checklist */}
@@ -188,27 +193,33 @@ export default function StudentDashboard() {
             </h2>
 
             <div className="space-y-3 text-xs">
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <CheckCircle2 size={16} className={acceptedCount > 0 ? "text-emerald-600 shrink-0 mt-0.5" : "text-slate-400 shrink-0 mt-0.5"} />
                 <div>
-                  <p className="font-bold text-emerald-950">1. Problem Accepted</p>
-                  <p className="text-[11px] text-emerald-800">JS-2026-8812 indexed under BIT Mesra IoT node.</p>
+                  <p className="font-bold text-slate-800">1. Problem Accepted</p>
+                  <p className="text-[11px] text-slate-500">
+                    {acceptedCount > 0 ? `${acceptedCount} active civic bottlenecks accepted.` : "No problems accepted yet. Browse live problem ledger."}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <CheckCircle2 size={16} className={approvedTeamsCount > 0 ? "text-emerald-600 shrink-0 mt-0.5" : "text-slate-400 shrink-0 mt-0.5"} />
                 <div>
-                  <p className="font-bold text-emerald-950">2. Team Application Approved</p>
-                  <p className="text-[11px] text-emerald-800">Team HydroSense (4 members) endorsed by faculty.</p>
+                  <p className="font-bold text-slate-800">2. Team Application</p>
+                  <p className="text-[11px] text-slate-500">
+                    {approvedTeamsCount > 0 ? `${approvedTeamsCount} team application endorsed by faculty.` : "Form your student innovation team with roll numbers."}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+              <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-200">
                 <Clock size={16} className="text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-indigo-950">3. Submit Physical Prototype</p>
-                  <p className="text-[11px] text-indigo-800">Upload telemetry sensor logs before 25 Oct 2026.</p>
+                  <p className="font-bold text-indigo-950">3. Physical Prototype & BoM</p>
+                  <p className="text-[11px] text-indigo-800">
+                    {plans.length > 0 ? "Prototype BoM under faculty review." : "Submit DPR & hardware BoM for institutional grant sanctions."}
+                  </p>
                 </div>
               </div>
             </div>

@@ -23,16 +23,16 @@ export default function MySubmissionsList() {
   useEffect(() => {
     let isMounted = true;
     const loadLiveSubmissions = async () => {
-      const merged = [...SUBMISSIONS];
+      const merged: any[] = [];
 
-      // Check local storage submissions from this session
+      // 1. Check local storage submissions from this session
       try {
         const local = localStorage.getItem("pookar_user_submissions");
         if (local) {
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed)) {
             parsed.forEach((item: any) => {
-              merged.unshift({
+              merged.push({
                 id: item.ticketId || item.id || `SUB-${Date.now()}`,
                 psCode: item.ticketId || "JS-2026-LIVE",
                 title: item.title || item.rawDescription || "Citizen Reported Bottleneck",
@@ -49,28 +49,30 @@ export default function MySubmissionsList() {
         }
       } catch {}
 
-      // Fetch from public feed API
-      try {
-        const liveFeed = await citizenApi.getPublicFeed();
-        if (Array.isArray(liveFeed) && liveFeed.length > 0) {
-          liveFeed.forEach((item) => {
-            if (!merged.some((m) => m.id === item.ticketId || m.psCode === item.ticketId)) {
-              merged.push({
-                id: item.ticketId || item.id,
-                psCode: item.ticketId,
-                title: item.title,
-                category: item.domainTags?.[0]?.toLowerCase().includes("water") ? "drainage" : item.domainTags?.[0]?.toLowerCase().includes("fire") ? "fire" : "garbage",
-                status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" || item.status === "BLUEPRINT_GENERATED" ? "matched" : "submitted") as Status,
-                submittedOn: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Recent",
-                location: `${item.district}, Jharkhand`,
-                description: item.description,
-                progressPercent: item.status === "LAB_MATCHED" ? 60 : 30,
-                team: "Assigned Institutional Desk",
-              });
-            }
-          });
-        }
-      } catch {}
+      // 2. Fetch user's own grievances from backend if authenticated
+      if (token) {
+        try {
+          const userGrievances = await citizenApi.getMySubmissions();
+          if (Array.isArray(userGrievances) && userGrievances.length > 0) {
+            userGrievances.forEach((item: any) => {
+              if (!merged.some((m) => m.id === item.ticket_id || m.id === item.id || m.psCode === item.ticket_id)) {
+                merged.push({
+                  id: item.id || item.ticket_id,
+                  psCode: item.ticket_id,
+                  title: `${item.domain || 'Civic'} Bottleneck in ${item.district || 'Jharkhand'}`,
+                  category: "drainage",
+                  status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" ? "matched" : "submitted") as Status,
+                  submittedOn: item.created_at ? new Date(item.created_at).toLocaleDateString() : "Recent",
+                  location: `${item.district || 'Ranchi'}, Jharkhand`,
+                  description: item.normalized_text || item.raw_text || "Recorded in state ledger.",
+                  progressPercent: item.status === "RESOLVED" ? 100 : item.status === "LAB_MATCHED" ? 60 : 30,
+                  team: "Assigned Institutional Desk",
+                });
+              }
+            });
+          }
+        } catch {}
+      }
 
       if (isMounted) {
         setAllSubmissions(merged);
@@ -146,12 +148,31 @@ export default function MySubmissionsList() {
         </div>
 
         <div className="mt-6 flex flex-col gap-4">
-          {filtered.length === 0 && (
+          {allSubmissions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-xs">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <Sparkles className="h-7 w-7" />
+              </div>
+              <h3 className="mt-4 text-base font-bold text-slate-800">No Data to Show</h3>
+              <p className="mt-1.5 text-xs text-slate-500 max-w-sm mx-auto">
+                You haven't reported any civic bottlenecks yet. All your live submissions and real-time ledger progress updates will appear here.
+              </p>
+              <div className="mt-5">
+                <Link
+                  to="/problem"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Report First Problem
+                </Link>
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center">
               <p className="text-sm font-medium text-slate-600">No submissions match this filter.</p>
               <p className="mt-1 text-sm text-slate-400">Try a different tab or search term.</p>
             </div>
-          )}
+          ) : null}
 
           {filtered.map((submission) => {
             const category = getCategoryMeta(submission.category);

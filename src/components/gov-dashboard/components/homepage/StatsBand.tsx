@@ -32,28 +32,28 @@ function StatsBand() {
   const statItems = [
     {
       label: "Total Submissions",
-      value: loading ? "..." : (stats?.totalSubmissions ?? 142).toLocaleString(),
+      value: loading ? "..." : (stats?.totalSubmissions ?? 0).toLocaleString(),
       icon: FileText,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-800",
     },
     {
       label: "Cases Resolved",
-      value: loading ? "..." : (stats?.resolvedCases ?? 89).toLocaleString(),
+      value: loading ? "..." : (stats?.resolvedCases ?? 0).toLocaleString(),
       icon: CheckCircle2,
       iconBg: "bg-teal-100",
       iconColor: "text-teal-800",
     },
     {
       label: "Active R&D Projects",
-      value: loading ? "..." : (stats?.activeProjects ?? 38).toLocaleString(),
+      value: loading ? "..." : (stats?.activeProjects ?? 0).toLocaleString(),
       icon: Wrench,
       iconBg: "bg-sky-100",
       iconColor: "text-sky-700",
     },
     {
       label: "Partner Institutions",
-      value: loading ? "..." : (stats?.registeredInstitutions ?? 24).toLocaleString(),
+      value: loading ? "..." : (stats?.registeredInstitutions ?? 0).toLocaleString(),
       icon: Users,
       iconBg: "bg-indigo-100",
       iconColor: "text-indigo-700",

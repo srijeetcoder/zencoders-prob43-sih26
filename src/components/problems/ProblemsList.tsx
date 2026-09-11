@@ -185,9 +185,12 @@ function ExploreProblems() {
       </div>
 
       {filteredProblems.length === 0 && !loading && (
-        <div className="mt-10 rounded-xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-500">
+        <div className="mt-10 rounded-2xl border border-dashed border-slate-200 py-14 text-center text-sm text-slate-500 bg-white">
           <AlertCircle className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-          No problems match this search. Try a different keyword or category.
+          <p className="font-bold text-slate-800">No Data to Show</p>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            No active civic problems recorded yet in the ledger. When citizens report issues, they will appear here in real time.
+          </p>
         </div>
       )}
     </div>

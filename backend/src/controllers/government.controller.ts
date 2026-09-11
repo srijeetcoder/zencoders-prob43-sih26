@@ -91,44 +91,7 @@ export async function getEscalations(req: Request, res: Response, next: NextFunc
       { district: 'Palamu', hazardScore: 62, riskLevel: 'MODERATE', dominantRisk: 'Drought & Groundwater Depletion' },
     ];
 
-    const escalationQueue = [
-      {
-        id: 'esc-001',
-        ticketId: 'JS-2026-9041',
-        title: 'Jharia Coalfield Sector 4 Subsurface Thermal Breach',
-        district: 'Dhanbad',
-        department: 'Dept of Mines & Geology / CSIR-CIMFR',
-        priority: 'CRITICAL',
-        slaDeadlineHours: 6,
-        status: 'DISPATCHED_TO_CIMFR',
-        detectedDialect: 'Khortha',
-        reportedHoursAgo: 3.2,
-      },
-      {
-        id: 'esc-002',
-        ticketId: 'JS-2026-8812',
-        title: 'Harmu River Conduit Choking & Backflow Risk',
-        district: 'Ranchi',
-        department: 'Ranchi Municipal Corporation (RMC)',
-        priority: 'CRITICAL',
-        slaDeadlineHours: 12,
-        status: 'FIELD_PILOT_ACTIVE',
-        detectedDialect: 'Nagpuri',
-        reportedHoursAgo: 5.8,
-      },
-      {
-        id: 'esc-003',
-        ticketId: 'JS-2026-6192',
-        title: 'Chitarpur Rural Health Sub-center Vaccine Refrigerator Outage',
-        district: 'Ramgarh',
-        department: 'Dept of Health & Family Welfare',
-        priority: 'HIGH',
-        slaDeadlineHours: 18,
-        status: 'LAB_MATCHED',
-        detectedDialect: 'Hinglish',
-        reportedHoursAgo: 8.4,
-      },
-    ];
+    const escalationQueue: any[] = [];
 
     res.status(200).json({
       success: true,

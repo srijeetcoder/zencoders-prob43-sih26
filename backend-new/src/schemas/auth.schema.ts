@@ -21,7 +21,7 @@ export const RegisterSchema = z.object({
   government_id: z.string().optional(),
   district: z.string().optional(),
   district_id: z.string().uuid().optional(),
-  institution_id: z.string().uuid().optional(),
+  institution_id: z.string().optional(),
   department_id: z.string().uuid().optional(),
   department: z.string().optional(),
   organization: z.string().optional(),

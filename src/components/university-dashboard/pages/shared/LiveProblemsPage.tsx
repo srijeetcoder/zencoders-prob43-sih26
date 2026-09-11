@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Activity,
   CheckCircle2,
@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import { getStoredProblems, saveProblems } from "../../data/mockData";
 import type { LiveProblem } from "../../types";
 import { useAuth, type AcademicRole } from "../../../../context/AuthContext";
+import { citizenApi } from "../../../../services/api";
 
 export default function LiveProblemsPage() {
   const { user } = useAuth();
@@ -29,6 +30,33 @@ export default function LiveProblemsPage() {
   const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [acceptedToast, setAcceptedToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    citizenApi.getPublicFeed().then((feed) => {
+      if (Array.isArray(feed) && feed.length > 0) {
+        const stored = getStoredProblems();
+        const mapped: LiveProblem[] = feed.map((item: any) => {
+          const matched = stored.find((s) => s.id === item.ticketId || s.ticketId === item.ticketId);
+          return {
+            id: item.ticketId || item.id,
+            ticketId: item.ticketId,
+            title: item.title,
+            description: item.description,
+            domain: item.domainTags?.[0] || "Civic Technology",
+            urgency: item.priority === "CRITICAL" ? "CRITICAL" : item.priority === "HIGH" ? "HIGH" : "MEDIUM",
+            district: item.district,
+            department: "District Innovation Authority",
+            deadline: "30 Days",
+            estimatedBudget: "₹ 1.20 Lakhs",
+            status: matched?.status || "OPEN",
+            acceptedByTeam: matched?.acceptedByTeam,
+            acceptedByStudent: matched?.acceptedByStudent,
+          };
+        });
+        setProblems(mapped);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleAcceptProblem = (problemId: string, title: string) => {
     const updated = problems.map((p) => {

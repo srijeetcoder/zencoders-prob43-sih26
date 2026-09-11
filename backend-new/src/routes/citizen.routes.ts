@@ -11,6 +11,9 @@ router.post('/grievances', optionalAuthenticate, (req, res, next) => citizenCont
 // Citizen's personal grievances list
 router.get('/grievances', authenticateToken, requireRole('CITIZEN', 'SUPER_ADMIN'), (req, res, next) => citizenController.getMyGrievances(req, res, next));
 
+// Public Problem Feed from real database
+router.get('/feed', (req, res, next) => citizenController.getPublicFeed(req, res, next));
+
 // Grievance status & timeline
 router.get('/grievances/:ticketId/status', (req, res, next) => citizenController.getGrievanceStatus(req, res, next));
 

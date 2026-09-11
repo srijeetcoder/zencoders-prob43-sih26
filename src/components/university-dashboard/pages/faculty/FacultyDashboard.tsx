@@ -109,8 +109,12 @@ export default function FacultyDashboard() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-semibold">Active Research Grants</p>
-            <p className="text-xl font-extrabold text-[#10245e]">₹ 48.5 L</p>
-            <span className="text-[10px] text-blue-700 font-bold">3 Grants Under Telemetry</span>
+            <p className="text-xl font-extrabold text-[#10245e]">
+              {plans.length > 0 ? `₹ ${(plans.length * 0.9).toFixed(1)} L` : "₹ 0"}
+            </p>
+            <span className="text-[10px] text-blue-700 font-bold">
+              {plans.length > 0 ? `${plans.length} Grants Allocated` : "No Active Grants"}
+            </span>
           </div>
         </div>
       </div>
@@ -136,39 +140,45 @@ export default function FacultyDashboard() {
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {teams.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition-colors"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[#10245e]">{t.teamName}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                        t.status.includes("APPROVED")
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {t.status.replace("_", " ")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Lead: <strong>{t.leadStudent.name}</strong> &bull; Problem: [{t.problemId}] {t.problemTitle}
-                  </p>
-                </div>
-
-                <Link
-                  to="/university-dashboard/evaluation"
-                  className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-600 hover:text-white text-xs font-bold transition-all shrink-0"
+          {teams.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500 rounded-xl border border-dashed border-slate-200">
+              No pending student applications to evaluate. When student innovator teams form and apply for problem tracks, they will appear here for your endorsement.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {teams.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition-colors"
                 >
-                  Evaluate
-                </Link>
-              </div>
-            ))}
-          </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#10245e]">{t.teamName}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                          t.status.includes("APPROVED")
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {t.status.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Lead: <strong>{t.leadStudent.name}</strong> &bull; Problem: [{t.problemId}] {t.problemTitle}
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/university-dashboard/evaluation"
+                    className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-800 hover:bg-indigo-600 hover:text-white text-xs font-bold transition-all shrink-0"
+                  >
+                    Evaluate
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* AI Feasibility Quick Card */}
@@ -182,15 +192,21 @@ export default function FacultyDashboard() {
               Verify student hardware components against negative BoM guidelines (e.g. rejecting non-industrial ultrasonic transducers or invalid frequency radios).
             </p>
 
-            <div className="mt-4 p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 text-xs space-y-1.5">
-              <div className="flex items-center justify-between font-bold text-indigo-950 text-[11px]">
-                <span>HydroMesh-JH BoM Audit</span>
-                <span className="text-emerald-700">100% COMPLIANT</span>
+            {plans.length > 0 ? (
+              <div className="mt-4 p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 text-xs space-y-1.5">
+                <div className="flex items-center justify-between font-bold text-indigo-950 text-[11px]">
+                  <span>{plans[0].solutionName} BoM Audit</span>
+                  <span className="text-emerald-700">COMPLIANT</span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  Components adhere to industrial telemetry standards.
+                </p>
               </div>
-              <p className="text-[11px] text-slate-600">
-                All 4 components adhere to IP68 industrial water telemetry standards and WPC 865 MHz regulations.
-              </p>
-            </div>
+            ) : (
+              <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                No student hardware BoMs submitted for compliance check yet.
+              </div>
+            )}
           </div>
 
           <Link

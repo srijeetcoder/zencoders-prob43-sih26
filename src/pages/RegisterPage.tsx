@@ -68,15 +68,6 @@ export default function RegisterPage() {
     agreeTerms: true,
   });
 
-  // 2-Step OTP State: "EMAIL_STEP" | "MOBILE_STEP"
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpStep, setOtpStep] = useState<"EMAIL" | "MOBILE">("EMAIL");
-  const [emailOtp, setEmailOtp] = useState("");
-  const [mobileOtp, setMobileOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [otpCountdown, setOtpCountdown] = useState(30);
-
   const currentDistricts =
     INDIA_STATES_DISTRICTS.find((s) => s.state === formData.state)?.districts || [
       "Ranchi",
@@ -88,14 +79,6 @@ export default function RegisterPage() {
       "Deoghar",
       "Dumka",
     ];
-
-  useEffect(() => {
-    let timer: any;
-    if (showOtpModal && otpCountdown > 0) {
-      timer = setInterval(() => setOtpCountdown((c) => c - 1), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [showOtpModal, otpCountdown]);
 
   useEffect(() => {
     if (roleParam) {
@@ -158,6 +141,13 @@ export default function RegisterPage() {
       return;
     }
 
+    if (activeRole === "GOVERNMENT") {
+      if (!formData.governmentId.trim()) {
+        setError("Official Government / Employee ID or 7-character Invite Code is required.");
+        return;
+      }
+    }
+
     if (activeRole === "INSTITUTION") {
       if (!formData.organization.trim()) {
         setError("Please specify your University or Institute name.");
@@ -177,8 +167,8 @@ export default function RegisterPage() {
       }
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
       return;
     }
 
@@ -191,92 +181,34 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      // Step 1: Request Email OTP
-      await authApi.requestEmailOtp(formData.email.trim());
+      await register({
+        name: formData.fullName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        role: activeRole,
+        academicRole: activeRole === "INSTITUTION" ? academicBranch : undefined,
+        department: formData.department || formData.organization,
+        district: formData.district,
+        phone: formData.phone.trim() || undefined,
+        organization: formData.organization,
+        government_id: activeRole === "GOVERNMENT" ? formData.governmentId.trim().toUpperCase() : undefined,
+        institution_id: activeRole === "INSTITUTION" ? formData.uniqueCode.trim().toUpperCase() : undefined,
+      });
 
-      setOtpStep("EMAIL");
-      setOtpCountdown(30);
-      setOtpError("");
-      setEmailOtp("");
-      setMobileOtp("");
-      setShowOtpModal(true);
+      setSuccess(true);
+      setTimeout(() => {
+        if (activeRole === "GOVERNMENT") {
+          navigate("/gov-dashboard");
+        } else if (activeRole === "INSTITUTION") {
+          navigate("/university-dashboard");
+        } else {
+          navigate("/user-dashboard");
+        }
+      }, 1200);
     } catch (err: any) {
-      setError(err?.message || "Failed to dispatch verification code. Please check your email.");
+      setError(err?.message || "Registration failed. Please verify your unique code and credentials.");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (otpCountdown > 0) return;
-    try {
-      if (otpStep === "EMAIL") {
-        await authApi.requestEmailOtp(formData.email.trim());
-      } else {
-        await authApi.requestMobileOtp(formData.phone.trim() || "9876543210");
-      }
-      setOtpCountdown(30);
-      setOtpError("");
-    } catch (err: any) {
-      setOtpError(err?.message || "Could not resend OTP. Please try again shortly.");
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsVerifyingOtp(true);
-    setOtpError("");
-
-    try {
-      if (otpStep === "EMAIL") {
-        if (!emailOtp.trim() || emailOtp.trim().length !== 6) {
-          setOtpError("Please enter the 6-digit verification OTP sent to your email.");
-          setIsVerifyingOtp(false);
-          return;
-        }
-
-        await authApi.verifyEmailOtp(formData.email.trim(), emailOtp.trim());
-
-        // Proceed to Step 2: Request Mobile OTP
-        const mobileToVerify = formData.phone.trim() || "9876543210";
-        await authApi.requestMobileOtp(mobileToVerify);
-
-        setOtpStep("MOBILE");
-        setOtpCountdown(30);
-        setOtpError("");
-      } else {
-        // Step 2: Verify Mobile OTP
-        if (!mobileOtp.trim() || mobileOtp.trim().length !== 6) {
-          setOtpError("Please enter the 6-digit verification OTP sent to your mobile phone.");
-          setIsVerifyingOtp(false);
-          return;
-        }
-
-        const mobileToVerify = formData.phone.trim() || "9876543210";
-        await authApi.verifyMobileOtp(mobileToVerify, mobileOtp.trim());
-
-        // Finalize Registration with verified credentials
-        await register({
-          name: formData.fullName.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-          role: activeRole,
-          academicRole: activeRole === "INSTITUTION" ? academicBranch : undefined,
-          department: formData.department || formData.organization,
-          district: formData.district,
-          phone: formData.phone.trim(),
-          organization: formData.organization,
-          government_id: activeRole === "GOVERNMENT" ? formData.governmentId.trim().toUpperCase() : undefined,
-          institution_id: activeRole === "INSTITUTION" ? formData.uniqueCode.trim().toUpperCase() : undefined,
-        });
-
-        setShowOtpModal(false);
-        setSuccess(true);
-      }
-    } catch (err: any) {
-      setOtpError(err?.message || "Invalid or expired OTP. Please try again.");
-    } finally {
-      setIsVerifyingOtp(false);
     }
   };
 
@@ -828,11 +760,17 @@ export default function RegisterPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Sending Verification Code...</span>
+                      <span>Verifying Credentials & Activating Node...</span>
                     </>
                   ) : (
                     <>
-                      <span>Proceed to Dual OTP Verification</span>
+                      <span>
+                        {activeRole === "GOVERNMENT"
+                          ? "Verify Code & Activate Gov Node"
+                          : activeRole === "INSTITUTION"
+                          ? "Verify Academic ID & Create Account"
+                          : "Create Citizen Account"}
+                      </span>
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -916,110 +854,6 @@ export default function RegisterPage() {
               >
                 Return to Home
               </Link>
-            </div>
-          </div>
-        )}
-
-        {/* ================= 2-STEP DUAL OTP VERIFICATION MODAL ================= */}
-        {showOtpModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-2xl relative">
-              <button
-                type="button"
-                onClick={() => setShowOtpModal(false)}
-                className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
-                aria-label="Close modal"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <div className="text-center">
-                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-700">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 mb-1">
-                  Step {otpStep === "EMAIL" ? "1 of 2: Email Authentication" : "2 of 2: Mobile Authentication"}
-                </div>
-
-                <h3 className="text-lg font-bold text-slate-900">
-                  {otpStep === "EMAIL" ? "Verify Email Address" : "Verify Mobile SMS"}
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  {otpStep === "EMAIL"
-                    ? `Enter the 6-digit cryptographic OTP sent to ${formData.email}`
-                    : `Enter the 6-digit SMS verification code sent to ${formData.phone || "+91 98765 43210"}`}
-                </p>
-
-                {activeRole === "INSTITUTION" && (
-                  <div className="mt-2 inline-block px-2.5 py-0.5 rounded-full bg-indigo-50 text-[10px] font-semibold text-indigo-800 border border-indigo-200">
-                    {academicBranch === "STUDENT" ? "🎓 Student Innovator Node" : academicBranch === "FACULTY" ? "🔬 Faculty Guide Node" : "🏛️ Institution Admin Node"}
-                  </div>
-                )}
-              </div>
-
-              {otpError && (
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                  <span>{otpError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleVerifyOtp} className="mt-4 space-y-3.5">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-700">
-                      {otpStep === "EMAIL" ? "Email Security OTP" : "Mobile SMS OTP"}
-                    </label>
-                    <button
-                      type="button"
-                      disabled={otpCountdown > 0}
-                      onClick={handleResendOtp}
-                      className="text-[11px] font-semibold text-emerald-700 hover:underline disabled:text-slate-400 disabled:no-underline cursor-pointer"
-                    >
-                      {otpCountdown > 0 ? `Resend code (${otpCountdown}s)` : "Resend code"}
-                    </button>
-                  </div>
-
-                  <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      autoFocus
-                      placeholder="e.g. 592814"
-                      value={otpStep === "EMAIL" ? emailOtp : mobileOtp}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        if (otpStep === "EMAIL") setEmailOtp(val);
-                        else setMobileOtp(val);
-                        setOtpError("");
-                      }}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-4 text-center font-mono text-base font-bold tracking-widest text-slate-900 placeholder:tracking-normal placeholder:text-slate-400 focus:border-[#047d48] focus:bg-white focus:outline-none transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isVerifyingOtp || (otpStep === "EMAIL" ? emailOtp.length !== 6 : mobileOtp.length !== 6)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#047d48] hover:bg-[#03663a] py-2.5 text-sm font-semibold text-white shadow-xs transition-all active:scale-[0.99] disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {isVerifyingOtp ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Validating Security Token...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{otpStep === "EMAIL" ? "Verify Email & Proceed to Mobile" : "Confirm Mobile & Activate Node"}</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-              </form>
             </div>
           </div>
         )}

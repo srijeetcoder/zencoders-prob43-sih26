@@ -184,6 +184,33 @@ export class CitizenController {
       next(err);
     }
   }
+
+  async getPublicFeed(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const district = req.query.district as string;
+      const result = await grievanceRepo.findPaginated({
+        page: 1,
+        limit: 50,
+        district: district && district !== 'All' ? district : undefined,
+      });
+
+      const items = result.items.map((row) => ({
+        id: row.id,
+        ticketId: row.ticket_id,
+        title: `${row.domain} in ${row.district}`,
+        description: row.normalized_text,
+        district: row.district,
+        domainTags: [row.domain, row.sub_domain].filter(Boolean) as string[],
+        priority: row.priority || 'STANDARD',
+        status: row.status,
+        createdAt: row.created_at,
+      }));
+
+      sendSuccess(res, items);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const citizenController = new CitizenController();

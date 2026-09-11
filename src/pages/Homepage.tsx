@@ -49,6 +49,7 @@ function Homepage() {
           <Route path="/" element={<Navigate to="/main" replace />} />
           <Route path="/main" element={<MainContent />} />
           <Route path="/userdashboard" element={<UserDasboard />} />
+          <Route path="/user-dashboard" element={<UserDasboard />} />
           <Route path="/problem" element={<Problems />} />
           <Route path="/explore-solutions/:problemId" element={<ProblemDetails />} />
           <Route path="/partners" element={<University />} />

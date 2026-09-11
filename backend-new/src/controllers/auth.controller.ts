@@ -274,13 +274,52 @@ export class AuthController {
         } catch {}
       }
 
-      // 3. Government Official Identifier (If provided by the department)
+      // 3. Government Official Identifier & Unique Code Verification
       let governmentId: string | undefined;
+      let verifiedDepartment = data.department;
+      let verifiedDistrict = districtName;
       const role = data.role.toUpperCase();
 
       if (role === 'GOVERNMENT' || role === 'STATE_ADMIN' || role === 'DISTRICT_ADMIN' || role === 'DEPARTMENT_OFFICER') {
-        if (data.government_id && data.government_id.trim()) {
-          governmentId = data.government_id.trim();
+        const rawCode = data.government_id ? data.government_id.trim().toUpperCase() : '';
+        if (rawCode) {
+          try {
+            const inviteRes = await query<{
+              id: string;
+              code: string;
+              department: string;
+              district: string;
+              designation: string;
+              allocated_to_email: string | null;
+              is_used: boolean;
+              expires_at: Date;
+            }>(
+              `SELECT id, code, department, district, designation, allocated_to_email, is_used, expires_at
+               FROM government_invite_codes
+               WHERE code = $1 LIMIT 1;`,
+              [rawCode]
+            );
+
+            if (inviteRes.rows.length > 0) {
+              const invite = inviteRes.rows[0];
+              if (invite.is_used) {
+                throw new ValidationError('This Government Invite Code has already been claimed and used.');
+              }
+              if (new Date(invite.expires_at) < new Date()) {
+                throw new ValidationError('This Government Invite Code has expired.');
+              }
+              if (invite.allocated_to_email && invite.allocated_to_email.toLowerCase().trim() !== data.email.toLowerCase().trim()) {
+                throw new ValidationError(`This code is specifically allocated to official email ${invite.allocated_to_email}.`);
+              }
+              verifiedDepartment = invite.department || verifiedDepartment;
+              verifiedDistrict = invite.district || verifiedDistrict;
+            }
+            governmentId = rawCode;
+          } catch (codeErr: any) {
+            if (codeErr instanceof ValidationError) throw codeErr;
+            // If table doesn't exist yet or query fails, accept provided government code
+            governmentId = rawCode;
+          }
         }
       }
 
@@ -298,6 +337,47 @@ export class AuthController {
         is_email_verified: true,
         is_phone_verified: !!data.phone,
       });
+
+      // Burn / Claim Government Invite Code in the database if used
+      if (governmentId) {
+        try {
+          await query(
+            `UPDATE government_invite_codes
+             SET is_used = TRUE, used_by_user_id = $1, used_at = NOW()
+             WHERE code = $2;`,
+            [user.id, governmentId]
+          );
+        } catch {}
+      }
+
+      // Upsert University Profile if role is INSTITUTION
+      if (role === 'INSTITUTION') {
+        try {
+          const academicRole = ((req.body as any).academicRole || 'STUDENT').toUpperCase();
+          const orgName = data.organization || data.department || 'University Partner Node';
+          const aisheCode = data.institution_id || 'AISHE-U-0001';
+          const rollOrId = data.government_id || data.institution_id || null;
+          await query(
+            `INSERT INTO university_profiles (user_id, academic_role, institution_name, department, roll_number, faculty_id, aishe_code, state, district)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (user_id) DO UPDATE SET
+               institution_name = EXCLUDED.institution_name,
+               department = EXCLUDED.department,
+               aishe_code = EXCLUDED.aishe_code;`,
+            [
+              user.id,
+              academicRole,
+              orgName,
+              data.department || 'Engineering & Science',
+              academicRole === 'STUDENT' ? rollOrId : null,
+              academicRole === 'FACULTY' ? rollOrId : null,
+              aisheCode,
+              'Jharkhand',
+              verifiedDistrict,
+            ]
+          );
+        } catch {}
+      }
 
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },

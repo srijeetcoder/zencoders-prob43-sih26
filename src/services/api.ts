@@ -9,7 +9,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 async function fetchWithCircuitBreaker<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => {
+      try {
+        controller.abort(new Error('Server connection timed out. Please try again.'));
+      } catch {
+        controller.abort();
+      }
+    }, 60000);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('pookar_token') || localStorage.getItem('jansahyog_token') || '' : '';
 
@@ -31,7 +37,7 @@ async function fetchWithCircuitBreaker<T>(endpoint: string, options?: RequestIni
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      const message = errorBody?.error?.message || errorBody?.error || `HTTP Error ${response.status}: ${response.statusText}`;
+      const message = errorBody?.error?.message || errorBody?.error || errorBody?.message || `HTTP Error ${response.status}: ${response.statusText}`;
       throw new Error(message);
     }
 
@@ -41,6 +47,9 @@ async function fetchWithCircuitBreaker<T>(endpoint: string, options?: RequestIni
     console.warn(`[API Client] Call to ${endpoint} notice: ${err.message}.`);
     if (fallbackData !== undefined) {
       return fallbackData;
+    }
+    if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort')) {
+      throw new Error('Backend server is waking up or connection timed out. Please try again in a few seconds.');
     }
     throw err;
   }
@@ -359,63 +368,13 @@ export const citizenApi = {
   },
 
   getPublicFeed: async (district?: string): Promise<ProblemFeedItem[]> => {
-    const fallback: ProblemFeedItem[] = [
-      {
-        id: 'b1a2c3d4-0001-4000-8000-000000000001',
-        ticketId: 'JS-2026-8812',
-        title: 'Harmu River Severe Urban Waterlogging & Drain Choking',
-        description: 'Harmu Nadi ke paas barish me pura pani bhar jata hai aur kachra jam jata hai. Drainage blockage creates severe foul smell and health hazard.',
-        district: 'Ranchi',
-        domainTags: ['Civic Infrastructure', 'IoT Water Telemetry', 'Drainage Management'],
-        priority: 'CRITICAL',
-        dialect: 'Nagpuri / Hinglish',
-        upvotes: 84,
-        status: 'LAB_MATCHED',
-        createdAt: '2026-09-10T08:30:00Z',
-      },
-      {
-        id: 'b1a2c3d4-0002-4000-8000-000000000002',
-        ticketId: 'JS-2026-9041',
-        title: 'Jharia Coalfield Subsurface Mine Fire Thermal Hazard',
-        description: 'Bastee ke niche aag aur dhuan nikal raha hai. Road cracks and toxic sulphur dioxide fumes endangering over 4,000 households.',
-        district: 'Dhanbad',
-        domainTags: ['Mining Engineering', 'Thermal Hazard', 'Environmental Safety'],
-        priority: 'HIGH',
-        dialect: 'Khortha / Hindi',
-        upvotes: 142,
-        status: 'BLUEPRINT_GENERATED',
-        createdAt: '2026-09-09T14:15:00Z',
-      },
-      {
-        id: 'b1a2c3d4-0003-4000-8000-000000000003',
-        ticketId: 'JS-2026-7730',
-        title: 'Solar Microgrid Inverter Failure in Tribal Anganwadi Centers',
-        description: 'Hatia rural school solar backup system completely tripped after lightning storm. Battery charge controllers burned.',
-        district: 'Ranchi',
-        domainTags: ['Renewable Energy', 'Rural Electrification', 'Hardware BoM'],
-        priority: 'MEDIUM',
-        dialect: 'Santali / Hindi',
-        upvotes: 39,
-        status: 'IN_REVIEW',
-        createdAt: '2026-09-09T09:40:00Z',
-      },
-      {
-        id: 'b1a2c3d4-0004-4000-8000-000000000004',
-        ticketId: 'JS-2026-6192',
-        title: 'Chitarpur Rural Health Sub-center Cold Chain Temperature Drops',
-        description: 'Vaccine cold storage refrigerators failing due to erratic voltage fluctuations. Child immunization schedule stalled.',
-        district: 'Ramgarh',
-        domainTags: ['Healthcare Systems', 'IoT Cold-Chain Telemetry', 'Biomedical'],
-        priority: 'HIGH',
-        dialect: 'Hinglish',
-        upvotes: 67,
-        status: 'LAB_MATCHED',
-        createdAt: '2026-09-08T16:20:00Z',
-      },
-    ];
-
     const url = district ? `/citizen/feed?district=${encodeURIComponent(district)}` : '/citizen/feed';
-    return fetchWithCircuitBreaker<ProblemFeedItem[]>(url, undefined, fallback);
+    return fetchWithCircuitBreaker<ProblemFeedItem[]>(url, undefined, []);
+  },
+
+  getMySubmissions: async (): Promise<any[]> => {
+    const res = await fetchWithCircuitBreaker<any>('/citizen/grievances', undefined, { items: [] });
+    return Array.isArray(res) ? res : res?.items || [];
   },
 };
 
@@ -480,13 +439,13 @@ export interface ActiveProject {
 export const governmentApi = {
   getStats: async (): Promise<GovernmentStats> => {
     const fallback: GovernmentStats = {
-      totalSubmissions: 142,
-      activeProjects: 38,
-      registeredInstitutions: 24,
-      resolvedCases: 89,
-      criticalEscalations: 17,
-      avgSlaHours: 18.4,
-      slaComplianceRate: 94.2,
+      totalSubmissions: 0,
+      activeProjects: 0,
+      registeredInstitutions: 0,
+      resolvedCases: 0,
+      criticalEscalations: 0,
+      avgSlaHours: 0,
+      slaComplianceRate: 100,
       state: 'Jharkhand',
       timestamp: new Date().toISOString(),
     };
@@ -494,115 +453,21 @@ export const governmentApi = {
   },
 
   getSectors: async (): Promise<SectorItem[]> => {
-    const fallback: SectorItem[] = [
-      { name: 'Water & Urban Drainage', count: 48, percentage: 33.8, status: 'HIGH_ATTENTION', color: '#0284c7' },
-      { name: 'Mining Safety & Environment', count: 32, percentage: 22.5, status: 'CRITICAL', color: '#ea580c' },
-      { name: 'Rural Healthcare & Cold Chain', count: 26, percentage: 18.3, status: 'MODERATE', color: '#16a34a' },
-      { name: 'Renewable Microgrids & Power', count: 21, percentage: 14.8, status: 'NORMAL', color: '#eab308' },
-      { name: 'Agriculture & Forest Livelihood', count: 15, percentage: 10.6, status: 'STABLE', color: '#8b5cf6' },
-    ];
-    return fetchWithCircuitBreaker<SectorItem[]>('/government/sectors', undefined, fallback);
+    return fetchWithCircuitBreaker<SectorItem[]>('/government/sectors', undefined, []);
   },
 
   getEscalations: async (): Promise<{ districtHazardScores: DistrictHazard[]; escalationQueue: EscalationQueueItem[] }> => {
     const fallback = {
-      districtHazardScores: [
-        { district: 'Dhanbad', hazardScore: 92, riskLevel: 'CRITICAL', dominantRisk: 'Subsurface Mine Fires & Ground Subsidence' },
-        { district: 'Ranchi', hazardScore: 78, riskLevel: 'HIGH', dominantRisk: 'Monsoon Urban Siltation & Harmu Overflow' },
-        { district: 'Bokaro', hazardScore: 84, riskLevel: 'CRITICAL', dominantRisk: 'Industrial Runoff & Heavy Metal Effluents' },
-        { district: 'East Singhbhum', hazardScore: 71, riskLevel: 'HIGH', dominantRisk: 'Tailings Dam Stability & Dust Pollution' },
-        { district: 'Ramgarh', hazardScore: 65, riskLevel: 'MODERATE', dominantRisk: 'Rural Cold-Chain Power Tripping' },
-        { district: 'Palamu', hazardScore: 62, riskLevel: 'MODERATE', dominantRisk: 'Drought & Groundwater Depletion' },
-      ],
-      escalationQueue: [
-        {
-          id: 'esc-001',
-          ticketId: 'JS-2026-9041',
-          title: 'Jharia Coalfield Sector 4 Subsurface Thermal Breach',
-          district: 'Dhanbad',
-          department: 'Dept of Mines & Geology / CSIR-CIMFR',
-          priority: 'CRITICAL',
-          slaDeadlineHours: 6,
-          status: 'DISPATCHED_TO_CIMFR',
-          detectedDialect: 'Khortha',
-          reportedHoursAgo: 3.2,
-        },
-        {
-          id: 'esc-002',
-          ticketId: 'JS-2026-8812',
-          title: 'Harmu River Conduit Choking & Backflow Risk',
-          district: 'Ranchi',
-          department: 'Ranchi Municipal Corporation (RMC)',
-          priority: 'CRITICAL',
-          slaDeadlineHours: 12,
-          status: 'FIELD_PILOT_ACTIVE',
-          detectedDialect: 'Nagpuri',
-          reportedHoursAgo: 5.8,
-        },
-        {
-          id: 'esc-003',
-          ticketId: 'JS-2026-6192',
-          title: 'Chitarpur Rural Health Sub-center Vaccine Refrigerator Outage',
-          district: 'Ramgarh',
-          department: 'Dept of Health & Family Welfare',
-          priority: 'HIGH',
-          slaDeadlineHours: 18,
-          status: 'LAB_MATCHED',
-          detectedDialect: 'Hinglish',
-          reportedHoursAgo: 8.4,
-        },
-      ],
+      districtHazardScores: [],
+      escalationQueue: [],
     };
     return fetchWithCircuitBreaker<typeof fallback>('/government/escalations', undefined, fallback);
   },
 
   getProjects: async (): Promise<ActiveProject[]> => {
-    const fallback: ActiveProject[] = [
-      {
-        id: 'proj-001',
-        title: 'IoT Real-Time Smart Drainage Siltation Telemetry',
-        district: 'Ranchi',
-        leadInstitution: 'Birsa Institute of Technology (BIT Mesra)',
-        department: 'Urban Development & Housing Dept',
-        budgetSanctioned: '₹ 14.8 Lakhs',
-        progressPercentage: 74,
-        readinessScore: 88,
-        status: 'FIELD_VALIDATION',
-        hardwareBoMCount: 14,
-        startDate: '2026-07-15',
-        expectedCompletion: '2026-10-30',
-      },
-      {
-        id: 'proj-002',
-        title: 'Subsurface Thermal Imaging & Gas Telemetry Grid',
-        district: 'Dhanbad',
-        leadInstitution: 'IIT (ISM) Dhanbad & CSIR-CIMFR',
-        department: 'Dept of Mines & Geology',
-        budgetSanctioned: '₹ 28.5 Lakhs',
-        progressPercentage: 62,
-        readinessScore: 92,
-        status: 'HARDWARE_CALIBRATION',
-        hardwareBoMCount: 22,
-        startDate: '2026-06-01',
-        expectedCompletion: '2026-12-15',
-      },
-      {
-        id: 'proj-003',
-        title: 'Phase-Change Material Solar Cold-Chain Storage',
-        district: 'Ramgarh',
-        leadInstitution: 'NIT Jamshedpur Clean Energy Lab',
-        department: 'Health & Family Welfare Dept',
-        budgetSanctioned: '₹ 9.2 Lakhs',
-        progressPercentage: 81,
-        readinessScore: 85,
-        status: 'DEPLOYED_PILOT',
-        hardwareBoMCount: 9,
-        startDate: '2026-05-20',
-        expectedCompletion: '2026-09-30',
-      },
-      {
-        id: 'proj-004',
-        title: 'IoT Water Filtration & Heavy Metal Adsorption Unit',
+    return fetchWithCircuitBreaker<ActiveProject[]>('/government/projects', undefined, []);
+  },
+
         district: 'Bokaro',
         leadInstitution: 'Birsa Agricultural University & BIT Sindri',
         department: 'Drinking Water & Sanitation Dept',

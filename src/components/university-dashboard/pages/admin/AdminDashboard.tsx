@@ -74,8 +74,12 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-semibold">Total Active Grants</p>
-            <p className="text-xl font-extrabold text-[#10245e]">₹ 48.5 Lakhs</p>
-            <span className="text-[10px] text-emerald-600 font-bold">14 Active Prototype Allocations</span>
+            <p className="text-xl font-extrabold text-[#10245e]">
+              {sanctionedPlans.length > 0 ? `₹ ${(sanctionedPlans.length * 1.25).toFixed(1)} L` : "₹ 0"}
+            </p>
+            <span className="text-[10px] text-emerald-600 font-bold">
+              {sanctionedPlans.length} Active Prototype Allocations
+            </span>
           </div>
         </div>
 
@@ -86,7 +90,9 @@ export default function AdminDashboard() {
           <div>
             <p className="text-xs text-slate-500 font-semibold">Approved Teams</p>
             <p className="text-xl font-extrabold text-[#10245e]">{applications.length}</p>
-            <span className="text-[10px] text-indigo-700 font-bold">48 Student Innovators</span>
+            <span className="text-[10px] text-indigo-700 font-bold">
+              {applications.length > 0 ? `${applications.length * 4} Student Innovators` : "No Active Teams"}
+            </span>
           </div>
         </div>
 
@@ -111,8 +117,14 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-semibold">Govt Dispatches</p>
-            <p className="text-xl font-extrabold text-[#10245e]">6 Solutions</p>
-            <span className="text-[10px] text-blue-700 font-bold">Live in State War Room</span>
+            <p className="text-xl font-extrabold text-[#10245e]">
+              {sanctionedPlans.filter((p) => p.status === "DISPATCHED_TO_GOV").length} Solutions
+            </p>
+            <span className="text-[10px] text-blue-700 font-bold">
+              {sanctionedPlans.filter((p) => p.status === "DISPATCHED_TO_GOV").length > 0
+                ? "Live in State War Room"
+                : "Awaiting Dispatch"}
+            </span>
           </div>
         </div>
       </div>
@@ -133,48 +145,26 @@ export default function AdminDashboard() {
             <span className="text-xs font-bold text-slate-400">AY 2026-27</span>
           </div>
 
-          <div className="space-y-3">
-            {[
-              {
-                dept: "IoT & Embedded Urban Hydrology Lab",
-                lead: "Dr. Anirban Mukherjee",
-                budget: "₹ 18.5 Lakhs",
-                percent: 74,
-                teams: "3 Student Teams Active",
-              },
-              {
-                dept: "Centre for Renewable Microgrids & Storage",
-                lead: "Dr. Sunita Murmu",
-                budget: "₹ 14.2 Lakhs",
-                percent: 58,
-                teams: "2 Student Teams Active",
-              },
-              {
-                dept: "Geological Safety & Thermal Mine Grid Center",
-                lead: "Prof. Rajesh Sengupta",
-                budget: "₹ 15.8 Lakhs",
-                percent: 82,
-                teams: "4 Student Teams Active",
-              },
-            ].map((d, i) => (
-              <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-[#10245e]">
-                  <span>{d.dept}</span>
-                  <span className="font-mono text-indigo-900">{d.budget}</span>
+          {applications.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500 rounded-xl border border-dashed border-slate-200">
+              No active departmental grant allocations yet. As student teams submit DPRs and receive sanctions, departmental distribution will appear here.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {applications.map((app, i) => (
+                <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#10245e]">
+                    <span>{app.teamName}</span>
+                    <span className="font-mono text-indigo-900">{app.status}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Lead: {app.leadStudent.name}</span>
+                    <span>Problem: [{app.problemId}] {app.problemTitle}</span>
+                  </div>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full"
-                    style={{ width: `${d.percent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Lead: {d.lead}</span>
-                  <span>{d.teams} &bull; {d.percent}% Allocated</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick Admin Actions */}
@@ -188,12 +178,18 @@ export default function AdminDashboard() {
               Student solutions evaluated and endorsed by faculty mentors awaiting your final institutional grant sanction.
             </p>
 
-            <div className="mt-4 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-1">
-              <span className="font-bold text-amber-950 block">HydroMesh-JH Telemetry Plan</span>
-              <p className="text-[11px] text-amber-800">
-                Endorsed by Dr. Anirban Mukherjee. Proposed budget: ₹ 89,900.
-              </p>
-            </div>
+            {facultyEndorsedPlans.length > 0 ? (
+              <div className="mt-4 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-1">
+                <span className="font-bold text-amber-950 block">{facultyEndorsedPlans[0].solutionName}</span>
+                <p className="text-[11px] text-amber-800">
+                  Endorsed by faculty guide. Awaiting institutional release.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                No faculty-endorsed DPRs currently pending grant sanction.
+              </div>
+            )}
           </div>
 
           <Link
