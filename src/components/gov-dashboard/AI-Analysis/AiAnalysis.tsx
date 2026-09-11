@@ -49,6 +49,31 @@ const SECTOR_COLORS: Record<string, string> = {
   "Others": "#64748b",
 };
 
+const DISTRICTS = [
+  "All",
+  "Ranchi",
+  "Dhanbad",
+  "Bokaro",
+  "East Singhbhum",
+  "West Singhbhum",
+  "Hazaribagh",
+  "Deoghar",
+  "Giridih",
+  "Ramgarh",
+  "Dumka",
+  "Palamu",
+];
+
+const DOMAINS = [
+  "All",
+  "Civil Infrastructure",
+  "Public Health & Water",
+  "Energy & Rural Electrification",
+  "Environment & Mining",
+  "Education & Literacy",
+  "Agriculture & Livelihoods",
+];
+
 function AiAnalysis() {
   const [selectedDistrict, setSelectedDistrict] = useState("All");
   const [selectedDomain, setSelectedDomain] = useState("All");

@@ -45,12 +45,16 @@ export function getProblemById(id: string): ProblemDetail | undefined {
       distanceKm: 1.2,
     },
     submittedAt: foundItem.createdAt || new Date().toISOString(),
-    thumbnailUrl: "",
+    thumbnailUrl: foundItem.thumbnailUrl || foundItem.image || "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
     upvotes: foundItem.upvotes || 3,
     commentsCount: foundItem.commentsCount || 1,
     description: foundItem.normalizedText || foundItem.rawDescription || foundItem.description || foundItem.text || "Citizen bottleneck recorded in state ledger.",
     tags: foundItem.domainTags || ["Civil Infrastructure", "Urban Drainage", "Telemetry"],
-    photos: foundItem.attachments || [],
+    photos: foundItem.attachments && foundItem.attachments.length > 0 
+      ? foundItem.attachments 
+      : foundItem.photos && foundItem.photos.length > 0 
+        ? foundItem.photos 
+        : [foundItem.thumbnailUrl || foundItem.image || "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80"],
     aiAnalysis: {
       problemUnderstanding: `Systemic stormwater conduit choking and acoustic silt monitoring deficit across ${dist} arterial routes.`,
       peopleAffectedEstimate: "~15,000 residents and daily commuters",
