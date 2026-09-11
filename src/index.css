@@ -112,7 +112,6 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
     overflow-x: clip;
   }
   body {
@@ -237,21 +236,27 @@ html.lenis body {
   }
 }
 
+.will-change-transform {
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
 @keyframes authSliderLeft {
   0% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 @keyframes authSliderRight {
   0% {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
   100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 

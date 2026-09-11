@@ -149,7 +149,7 @@ export default function SubmissionDetail() {
                   id: "up-1",
                   title: "Grievance Indexed & Normalized",
                   date: "Today",
-                  author: "PooKar Gemini Intelligence Engine",
+                  author: "PooKar Neural Intelligence Engine",
                   summary: "Problem description triaged and mapped to municipal intervention ledger.",
                   type: "official",
                 },

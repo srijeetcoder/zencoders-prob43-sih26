@@ -52,7 +52,7 @@ export default function RegisterPage() {
     department: "",
     state: "Jharkhand",
     district: "Ranchi",
-    governmentId: "JH-RN-8801",
+    governmentId: "",
     uniqueCode: "",
     password: "",
     confirmPassword: "",
@@ -79,23 +79,6 @@ export default function RegisterPage() {
       "Deoghar",
       "Dumka",
     ];
-
-  // Auto-generate / fetch standard JH-XX-XXXX Government ID when district changes
-  useEffect(() => {
-    if (activeRole === "GOVERNMENT") {
-      authApi.generateGovId(formData.district)
-        .then((res) => {
-          if (res?.governmentId) {
-            setFormData((prev) => ({ ...prev, governmentId: res.governmentId }));
-          }
-        })
-        .catch(() => {
-          const code = formData.district.slice(0, 2).toUpperCase();
-          const rand = Math.floor(1000 + Math.random() * 9000);
-          setFormData((prev) => ({ ...prev, governmentId: `JH-${code}-${rand}` }));
-        });
-    }
-  }, [formData.district, activeRole]);
 
   useEffect(() => {
     let timer: any;
@@ -159,11 +142,6 @@ export default function RegisterPage() {
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match. Please verify.");
-      return;
-    }
-
-    if (activeRole === "GOVERNMENT" && !/^JH-[A-Z0-9]{2}-[A-Z0-9]{4}$/.test(formData.governmentId.trim().toUpperCase())) {
-      setError("Government ID must follow standard format: JH-XX-XXXX (e.g. JH-RN-8801).");
       return;
     }
 
@@ -415,29 +393,28 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* UNIQUE GOVERNMENT ID (JH-XX-XXXX) */}
+              {/* OFFICIAL GOVERNMENT / EMPLOYEE ID (IF PROVIDED) */}
               {activeRole === "GOVERNMENT" && (
-                <div className="space-y-1 rounded-xl bg-amber-50/70 border border-amber-200/90 p-2.5">
+                <div className="space-y-1 rounded-xl bg-slate-50/80 border border-slate-200/90 p-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-amber-950 flex items-center gap-1.5">
-                      <KeyRound className="h-3 w-3 text-amber-600" />
-                      <span>Government Officer Unique ID (JH-XX-XXXX)</span>
+                    <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                      <KeyRound className="h-3 w-3 text-emerald-600" />
+                      <span>Official Government / Employee ID (Optional)</span>
                     </label>
-                    <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-200/70 px-1.5 py-0.5 rounded">
-                      Standard Verified Format
+                    <span className="text-[9px] font-semibold text-slate-500 bg-slate-200/70 px-1.5 py-0.5 rounded">
+                      If Provided
                     </span>
                   </div>
                   <input
                     type="text"
                     name="governmentId"
-                    required
                     value={formData.governmentId}
                     onChange={handleChange}
-                    placeholder="e.g. JH-RN-8801"
-                    className="w-full rounded-lg border border-amber-300 bg-white py-1.5 px-3 font-mono text-xs font-bold tracking-wider text-amber-950 placeholder:text-amber-400 focus:border-amber-600 focus:outline-none uppercase"
+                    placeholder="Enter official designation / employee code (if provided)"
+                    className="w-full rounded-lg border border-slate-200 bg-white py-1.5 px-3 font-mono text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#047d48] focus:outline-none uppercase"
                   />
-                  <p className="text-[10px] text-amber-700">
-                    State code (JH) + District code ({formData.district.slice(0, 2).toUpperCase()}) + 4-char security token.
+                  <p className="text-[10px] text-slate-500">
+                    Official state / district government code if assigned by your department.
                   </p>
                 </div>
               )}
@@ -656,7 +633,7 @@ export default function RegisterPage() {
               <p>
                 <strong>Stakeholder Role:</strong> {activeRole}
               </p>
-              {activeRole === "GOVERNMENT" && (
+              {activeRole === "GOVERNMENT" && formData.governmentId && (
                 <p className="font-mono text-emerald-800 font-bold">
                   <strong>Government ID:</strong> {formData.governmentId}
                 </p>

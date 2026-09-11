@@ -274,15 +274,13 @@ export class AuthController {
         } catch {}
       }
 
-      // 3. Government Unique Identifier Generation (Rule 6: JH-XX-XXXX)
+      // 3. Government Official Identifier (If provided by the department)
       let governmentId: string | undefined;
       const role = data.role.toUpperCase();
 
       if (role === 'GOVERNMENT' || role === 'STATE_ADMIN' || role === 'DISTRICT_ADMIN' || role === 'DEPARTMENT_OFFICER') {
-        if (data.government_id && govIdService.isValidGovernmentId(data.government_id)) {
-          governmentId = data.government_id;
-        } else {
-          governmentId = await govIdService.generateUniqueGovernmentId(districtName);
+        if (data.government_id && data.government_id.trim()) {
+          governmentId = data.government_id.trim();
         }
       }
 

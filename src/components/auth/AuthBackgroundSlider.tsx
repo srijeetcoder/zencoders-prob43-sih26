@@ -11,7 +11,7 @@ const IMAGES = [
   miningImg,
 ];
 
-// 5 rows with varied image order for visual variety
+// 4 rows with varied image order for visual variety and high performance
 const ROW_CONFIGS = [
   {
     images: [IMAGES[0], IMAGES[1], IMAGES[2], IMAGES[3]],
@@ -29,10 +29,6 @@ const ROW_CONFIGS = [
     images: [IMAGES[3], IMAGES[2], IMAGES[1], IMAGES[0]],
     animationClass: "animate-auth-slider-right-fast",
   },
-  {
-    images: [IMAGES[0], IMAGES[2], IMAGES[1], IMAGES[3]],
-    animationClass: "animate-auth-slider-left",
-  },
 ];
 
 export default function AuthBackgroundSlider() {
@@ -41,31 +37,25 @@ export default function AuthBackgroundSlider() {
       className="fixed inset-0 w-full h-full pointer-events-none overflow-hidden z-0 select-none bg-slate-950 flex flex-col justify-between py-2 gap-2 sm:gap-3"
       aria-hidden="true"
     >
-      {/* 5 Rows of side-by-side moving photos filling the entire screen height */}
+      {/* Hardware-accelerated sliding photo streams */}
       {ROW_CONFIGS.map((row, rowIdx) => {
-        // Duplicate array multiple times to ensure seamless infinite looping on any screen width
-        const duplicated = [
-          ...row.images,
-          ...row.images,
-          ...row.images,
-          ...row.images,
-          ...row.images,
-          ...row.images,
-        ];
+        // Duplicate once (2 sets) which is mathematically sufficient for 100vw translate3d(-50%) infinite loop
+        const duplicated = [...row.images, ...row.images];
 
         return (
           <div key={rowIdx} className="flex-1 w-full overflow-hidden flex items-center min-h-0">
-            <div className={`flex items-center gap-2.5 sm:gap-4 w-max ${row.animationClass}`}>
+            <div className={`flex items-center gap-2.5 sm:gap-4 w-max will-change-transform ${row.animationClass}`}>
               {duplicated.map((imgSrc, imgIdx) => (
                 <div
                   key={`${rowIdx}-${imgIdx}`}
-                  className="shrink-0 h-full max-h-[19vh] aspect-[16/10] sm:aspect-[16/9] rounded-xl sm:rounded-2xl overflow-hidden shadow-md shadow-black/40 border border-white/10"
+                  className="shrink-0 h-full max-h-[23vh] aspect-[16/10] sm:aspect-[16/9] rounded-xl sm:rounded-2xl overflow-hidden shadow-md shadow-black/40 border border-white/10"
                 >
                   <img
                     src={imgSrc}
                     alt=""
-                    className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-500"
-                    loading="eager"
+                    className="w-full h-full object-cover object-center"
+                    loading={rowIdx < 2 ? "eager" : "lazy"}
+                    decoding="async"
                   />
                 </div>
               ))}
@@ -75,7 +65,7 @@ export default function AuthBackgroundSlider() {
       })}
 
       {/* Subtle overlay wash for optimal contrast and clean readability */}
-      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[0.5px]" />
+      <div className="absolute inset-0 bg-slate-950/40" />
       <div className="absolute inset-0 bg-gradient-to-b from-slate-950/50 via-transparent to-slate-950/60" />
     </div>
   );

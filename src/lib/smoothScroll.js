@@ -14,10 +14,10 @@ export function initSmooth() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null
 
   lenis = new Lenis({
-    lerp: 0.1,
+    lerp: 0.12,
     smoothWheel: true,
-    syncTouch: true,
-    anchors: true,
+    syncTouch: false,
+    autoRaf: false,
   })
   rafId = requestAnimationFrame(loop)
   return lenis

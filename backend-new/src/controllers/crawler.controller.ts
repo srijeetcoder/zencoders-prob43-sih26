@@ -394,8 +394,8 @@ export async function queryKnowledge(req: Request, res: Response, next: NextFunc
     } else {
       try {
         synthesizedAnswer = await synthesizeRagAnswer(queryText, retrievedMatches);
-      } catch (geminiError: any) {
-        synthesizedAnswer = `[AI Synthesis Error]: ${geminiError?.message || 'Failed to communicate with Gemini API'}.`;
+      } catch (aiError: any) {
+        synthesizedAnswer = `[AI Synthesis Error]: ${aiError?.message || 'Failed to synthesize response with AI engine'}.`;
       }
     }
 
