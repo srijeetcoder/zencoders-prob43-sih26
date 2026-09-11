@@ -1,13 +1,15 @@
 import { ArrowRight, Users, GraduationCap, Handshake } from "lucide-react";
-import { topTeam } from "../../../data/solutionMatchingData";
+import { topTeam as defaultTopTeam } from "../../../data/solutionMatchingData";
 
-export default function TopMatchedTeam() {
+export default function TopMatchedTeam({ team: customTeam }: { team?: any }) {
+  const currentTeam = customTeam || defaultTopTeam;
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-gray-900">Top Matched Team</h3>
-        <a href="#" className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1">
+        <a href="#teams" className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1">
           View all teams
           <ArrowRight className="w-3.5 h-3.5" />
         </a>
@@ -20,22 +22,22 @@ export default function TopMatchedTeam() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className="text-[13px] font-bold text-gray-900">{topTeam.name}</h4>
+            <h4 className="text-[13px] font-bold text-gray-900">{currentTeam.name}</h4>
             <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              {topTeam.matchPercent}% Match
+              {currentTeam.matchPercent}% Match
             </span>
           </div>
-          <p className="text-[11px] text-gray-400">{topTeam.department}</p>
+          <p className="text-[11px] text-gray-400">{currentTeam.department}</p>
         </div>
       </div>
 
       <p className="text-[12px] text-gray-500 leading-relaxed mb-4">
-        {topTeam.description}
+        {currentTeam.description}
       </p>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        {topTeam.stats.map((stat) => (
+        {currentTeam.stats?.map((stat: any) => (
           <div key={stat.label} className="text-center p-2.5 bg-gray-50 rounded-lg">
             <p className="text-lg font-bold text-gray-900">{stat.value}</p>
             <p className="text-[10px] text-gray-400 leading-tight">{stat.label}</p>

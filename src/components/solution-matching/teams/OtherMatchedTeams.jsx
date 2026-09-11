@@ -1,14 +1,16 @@
 import { ArrowRight, GraduationCap, Building2 } from "lucide-react";
-import { otherTeams } from "../../../data/solutionMatchingData";
+import { otherTeams as defaultOtherTeams } from "../../../data/solutionMatchingData";
 
-export default function OtherMatchedTeams() {
+export default function OtherMatchedTeams({ teams: customTeams }: { teams?: any[] }) {
+  const displayTeams = customTeams && customTeams.length > 0 ? customTeams : defaultOtherTeams;
+
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-gray-900">Other Matched Teams</h3>
-          <a href="#" className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1">
+          <a href="#teams" className="text-xs text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1">
             View all
             <ArrowRight className="w-3.5 h-3.5" />
           </a>
@@ -16,7 +18,7 @@ export default function OtherMatchedTeams() {
 
         {/* Teams list */}
         <div className="space-y-1">
-          {otherTeams.map((team) => (
+          {displayTeams.map((team: any) => (
             <div
               key={team.id}
               className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"

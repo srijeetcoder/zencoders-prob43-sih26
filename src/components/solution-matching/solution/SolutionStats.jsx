@@ -1,5 +1,5 @@
 import { Lightbulb, Users, Target, Clock } from "lucide-react";
-import { stats } from "../../../data/solutionMatchingData";
+import { stats as defaultStats } from "../../../data/solutionMatchingData";
 
 const iconMap = {
   lightbulb: Lightbulb,
@@ -8,15 +8,17 @@ const iconMap = {
   clock: Clock,
 };
 
-export default function SolutionStats() {
+export default function SolutionStats({ stats: dynamicStats }: { stats?: any[] }) {
+  const displayStats = dynamicStats && dynamicStats.length > 0 ? dynamicStats : defaultStats;
+
   return (
-    <div className="grid grid-cols-4 gap-4">
-      {stats.map((stat) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {displayStats.map((stat) => {
         const Icon = iconMap[stat.icon];
         return (
           <div
             key={stat.id}
-            className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-200"
+            className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-200 shadow-sm"
           >
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
