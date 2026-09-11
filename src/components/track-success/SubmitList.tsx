@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, MapPin, ChevronRight, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
-import { SUBMISSIONS, CATEGORY_META, STATUS_META, type Status } from "../data/submissions";
+import { SUBMISSIONS, CATEGORY_META, STATUS_META, getCategoryMeta, getStatusMeta, type Status } from "../data/submissions";
 import { citizenApi } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -154,8 +154,8 @@ export default function MySubmissionsList() {
           )}
 
           {filtered.map((submission) => {
-            const category = CATEGORY_META[submission.category];
-            const status = STATUS_META[submission.status];
+            const category = getCategoryMeta(submission.category);
+            const status = getStatusMeta(submission.status);
             const Icon = category.icon;
 
             return (

@@ -103,8 +103,9 @@ export const authApi = {
   deleteAccount: (password?: string) =>
     fetchWithCircuitBreaker('/auth/account', {
       method: 'DELETE',
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, confirmation: 'DELETE_MY_ACCOUNT' }),
     }),
+
   logout: () => fetchWithCircuitBreaker('/auth/logout', { method: 'POST' }),
   forgotPassword: (email: string) =>
     fetchWithCircuitBreaker('/auth/forgot-password', {

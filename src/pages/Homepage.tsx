@@ -54,7 +54,10 @@ function Homepage() {
           <Route path="/partners" element={<University />} />
           <Route path="/successstories" element={<SuccessStory />} />
           <Route path="/trackprogress" element={<TrackProgress />} />
+          <Route path="/track-progress" element={<TrackProgress />} />
           <Route path="/trackprogress/:id" element={<SubmissionDetail />} />
+          <Route path="/track-progress/:id" element={<SubmissionDetail />} />
+          <Route path="*" element={<Navigate to="/main" replace />} />
         </Routes>
       </div>
     </div>

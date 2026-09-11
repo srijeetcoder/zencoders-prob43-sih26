@@ -73,7 +73,7 @@ export const UpdateProfileSchema = z.object({
 });
 
 export const DeleteAccountSchema = z.object({
-  confirmation: z.literal('DELETE_MY_ACCOUNT', {
-    errorMap: () => ({ message: 'Please provide exact confirmation text "DELETE_MY_ACCOUNT"' }),
-  }),
+  confirmation: z.string().optional(),
+  password: z.string().optional(),
 });
+

@@ -14,11 +14,14 @@ import PublicSuccessStoriesPage from "./pages/PublicSuccessStoriesPage";
 import GovDashboardPage from "./pages/GovDashboardPage";
 import UniversityDashboardPage from "./pages/UniversityDashboardPage";
 import Homepage from "./pages/Homepage";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/explore-problems" element={<ExploreProblemsPage />} />
@@ -73,6 +76,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  </ErrorBoundary>
   );
 }
 

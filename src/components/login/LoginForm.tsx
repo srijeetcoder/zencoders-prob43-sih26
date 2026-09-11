@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAuth, type UserRole } from "../../context/AuthContext";
+import { promptGoogleAccountPicker } from "../../lib/googleAuth";
 
 function LoginForm() {
   const { login, loginWithGoogle } = useAuth();
@@ -123,17 +124,25 @@ function LoginForm() {
     setError("");
 
     try {
-      // Authenticate citizen via Google OAuth provider
-      const mockEmail = formData.email && formData.email.includes("@") ? formData.email : "citizen.user@gmail.com";
+      // 1. Trigger official Google Account selection prompt
+      const googleProfile = await promptGoogleAccountPicker();
+
+      // 2. Authenticate citizen with their real Google profile name & Gmail ID
       const loggedUser = await loginWithGoogle({
         role: "CITIZEN",
-        email: mockEmail,
-        name: "Google Authenticated Citizen",
+        email: googleProfile.email,
+        name: googleProfile.name,
+        credential: googleProfile.token,
       });
 
       handleSuccessfulAuth(loggedUser);
     } catch (err: any) {
-      setError(err?.message || "Google Sign-In was rejected. Please verify citizen permissions.");
+      console.error("[Google Auth Error]:", err);
+      if (err?.message?.includes("closed") || err?.message?.includes("cancelled")) {
+        setIsGoogleSubmitting(false);
+        return;
+      }
+      setError(err?.message || "Google Sign-In was not completed. Please try again.");
       setIsGoogleSubmitting(false);
     }
   }

@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Copy, MapPin, CheckCircle2 } from "lucide-react";
-import { CATEGORY_META, STATUS_META, STATUS_SIMPLE, type Submission } from "../data/submissions";
+import { CATEGORY_META, STATUS_META, STATUS_SIMPLE, getCategoryMeta, getStatusMeta, type Submission } from "../data/submissions";
 
 interface SubmissionHeaderProps {
   submission: Submission;
 }
 
 export default function SubmissionHeader({ submission }: SubmissionHeaderProps) {
-  const category = CATEGORY_META[submission.category];
-  const status = STATUS_META[submission.status];
+  const category = getCategoryMeta(submission?.category);
+  const status = getStatusMeta(submission?.status);
   const Icon = category.icon;
 
   return (

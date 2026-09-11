@@ -73,6 +73,7 @@ function UserSettings({
 
     try {
       await deleteAccount();
+      setShowDeleteModal(false);
       window.location.href = "/";
     } catch (err: any) {
       setDeleteError(err?.message || "Failed to delete account. Please try again.");
