@@ -1,4 +1,4 @@
-import type { ProblemDetail } from "../types/problem";
+import type { ProblemDetail, Severity } from "../types/problem";
 
 // Empty base array - populated only from real user submissions
 export const PROBLEMS: ProblemDetail[] = [];

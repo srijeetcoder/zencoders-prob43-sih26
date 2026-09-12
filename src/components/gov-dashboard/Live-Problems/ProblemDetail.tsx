@@ -44,9 +44,15 @@ const STATUS_STYLES: Record<string, string> = {
 
 function ProblemDetail() {
   const { problemId } = useParams<{ problemId: string }>();
-  const [problem, setProblem] = useState<any | null>(null);
-  const [currentStatus, setCurrentStatus] = useState("Under Analysis");
-  const [currentProgress, setCurrentProgress] = useState(35);
+  const cleanId = decodeURIComponent(problemId || "").trim();
+
+  const [problem, setProblem] = useState<any | null>(() => {
+    return cleanId ? getProblemById(cleanId) || null : null;
+  });
+  const [currentStatus, setCurrentStatus] = useState(() => problem?.status || "Under Analysis");
+  const [currentProgress, setCurrentProgress] = useState(() => 
+    problem?.status === "Resolved" ? 100 : problem?.status === "In Progress" ? 70 : 35
+  );
   const [adminNote, setAdminNote] = useState("");
   const [isSaved, setIsSaved] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -55,9 +61,9 @@ function ProblemDetail() {
   const [liveToast, setLiveToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (problemId) {
+    if (cleanId) {
       // 1. Fetch live problem from backend / realSubmissions
-      fetchProblemById(problemId).then((data) => {
+      fetchProblemById(cleanId).then((data) => {
         if (data) {
           setProblem(data);
           setCurrentStatus(data.status || "Under Analysis");
@@ -69,7 +75,7 @@ function ProblemDetail() {
               : 35
           );
         } else {
-          const fallback = getProblemById(problemId);
+          const fallback = getProblemById(cleanId);
           if (fallback) {
             setProblem(fallback);
             setCurrentStatus(fallback.status || "Under Analysis");
@@ -79,7 +85,7 @@ function ProblemDetail() {
           }
         }
       }).catch(() => {
-        const fallback = getProblemById(problemId);
+        const fallback = getProblemById(cleanId);
         if (fallback) {
           setProblem(fallback);
         }
