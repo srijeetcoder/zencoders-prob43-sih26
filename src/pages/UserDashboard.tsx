@@ -26,19 +26,26 @@ function UserDashboard() {
       const apiBase = import.meta.env.VITE_API_BASE_URL || "/api/v1";
       const items: ProblemItem[] = [];
 
-      // 1. Check local session submissions first
+      // 1. Check local session submissions first - strictly scoped to this user
       try {
         const localSaved = localStorage.getItem("pookar_user_submissions");
         if (localSaved) {
           const parsed = JSON.parse(localSaved);
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
-              items.push({
-                id: p.ticketId || p.id || `JS-${Date.now()}`,
-                title: p.title || p.rawDescription || p.text || "Citizen Bottleneck Submission",
-                submittedAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "Recently",
-                status: (p.status === "RESOLVED" ? "Resolved" : p.status === "IN_REVIEW" || p.status === "LAB_MATCHED" ? "In Review" : "Pending") as any,
-              });
+              const isMine = 
+                (p.userId && user?.id && p.userId === user.id) ||
+                (p.citizenEmail && user?.email && p.citizenEmail.toLowerCase() === user.email.toLowerCase()) ||
+                (p.citizenContact && user?.email && p.citizenContact.toLowerCase() === user.email.toLowerCase());
+
+              if (isMine) {
+                items.push({
+                  id: p.ticketId || p.id || `JS-${Date.now()}`,
+                  title: p.title || p.rawDescription || p.text || "Citizen Bottleneck Submission",
+                  submittedAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "Recently",
+                  status: (p.status === "RESOLVED" ? "Resolved" : p.status === "IN_REVIEW" || p.status === "LAB_MATCHED" ? "In Review" : "Pending") as any,
+                });
+              }
             });
           }
         }

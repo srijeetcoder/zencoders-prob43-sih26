@@ -394,12 +394,15 @@ function ReportProblemPage() {
       const ticketId = res.ticketId || res.ticket_id || `JS-2026-${Math.floor(1000 + Math.random() * 9000)}`;
       const resolvedTitle = title || aiReviewFeedback?.suggestedHeading || res.normalizedText?.slice(0, 80) || description.slice(0, 80);
 
-      // Save to user's local submissions array so UserDashboard displays it instantly
+      // Save to user's local submissions array with explicit user-scoping
       try {
         const existing = JSON.parse(localStorage.getItem("pookar_user_submissions") || "[]");
         existing.unshift({
           id: ticketId,
           ticketId: ticketId,
+          userId: user.id,
+          citizenEmail: user.email,
+          citizenContact: user.email || user.phone,
           title: resolvedTitle,
           rawDescription: fullText,
           normalizedText: res.normalizedText || description,
@@ -416,6 +419,8 @@ function ReportProblemPage() {
         id: ticketId,
         ticketId: ticketId,
         ticket_id: ticketId,
+        userId: user.id,
+        citizenEmail: user.email,
         title: resolvedTitle,
         description: res.normalizedText || fullText,
         district: location || user?.district || "Ranchi",
@@ -444,6 +449,9 @@ function ReportProblemPage() {
         existing.unshift({
           id: fallbackTicket,
           ticketId: fallbackTicket,
+          userId: user.id,
+          citizenEmail: user.email,
+          citizenContact: user.email || user.phone,
           title: resolvedTitle,
           rawDescription: description,
           district: location || user?.district || "Ranchi",

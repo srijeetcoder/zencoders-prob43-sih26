@@ -27,25 +27,32 @@ export default function MySubmissionsList() {
     const loadLiveSubmissions = async () => {
       const merged: any[] = [];
 
-      // 1. Check local storage submissions from this session
+      // 1. Check local storage submissions strictly scoped to this user
       try {
         const local = localStorage.getItem("pookar_user_submissions");
         if (local) {
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed)) {
             parsed.forEach((item: any) => {
-              merged.push({
-                id: item.ticketId || item.id || `SUB-${Date.now()}`,
-                psCode: item.ticketId || "JS-2026-LIVE",
-                title: item.title || item.rawDescription || "Citizen Reported Bottleneck",
-                category: "drainage",
-                status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" ? "matched" : "submitted") as Status,
-                submittedOn: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Today",
-                location: item.district ? `${item.district}, Jharkhand` : "Ranchi, Jharkhand",
-                description: item.normalizedText || item.rawDescription || item.text || "Citizen bottleneck logged in state ledger.",
-                progressPercent: 25,
-                team: "National R&D Matching Pool",
-              });
+              const isMine = 
+                (item.userId && user?.id && item.userId === user.id) ||
+                (item.citizenEmail && user?.email && item.citizenEmail.toLowerCase() === user.email.toLowerCase()) ||
+                (item.citizenContact && user?.email && item.citizenContact.toLowerCase() === user.email.toLowerCase());
+
+              if (isMine) {
+                merged.push({
+                  id: item.ticketId || item.id || `SUB-${Date.now()}`,
+                  psCode: item.ticketId || "JS-2026-LIVE",
+                  title: item.title || item.rawDescription || "Citizen Reported Bottleneck",
+                  category: "drainage",
+                  status: (item.status === "RESOLVED" ? "resolved" : item.status === "LAB_MATCHED" ? "matched" : "submitted") as Status,
+                  submittedOn: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Today",
+                  location: item.district ? `${item.district}, Jharkhand` : "Ranchi, Jharkhand",
+                  description: item.normalizedText || item.rawDescription || item.text || "Citizen bottleneck logged in state ledger.",
+                  progressPercent: 25,
+                  team: "National R&D Matching Pool",
+                });
+              }
             });
           }
         }
@@ -77,7 +84,7 @@ export default function MySubmissionsList() {
       }
 
       if (isMounted) {
-        setAllSubmissions(merged.length > 0 ? merged : SUBMISSIONS);
+        setAllSubmissions(merged);
       }
     };
 
