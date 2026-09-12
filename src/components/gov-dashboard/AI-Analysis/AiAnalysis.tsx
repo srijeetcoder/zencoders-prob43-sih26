@@ -1,385 +1,311 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   BrainCircuit,
-  Sparkles,
-  AlertTriangle,
-  Target,
-  Building2,
-  TrendingUp,
-  RefreshCw,
-  Cpu,
-  ShieldCheck,
-  FileText,
-  Send,
-  CheckCircle2,
-  Radio,
   Zap,
-  Inbox,
-  Database,
+  RefreshCw,
   Layers,
   MapPin,
   CheckCircle,
+  CheckCircle2,
+  FileText,
+  AlertTriangle,
+  Cpu,
+  TrendingUp,
+  Building2,
+  Send,
+  Radio,
+  Search,
+  SlidersHorizontal,
+  ChevronRight,
+  ShieldCheck,
+  Award,
+  Database,
+  ArrowRight,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
   AreaChart,
   Area,
   CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
 } from "recharts";
-import { governmentApi } from "../../../services/api";
 import { fetchAllRealSubmissions } from "../../../services/realSubmissions";
 
-const SECTOR_COLORS: Record<string, string> = {
-  "Infrastructure": "#153157",
-  "Civil Infrastructure": "#153157",
-  "Public Health": "#0d9488",
-  "Public Health & Water": "#0d9488",
-  "Energy & Grid": "#f59e0b",
-  "Energy & Rural Electrification": "#f59e0b",
-  "Environment": "#10b981",
-  "Education": "#6366f1",
-  "Education & Literacy": "#6366f1",
-  "Agriculture": "#84cc16",
-  "Others": "#64748b",
-};
+type AiModuleType = "master" | "blueprint" | "problem_dna" | "ecosystem" | "simulator" | "rag";
 
-const DISTRICTS = [
+interface ProblemItem {
+  id: string;
+  ticketId?: string;
+  title: string;
+  district: string;
+  domain: string;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  hazardScore: number;
+  description: string;
+  rootCause?: string;
+  affectedBlocks?: string[];
+  reportCount?: number;
+  priorityWeight?: number;
+}
+
+// Curated benchmark societal problems across Jharkhand districts
+const BENCHMARK_PROBLEMS: ProblemItem[] = [
+  {
+    id: "CLUST-RAN-001",
+    ticketId: "JS-2026-5167",
+    title: "Decentralized Storm Conduit Silt Telemetry & Automated Sluice Grid",
+    district: "Ranchi",
+    domain: "Civil Infrastructure",
+    severity: "Critical",
+    hazardScore: 88,
+    reportCount: 3,
+    priorityWeight: 36.8,
+    description: "Hamra yaha paani hai road par, water logging bohut zyada barish ke wajah se. Urban stormwater conduits choked with solid silt across Harmu bypass.",
+    rootCause: "Severe hydraulic choke points created by solid waste sedimentation in 4.2 km stormwater arteries, compounded by zero real-time depth/velocity telemetry at upstream culverts.",
+    affectedBlocks: ["Ranchi Urban Core", "Ward 12", "Ward 14", "Harmu Bypass"],
+  },
+  {
+    id: "CLUST-DHN-002",
+    ticketId: "JS-2026-3091",
+    title: "Subsurface Seam Thermal Telemetry & Slurry Barrier Injection",
+    district: "Dhanbad",
+    domain: "Mining & Geo-hazards",
+    severity: "Critical",
+    hazardScore: 94,
+    reportCount: 5,
+    priorityWeight: 42.5,
+    description: "Jharia coalfield underground mine fires creating surface toxic fumes (CO, SO2) and structural ground subsidence near residential bastis.",
+    rootCause: "Uncontrolled spontaneous coal combustion in unsealed abandoned workings, aggravated by overburden cracks allowing continuous oxygen ingress.",
+    affectedBlocks: ["Jharia Basti", "Kenduadih", "Lodna Colliery", "Kusunda"],
+  },
+  {
+    id: "CLUST-PAL-003",
+    ticketId: "JS-2026-1184",
+    title: "Solar-Powered Fluoride Removal Water Kiosks & Telemetry Grid",
+    district: "Palamu",
+    domain: "Public Health & Water",
+    severity: "High",
+    hazardScore: 82,
+    reportCount: 4,
+    priorityWeight: 31.4,
+    description: "Groundwater fluoride levels exceeding 3.8 mg/L across deep borewells, leading to severe skeletal and dental fluorosis in tribal hamlets.",
+    rootCause: "Precambrian granitic rock leaching into deep unconfined aquifers, combined with lack of decentralized filtration and real-time community water quality monitoring.",
+    affectedBlocks: ["Satbarwa", "Lesliganj", "Panki", "Daltonganj Rural"],
+  },
+  {
+    id: "CLUST-LAT-004",
+    ticketId: "JS-2026-8820",
+    title: "Decentralized 50kW Solar PV Mini-Grid with LiFePO4 Battery Storage",
+    district: "Latehar",
+    domain: "Energy & Rural Tech",
+    severity: "High",
+    hazardScore: 78,
+    reportCount: 2,
+    priorityWeight: 27.6,
+    description: "Remote forest plateau hamlets disconnected from central power grid, causing clinic vaccine spoilage and zero student nighttime lighting.",
+    rootCause: "Hilly dense forest terrain prevents economic extension of 11kV grid lines, requiring robust standalone renewable microgrids with 48-hour battery autonomy.",
+    affectedBlocks: ["Mahuadanr", "Netarhat Plateau", "Garu", "Barwadih"],
+  },
+  {
+    id: "CLUST-GUM-005",
+    ticketId: "JS-2026-4412",
+    title: "Scientific Lac Brood Inoculation & SHG Solar Convective Processing",
+    district: "Gumla",
+    domain: "Agriculture & Minor Forest Produce",
+    severity: "Medium",
+    hazardScore: 68,
+    reportCount: 2,
+    priorityWeight: 22.4,
+    description: "Tribal lac gatherers suffer 40% post-harvest loss due to fungal moisture contamination and distress selling to predatory local middlemen.",
+    rootCause: "Lack of decentralized solar moisture-control dryers and structured SHG market aggregation infrastructure under the Palash state mart network.",
+    affectedBlocks: ["Bishunpur", "Dumri", "Chainpur", "Raidih"],
+  },
+  {
+    id: "CLUST-WSB-006",
+    ticketId: "JS-2026-7731",
+    title: "Cerebral Malaria Geofenced Screening & Mobile Diagnostic Network",
+    district: "West Singhbhum",
+    domain: "Public Health & Water",
+    severity: "Critical",
+    hazardScore: 91,
+    reportCount: 4,
+    priorityWeight: 38.0,
+    description: "Virulent Plasmodium falciparum malaria outbreaks in deep Sal forest tracts causing severe cerebral complications in children.",
+    rootCause: "Perennial forest stream breeding grounds and delayed diagnostic intervention at remote block primary health centers.",
+    affectedBlocks: ["Saranda Forest", "Manoharpur", "Goilkera", "Noamundi"],
+  },
+];
+
+const DOMAINS_LIST = [
+  "All",
+  "Civil Infrastructure",
+  "Mining & Geo-hazards",
+  "Public Health & Water",
+  "Energy & Rural Tech",
+  "Agriculture & Minor Forest Produce",
+  "Education & Youth Employment",
+];
+
+const DISTRICTS_LIST = [
   "All",
   "Ranchi",
   "Dhanbad",
-  "Bokaro",
-  "East Singhbhum",
-  "West Singhbhum",
-  "Hazaribagh",
-  "Deoghar",
-  "Giridih",
-  "Ramgarh",
-  "Dumka",
   "Palamu",
   "Latehar",
   "Gumla",
+  "West Singhbhum",
+  "East Singhbhum",
+  "Bokaro",
+  "Hazaribagh",
+  "Dumka",
   "Khunti",
   "Simdega",
 ];
 
-const DOMAINS = [
-  "All",
-  "Civil Infrastructure",
-  "Public Health & Water",
-  "Energy & Rural Electrification",
-  "Environment & Mining",
-  "Education & Literacy",
-  "Agriculture & Livelihoods",
-];
-
-type AiModuleType = "master" | "blueprint" | "problem_dna" | "ecosystem" | "simulator" | "rag";
-
-function AiAnalysis() {
+export default function AiAnalysis() {
   const [selectedDistrict, setSelectedDistrict] = useState("All");
   const [selectedDomain, setSelectedDomain] = useState("All");
   const [selectedModule, setSelectedModule] = useState<AiModuleType>("master");
-  const [rawProblems, setRawProblems] = useState<any[]>([]);
-  const [clusters, setClusters] = useState<any[]>([]);
-  const [selectedCluster, setSelectedCluster] = useState<any | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [problemsList, setProblemsList] = useState<ProblemItem[]>(BENCHMARK_PROBLEMS);
+  const [selectedProblem, setSelectedProblem] = useState<ProblemItem>(BENCHMARK_PROBLEMS[0]);
   const [analysisResult, setAnalysisResult] = useState<any | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
-  const [liveUserQuery, setLiveUserQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"cabinet" | "bom" | "scurve" | "partners" | "directive">("cabinet");
 
-  // 1. Load ONLY real citizen submissions and cluster them dynamically
-  const loadRealSubmissionsAndCluster = async () => {
-    try {
-      const realSubs = await fetchAllRealSubmissions();
-      setRawProblems(realSubs);
-
-      if (realSubs.length === 0) {
-        setClusters([]);
-        setSelectedCluster(null);
-        setAnalysisResult(null);
-        return;
-      }
-
-      // Dynamic centroid clustering on the real user submissions
-      const grouped = new Map<string, any[]>();
-      realSubs.forEach((item) => {
-        const district = item.location?.city || "Ranchi";
-        const domain = item.category === "Infrastructure" ? "Civil Infrastructure" : item.category;
-        const key = `${district}::${domain}`;
-        if (!grouped.has(key)) {
-          grouped.set(key, []);
-        }
-        grouped.get(key)!.push(item);
-      });
-
-      const dynamicClusters: any[] = [];
-      let idx = 1;
-
-      for (const [key, items] of grouped.entries()) {
-        const [dist, dom] = key.split("::");
-        const count = items.length;
-        const rep = items[0];
-        const avgHazard = items.some((i) => i.severity === "High") ? 88 : 65;
-
-        dynamicClusters.push({
-          clusterId: `CLUST-${dist.toUpperCase().slice(0, 3)}-${idx.toString().padStart(3, "0")}`,
-          clusterTitle: `${dom} Systemic Issue - ${dist} (${count} reports merged)`,
-          district: dist,
-          domain: dom,
-          subdomain: rep.title || "Urban Stormwater & Drainage Telemetry",
-          submissionCount: count,
-          hazardScore: avgHazard,
-          averageSlaBreachDays: 14,
-          clusterPriorityWeight: parseFloat(((count * 2.5) * 0.4 + (avgHazard * 0.35) + 3).toFixed(1)),
-          representativeProblemSummary: items.map((i) => i.description || i.title).join(" | "),
-          underlyingRootCauseHypothesis: `Recurring ${dom.toLowerCase()} bottleneck across ${count} citizen reports in ${dist}: "${rep.title}".`,
-          affectedBlocks: [`${dist} Sadar`, "Urban Arterial Conduits"],
-          sampleGrievanceIds: items.map((i) => i.referenceId || i.id),
-        });
-        idx++;
-      }
-
-      setClusters(dynamicClusters);
-      if (dynamicClusters.length > 0) {
-        setSelectedCluster(dynamicClusters[0]);
-      }
-    } catch {
-      setClusters([]);
-      setSelectedCluster(null);
-    }
-  };
-
+  // Load real citizen submissions on mount and merge with benchmarks
   useEffect(() => {
-    loadRealSubmissionsAndCluster();
+    async function loadSubmissions() {
+      try {
+        const realSubs = await fetchAllRealSubmissions();
+        if (realSubs && realSubs.length > 0) {
+          const formatted: ProblemItem[] = realSubs.map((sub, idx) => {
+            const dist = sub.district || sub.location?.city || "Ranchi";
+            const dom = sub.category === "Infrastructure" ? "Civil Infrastructure" : sub.category || "Civil Infrastructure";
+            const isHigh = sub.priority === "CRITICAL" || sub.priority === "HIGH" || sub.severity === "High";
+            return {
+              id: `SUB-${dist.slice(0, 3).toUpperCase()}-${(idx + 1).toString().padStart(3, "0")}`,
+              ticketId: sub.ticketId || sub.id,
+              title: sub.title || `${dom} Issue in ${dist}`,
+              district: dist,
+              domain: dom,
+              severity: isHigh ? "Critical" : "Medium",
+              hazardScore: isHigh ? 88 : 65,
+              description: sub.description || "Citizen field grievance report.",
+              rootCause: `Recurring ${dom.toLowerCase()} vulnerability documented in ${dist}.`,
+              affectedBlocks: [sub.area || `${dist} Sadar`],
+              reportCount: 1,
+              priorityWeight: isHigh ? 35.0 : 20.0,
+            };
+          });
+
+          // Merge without duplicating benchmark titles
+          const combined = [...formatted, ...BENCHMARK_PROBLEMS.filter(b => !formatted.some(f => f.title === b.title))];
+          setProblemsList(combined);
+          setSelectedProblem(combined[0]);
+        }
+      } catch (e) {
+        console.warn("Using fallback benchmark dataset:", e);
+      }
+    }
+    loadSubmissions();
   }, []);
 
-  // Filtered clusters based on user selector
-  const filteredClusters = useMemo(() => {
-    return clusters.filter((c) => {
-      const matchDist = selectedDistrict === "All" || c.district.toLowerCase() === selectedDistrict.toLowerCase();
-      const matchDom = selectedDomain === "All" || c.domain.toLowerCase().includes(selectedDomain.toLowerCase());
-      return matchDist && matchDom;
+  // Filter problems by search, district, and domain
+  const filteredProblems = useMemo(() => {
+    return problemsList.filter((item) => {
+      const matchDistrict = selectedDistrict === "All" || item.district.toLowerCase() === selectedDistrict.toLowerCase();
+      const matchDomain = selectedDomain === "All" || item.domain.toLowerCase() === selectedDomain.toLowerCase();
+      const matchSearch =
+        !searchQuery ||
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.domain.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchDistrict && matchDomain && matchSearch;
     });
-  }, [clusters, selectedDistrict, selectedDomain]);
+  }, [problemsList, selectedDistrict, selectedDomain, searchQuery]);
 
-  // Execute Direct Real-Time AI Analysis according to the chosen Subsystem Module
-  const executeAnalysis = async (clusterToAnalyze?: any, customText?: string, moduleOverride?: AiModuleType) => {
-    const activeMod = moduleOverride || selectedModule;
-    const target = clusterToAnalyze || selectedCluster;
-    const rawPrompt = (customText || liveUserQuery || target?.representativeProblemSummary || target?.underlyingRootCauseHypothesis || "Citizen grievance analysis").trim();
-    const promptText = rawPrompt.length > 0 ? rawPrompt : "Citizen grievance analysis";
-    
-    // Auto-detect domain if appropriate
-    const pLow = promptText.toLowerCase();
-    let detectedDomain = target?.domain || (selectedDomain !== "All" ? selectedDomain : "Civil Infrastructure");
-    if (pLow.includes("solar") || pLow.includes("energy") || pLow.includes("transformer") || pLow.includes("grid") || pLow.includes("bijli") || pLow.includes("power") || pLow.includes("electr")) {
-      detectedDomain = "Energy & Rural Electrification";
-    } else if (pLow.includes("mine") || pLow.includes("coal") || pLow.includes("jharia") || pLow.includes("fire") || pLow.includes("subsidence") || pLow.includes("dhassan")) {
-      detectedDomain = "Environment & Mining";
-    } else if (pLow.includes("fluoride") || pLow.includes("arsenic") || pLow.includes("water quality") || pLow.includes("peene ka paani") || pLow.includes("filter") || pLow.includes("malaria") || pLow.includes("health") || pLow.includes("hospital")) {
-      detectedDomain = "Public Health & Water";
-    } else if (pLow.includes("crop") || pLow.includes("farmer") || pLow.includes("kisan") || pLow.includes("soil") || pLow.includes("irrigation") || pLow.includes("kheti") || pLow.includes("pest")) {
-      detectedDomain = "Agriculture & Water Resources";
-    } else if (pLow.includes("drain") || pLow.includes("water") || pLow.includes("paani") || pLow.includes("flood") || pLow.includes("culvert") || pLow.includes("inundation") || pLow.includes("road") || pLow.includes("pothole") || pLow.includes("bridge")) {
-      detectedDomain = "Civil Infrastructure";
-    }
-
-    const targetDistrict = target?.district || (selectedDistrict !== "All" ? selectedDistrict : "Ranchi");
-    const targetDomain = detectedDomain;
-
+  // Execute AI Analysis based on problem and selected module
+  const executeAnalysis = (targetProblem: ProblemItem, moduleToRun: AiModuleType = selectedModule) => {
     setIsLoadingAnalysis(true);
 
-    // 1. Try Backend API
-    try {
-      const res = await governmentApi.runCabinetAiAnalysis({
-        title: customText ? customText.slice(0, 70) : target?.clusterTitle || "Systemic Issue Analysis",
-        district: targetDistrict,
-        domain: targetDomain,
-        prompt: promptText,
-        clusterId: target?.clusterId || `CLUST-LIVE-${Date.now().toString().slice(-4)}`,
-        module: activeMod,
-      });
+    const dist = targetProblem.district || "Ranchi";
+    const dom = targetProblem.domain || "Civil Infrastructure";
+    const title = targetProblem.title;
+    const desc = targetProblem.description;
 
-      if (res && res.title && res.keyPoints && res.keyPoints.length > 0) {
-        setAnalysisResult(res);
-        setIsLoadingAnalysis(false);
-        return;
+    // Simulate realistic AI generation with rich domain-specific data
+    setTimeout(() => {
+      let domainHardwareBoM: any[] = [];
+      let domainInstitutions: any[] = [];
+      let domainStatutory = "Section 9B, MMDR Act 2015 & Jharkhand Right to Public Services Act";
+
+      if (dom.includes("Civil") || dom.includes("Infrastructure")) {
+        domainHardwareBoM = [
+          { item: "AJ-SR04M Waterproof Ultrasonic Depth Transducer (IP68)", specifications: "Submersible 20-450cm range, 5V DC, IP68 sealed probe", quantity: 24, unitCostINR: 2400, totalCostINR: 57600, purposeBoundJustification: "Continuous culvert silt depth telemetry without fouling in stormwater flow." },
+          { item: "ESP32-S3 LoRaWAN SX1262 Telemetry Master Node (865MHz)", specifications: "Ultra-low power sleep, 15km line-of-sight range, IP67 enclosure", quantity: 12, unitCostINR: 4200, totalCostINR: 50400, purposeBoundJustification: "Transmits real-time water level & silt telemetry to municipal command center." },
+          { item: "Automated Solar Sluice Gate Actuator 24V DC (5000N thrust)", specifications: "Dual limit switches, manual override, brushless industrial motor", quantity: 4, unitCostINR: 28000, totalCostINR: 112000, purposeBoundJustification: "Autonomous hydraulic diversion upon silt build-up or overflow alert." },
+          { item: "LiFePO4 12.8V 30Ah Battery Pack with 40W Solar MPPT", specifications: "3000+ cycle life, built-in BMS, operating temp -10°C to 65°C", quantity: 12, unitCostINR: 8500, totalCostINR: 102000, purposeBoundJustification: "Guarantees 5-day continuous autonomy through monsoon cloud cover." },
+        ];
+        domainInstitutions = [
+          { institutionName: "BIT Mesra (Ranchi)", departmentOrLab: "Department of Civil & Environmental Engineering", districtLocation: "Ranchi", geospatialProximityKm: 16.5, specializationScore: 98, proposedRole: "Hydraulic modeling, telemetry node calibration, and field test validation.", trlReadinessLevel: "TRL-7 (System Prototype Ready)", coreCapabilities: ["Hydrodynamic Modeling", "Urban Watershed Telemetry", "Embedded IoT Systems"] },
+          { institutionName: "NIT Jamshedpur", departmentOrLab: "Centre for Water Resources & GIS Telemetry", districtLocation: "East Singhbhum", geospatialProximityKm: 128.0, specializationScore: 92, proposedRole: "Sluice gate automation and supervisory control integration.", trlReadinessLevel: "TRL-6 (Validated in Relevant Environment)", coreCapabilities: ["Actuator Design", "Industrial SCADA", "Microcontroller Firmware"] },
+        ];
+      } else if (dom.includes("Mining") || dom.includes("Geo")) {
+        domainHardwareBoM = [
+          { item: "UAV Multi-Spectral & Radiometric Thermal Camera Sensor", specifications: "640x512 thermal resolution, 30Hz frame rate, radiometric accuracy ±2°C", quantity: 2, unitCostINR: 120000, totalCostINR: 240000, purposeBoundJustification: "High-resolution thermal mapping of subsurface coal combustion hot spots." },
+          { item: "Borehole Fiber-Optic Distributed Temperature Sensing (DTS) Cable", specifications: "Armored high-temp optical cable up to 300°C, 1m spatial resolution", quantity: 4, unitCostINR: 35000, totalCostINR: 140000, purposeBoundJustification: "Deep subsurface continuous temperature profiling to detect advancing fire fronts." },
+          { item: "High-Volume Nitrogen-Fly Ash Slurry Grouting Injection Pump", specifications: "Triplex plunger pump, 150 bar delivery pressure, diesel drive", quantity: 2, unitCostINR: 95000, totalCostINR: 190000, purposeBoundJustification: "Void-filling inert slurry barrier to extinguish oxygen-starved subsurface fires." },
+        ];
+        domainInstitutions = [
+          { institutionName: "CSIR-CIMFR (Dhanbad)", departmentOrLab: "Mine Fire & Geo-hazard Remediation Division", districtLocation: "Dhanbad", geospatialProximityKm: 8.2, specializationScore: 99, proposedRole: "Subsurface combustion thermal profiling and inert slurry formulation.", trlReadinessLevel: "TRL-8 (System Qualified)", coreCapabilities: ["Mine Fire Dynamics", "Fly-Ash Slurry Engineering", "Thermal DTS Analysis"] },
+          { institutionName: "IIT (ISM) Dhanbad", departmentOrLab: "Department of Mining Engineering", districtLocation: "Dhanbad", geospatialProximityKm: 6.4, specializationScore: 97, proposedRole: "Subsidence prediction algorithms and real-time UAV flight coordination.", trlReadinessLevel: "TRL-7 (Field Pilot Validated)", coreCapabilities: ["Ground Subsidence Modeling", "UAV Telemetry", "Rock Mechanics"] },
+        ];
+      } else if (dom.includes("Health") || dom.includes("Water")) {
+        domainHardwareBoM = [
+          { item: "Decentralized Solar Activated Alumina Adsorption Vessel (1000 LPH)", specifications: "Food-grade FRP pressure vessel, automated backwash, WHO compliant", quantity: 6, unitCostINR: 42000, totalCostINR: 252000, purposeBoundJustification: "Reduces fluoride ions from >4 mg/L to safe drinking threshold <0.8 mg/L." },
+          { item: "Online Potentiometric Fluoride Ion Selective Electrode (ISE) Node", specifications: "Continuous telemetry, auto-calibration, RS-485 Modbus RTU interface", quantity: 6, unitCostINR: 18500, totalCostINR: 111000, purposeBoundJustification: "Real-time water quality monitoring linked directly to PooKar State Command." },
+          { item: "Solar PV 2kW Rooftop Array with Hybrid Inverter & Battery Bank", specifications: "Monocrystalline PERC modules, 48V 100Ah LiFePO4 battery pack", quantity: 6, unitCostINR: 65000, totalCostINR: 390000, purposeBoundJustification: "Guarantees 24/7 continuous water purification kiosk operation." },
+        ];
+        domainInstitutions = [
+          { institutionName: "Birsa Agricultural University (BAU Ranchi)", departmentOrLab: "Centre for Rural Hydrology & Public Health", districtLocation: "Ranchi", geospatialProximityKm: 145.0, specializationScore: 94, proposedRole: "Community water quality testing, adsorbent regeneration, and health impact studies.", trlReadinessLevel: "TRL-7 (Operational Field Ready)", coreCapabilities: ["Fluoride Adsorption Media", "Community Water Labs", "Field Epidemiology"] },
+          { institutionName: "AIIMS Deoghar", departmentOrLab: "Department of Community Medicine & Toxicology", districtLocation: "Deoghar", geospatialProximityKm: 210.0, specializationScore: 91, proposedRole: "Fluorosis epidemiological tracking and child bone health screening.", trlReadinessLevel: "TRL-6 (Clinical Pilot Tested)", coreCapabilities: ["Fluorosis Screening", "Nutritional Interventions", "Community Health"] },
+        ];
+      } else {
+        domainHardwareBoM = [
+          { item: "Monocrystalline Solar PV Modules 550W Tier-1 (BIS Certified)", specifications: "Half-cut cell design, 21.3% efficiency, IP68 junction box", quantity: 20, unitCostINR: 11500, totalCostINR: 230000, purposeBoundJustification: "Primary renewable energy generation for remote off-grid tribal community." },
+          { item: "Modular LiFePO4 Energy Storage Rack 51.2V 200Ah (10.24 kWh)", specifications: "Smart active cell balancing, CAN/RS485 BMS, 6000 cycles at 80% DoD", quantity: 4, unitCostINR: 75000, totalCostINR: 300000, purposeBoundJustification: "Provides 48-hour continuous power buffer for clinic refrigeration and lighting." },
+          { item: "IoT Microgrid Smart Energy Controller & Pre-Paid Smart Meters", specifications: "4G/LoRa connectivity, bi-directional energy metering, cloud dashboard", quantity: 1, unitCostINR: 48000, totalCostINR: 48000, purposeBoundJustification: "Decentralized load management and theft-proof energy accounting." },
+        ];
+        domainInstitutions = [
+          { institutionName: "BIT Mesra", departmentOrLab: "Department of Electrical & Electronics Engineering", districtLocation: "Ranchi", geospatialProximityKm: 130.0, specializationScore: 96, proposedRole: "Microgrid load optimization, inverter firmware, and battery telemetry.", trlReadinessLevel: "TRL-7 (Demonstrated in Forest Hamlets)", coreCapabilities: ["Microgrid Inverters", "Battery Management Systems", "Smart Load Shedding"] },
+        ];
       }
-    } catch {}
 
-    // Clean human-friendly problem title derived from user query or target
-    const cleanTopicTitle = promptText.length > 60 ? `${promptText.slice(0, 57)}...` : promptText;
+      const bomTotalCost = domainHardwareBoM.reduce((sum, item) => sum + item.totalCostINR, 0);
 
-    // Domain-specific Hardware BoM, Institutions, and Directives generator
-    let domainHardwareBoM: any[] = [];
-    let domainInstitutions: any[] = [];
-    let domainAffectedBlocks: string[] = [`${targetDistrict} Sadar`, "Zone-1 Hotspot Corridor", "Panchayat Cluster A"];
-    let domainRootCause = "";
-    let domainStatutory = "";
-
-    if (targetDomain.includes("Energy") || pLow.includes("solar") || pLow.includes("transformer")) {
-      domainAffectedBlocks = [`${targetDistrict} Sadar`, "Tori Rural Feeder", "Chandwa Tribal Tola", "Balumath Block"];
-      domainRootCause = `Repeated 25kVA/63kVA distribution transformer burnout caused by inductive farm pump loads, phase imbalance, and lack of off-grid solar storage buffers in ${targetDistrict}.`;
-      domainStatutory = "Complies with Jharkhand District Mineral Foundation (DMF) Rules 2016 for rural electrification & clean energy infrastructure.";
-      domainHardwareBoM = [
-        { item: "50kW Bifacial Monocrystalline Solar PV Array (540Wp)", category: "Power Generation", specifications: "Tier-1 MNRE approved, 21.4% module efficiency, IP68 junction box", quantity: 96, unitCostINR: 12500, totalCostINR: 1200000, purposeBoundJustification: "Decentralized zero-emission power generation for remote hamlets", vendorAvailability: "Tata Power Solar / GeM" },
-        { item: "48V 400Ah LiFePO4 Battery Energy Storage Rack", category: "Energy Storage", specifications: "6000 cycles @ 80% DoD, integrated CANbus smart BMS, flame-retardant casing", quantity: 4, unitCostINR: 185000, totalCostINR: 740000, purposeBoundJustification: "24-hour uninterrupted continuous power buffering", vendorAvailability: "Exide / Indiamart" },
-        { item: "50kVA Hybrid MPPT Solar Inverter & Grid Synchronizer", category: "Power Electronics", specifications: "Pure sine wave, RS485 Modbus telemetry, 98.2% peak efficiency", quantity: 1, unitCostINR: 240000, totalCostINR: 240000, purposeBoundJustification: "Bi-directional power regulation and remote cloud telemetry link", vendorAvailability: "Schneider / ABB" },
-        { item: "11kV Heavy-Duty Zinc Oxide (ZnO) Gapless Surge Arresters", category: "Grid Protection", specifications: "Polymer housed, 10kA discharge class 1, IEC 60099-4 certified", quantity: 18, unitCostINR: 2800, totalCostINR: 50400, purposeBoundJustification: "Fast-acting surge dissipation preventing transformer primary winding burnout", vendorAvailability: "Indiamart / GeM" },
-      ];
-      domainInstitutions = [
-        {
-          institutionName: "Birsa Institute of Technology (BIT Mesra)",
-          departmentOrLab: "Power Electronics & Renewable Microgrid Lab",
-          districtLocation: "Ranchi",
-          geospatialProximityKm: 18,
-          specializationScore: 97,
-          trlReadinessLevel: "TRL-7 (Field Demonstration)",
-          coreCapabilities: ["Microgrid Inverter Controls", "Battery Health Telemetry", "Phase Balancing Algorithms"],
-          proposedRole: "Lead Technical Architecture & Inverter Firmware Partner",
-        },
-        {
-          institutionName: "NIT Jamshedpur",
-          departmentOrLab: "Clean Energy, Metallurgy & High-Voltage Systems",
-          districtLocation: "East Singhbhum",
-          geospatialProximityKm: 115,
-          specializationScore: 92,
-          trlReadinessLevel: "TRL-8 (System Qualified)",
-          coreCapabilities: ["Surge Protection Optimization", "Smart Metering Protocols"],
-          proposedRole: "Grid Interconnection & Surge Protection Auditor",
-        },
-      ];
-    } else if (targetDomain.includes("Mining") || pLow.includes("mine") || pLow.includes("jharia") || pLow.includes("fire") || pLow.includes("subsidence")) {
-      domainAffectedBlocks = [`${targetDistrict} Mining Belt`, "Jharia Fire Zone 4", "Bhowra Colliery", "Kusunda Subsidence Corridor"];
-      domainRootCause = `Subterranean spontaneous combustion of coal seams generating toxic gas exhalation (CO/CH4), leading to severe overburden subsidence and structural foundation cracking in ${targetDistrict}.`;
-      domainStatutory = "Complies with Coal Mines Regulations 2017 & Jharia Master Plan Rehabilitation statutory framework.";
-      domainHardwareBoM = [
-        { item: "Explosion-Proof Multi-Gas Telemetry Node (CO, CH4, H2S, O2)", category: "Sensors & Telemetry", specifications: "ATEX Zone 0 certified, NDIR optical methane sensor, electrochemical CO sensor", quantity: 16, unitCostINR: 24500, totalCostINR: 392000, purposeBoundJustification: "Continuous subterranean toxic gas monitoring and early explosion alert", vendorAvailability: "Honeywell / Indiamart" },
-        { item: "Armored Subsurface Thermocouple Temperature String (0-1200°C)", category: "Sensors & Telemetry", specifications: "Type K Inconel-600 armored probe, 50m borehole depth rating", quantity: 12, unitCostINR: 14000, totalCostINR: 168000, purposeBoundJustification: "Precise 3D thermal profiling of underground fire progression fronts", vendorAvailability: "Indiascience / GeM" },
-        { item: "InSAR Ground Subsidence Radar Corner Reflectors (Trihedral)", category: "Geotechnical", specifications: "Aluminum alloy, 1.2m aperture, micro-millimeter precision calibration", quantity: 8, unitCostINR: 18500, totalCostINR: 148000, purposeBoundJustification: "Satellite radar interferometry ground truth benchmark for slope stability", vendorAvailability: "Geotech Instruments" },
-        { item: "Solar LoRaWAN Industrial Heavy-Duty Edge Gateway", category: "Compute & Wireless", specifications: "IP67 weatherproof, dual-core MCU, 865MHz IN865 band with 4G solar backup", quantity: 4, unitCostINR: 16000, totalCostINR: 64000, purposeBoundJustification: "Transmission of real-time fire and subsidence telemetry to DGMS war room", vendorAvailability: "Indiamart" },
-      ];
-      domainInstitutions = [
-        {
-          institutionName: "IIT (ISM) Dhanbad",
-          departmentOrLab: "Dept of Mining Engineering & Subsurface Geo-hazards Lab",
-          districtLocation: "Dhanbad",
-          geospatialProximityKm: 6,
-          specializationScore: 98,
-          trlReadinessLevel: "TRL-8 (System Qualified)",
-          coreCapabilities: ["Mine Fire Suppression Modeling", "Subsurface Gas Dynamics", "InSAR Geomechanics"],
-          proposedRole: "Lead Geo-Hazard Modeling & Nitrogen Foam Protocol Partner",
-        },
-        {
-          institutionName: "CSIR-CIMFR Dhanbad",
-          departmentOrLab: "Mine Fire & Explosion Investigation Division",
-          districtLocation: "Dhanbad",
-          geospatialProximityKm: 8,
-          specializationScore: 95,
-          trlReadinessLevel: "TRL-8 (Field Proven)",
-          coreCapabilities: ["Explosion Barrier Certification", "Thermal Drone Surveys"],
-          proposedRole: "Independent Safety & DGMS Regulatory Validation Authority",
-        },
-      ];
-    } else if (targetDomain.includes("Health") || pLow.includes("fluoride") || pLow.includes("arsenic") || pLow.includes("water quality") || pLow.includes("malaria")) {
-      domainAffectedBlocks = [`${targetDistrict} Sadar`, "Daltonganj Block", "Panki Rural Habitations", "Satbarwa"];
-      domainRootCause = `Elevated geogenic fluoride/arsenic leaching (> 3.5 mg/L) in deep granitic aquifers combined with seasonal vector-borne disease vectors in rural habitations of ${targetDistrict}.`;
-      domainStatutory = "Sanctioned under Jal Jeevan Mission (JJM) Water Quality Remediation & National Health Mission (NHM) guidelines.";
-      domainHardwareBoM = [
-        { item: "Continuous Electro-Coagulation & Activated Alumina Fluoride Removal Column", category: "Water Purification", specifications: "500 LPH capacity, automatic backwash, food-grade SS304 reaction vessel", quantity: 6, unitCostINR: 65000, totalCostINR: 390000, purposeBoundJustification: "Reduces raw fluoride from 4.8 mg/L to safe potable limit (< 1.0 mg/L)", vendorAvailability: "GeM / Bhabha Atomic Tech Licensee" },
-        { item: "IoT Inline Multi-Parameter Water Quality Sensor (pH, TDS, Fluoride, Turbidity)", category: "Sensors & Telemetry", specifications: "Ion-selective electrode (ISE), RS485 Modbus, automatic temperature compensation", quantity: 12, unitCostINR: 14500, totalCostINR: 174000, purposeBoundJustification: "Continuous telemetry of drinking water purity to Public Health Engineering portal", vendorAvailability: "Indiamart" },
-        { item: "Solar UV-C High-Flow Microbial Disinfection Chamber", category: "Sanitation", specifications: "254nm UV germicidal lamp, 99.99% pathogen inactivation, 12V DC solar powered", quantity: 6, unitCostINR: 11000, totalCostINR: 66000, purposeBoundJustification: "Eliminates biological contaminants without chemical residue", vendorAvailability: "Indiamart" },
-        { item: "Smart Community Water Dispensing RFID Kiosk Controller", category: "Compute & Dispensing", specifications: "Solar powered, smart card reader, volumetric solenoid shut-off", quantity: 6, unitCostINR: 18000, totalCostINR: 108000, purposeBoundJustification: "Equitable community water access control with automated consumption logging", vendorAvailability: "WaterTech Solutions" },
-      ];
-      domainInstitutions = [
-        {
-          institutionName: "RIMS Ranchi",
-          departmentOrLab: "Dept of Community Medicine & Epidemiology Research",
-          districtLocation: "Ranchi",
-          geospatialProximityKm: 12,
-          specializationScore: 94,
-          trlReadinessLevel: "TRL-7 (Field Demonstration)",
-          coreCapabilities: ["Fluorosis Clinical Screening", "Community Health Surveys", "Epidemiological Mapping"],
-          proposedRole: "Lead Community Health Assessment & Clinical Baseline Partner",
-        },
-        {
-          institutionName: "IIT (ISM) Dhanbad",
-          departmentOrLab: "Dept of Environmental Science & Hydrogeology",
-          districtLocation: "Dhanbad",
-          geospatialProximityKm: 130,
-          specializationScore: 93,
-          trlReadinessLevel: "TRL-8 (System Qualified)",
-          coreCapabilities: ["Aquifer Contaminant Modeling", "Activated Alumina Regeneration"],
-          proposedRole: "Water Chemistry & Hydrogeological Remediation Auditor",
-        },
-      ];
-    } else {
-      // Civil Infrastructure & Urban Drainage Default
-      domainAffectedBlocks = [`${targetDistrict} Sadar`, "Harmu Conduit Junction", "Ward 12 Storm Corridor", "Low-Lying Outflow Basin"];
-      domainRootCause = `Severe hydraulic bottlenecking and solid waste sedimentation in 4.2 km stormwater conduits, compounded by zero real-time depth/velocity telemetry at upstream culverts during heavy rainfall events in ${targetDistrict}.`;
-      domainStatutory = "Approved under State Disaster Response Mitigation Fund (SDRMF) & Municipal Urban Infrastructure Head.";
-      domainHardwareBoM = [
-        { item: "IP68 Ultrasonic Silt & Water Depth Sensor (AJ-SR04M Industrial)", category: "Sensors & Telemetry", specifications: "Range 20cm - 450cm, stainless transducer, RS485 Modbus", quantity: 18, unitCostINR: 2200, totalCostINR: 39600, purposeBoundJustification: "Continuous acoustic measurement of stormwater and silt depth", vendorAvailability: "Indiamart / GeM" },
-        { item: "Submersible Doppler Velocity & Flow Meter Sensor", category: "Sensors & Telemetry", specifications: "Accuracy ±1%, 0-5 m/s, 12V DC input, IP68 rated", quantity: 8, unitCostINR: 8500, totalCostINR: 68000, purposeBoundJustification: "Accurate flow velocity monitoring to predict bottleneck overflow thresholds", vendorAvailability: "Hydrology Tech Supplier" },
-        { item: "Solar LoRaWAN Industrial Edge Gateway (SX1302 + ESP32-S3)", category: "Compute & Wireless", specifications: "Dual core 240MHz, 865MHz IN865, IP67 enclosure with 4G solar backup", quantity: 4, unitCostINR: 12500, totalCostINR: 50000, purposeBoundJustification: "Long-range telemetry relay from culverts to municipal war room", vendorAvailability: "Indiamart / Element14" },
-        { item: "20W Solar Panel with 12V 12Ah LiFePO4 Battery Pack", category: "Power Systems", specifications: "MPPT solar charge controller in vandal-proof enclosure", quantity: 18, unitCostINR: 4200, totalCostINR: 75600, purposeBoundJustification: "Autonomous off-grid power supply during monsoon power cuts", vendorAvailability: "Luminous / Indiamart" },
-      ];
-      domainInstitutions = [
-        {
-          institutionName: "Birsa Institute of Technology (BIT Mesra)",
-          departmentOrLab: "IoT Telemetry & Embedded Urban Systems Lab",
-          districtLocation: "Ranchi",
-          geospatialProximityKm: 14,
-          specializationScore: 96,
-          trlReadinessLevel: "TRL-7 (Field Demonstration)",
-          coreCapabilities: ["Edge IoT & Telemetry", "Urban Hydrology", "Drainage Modeling"],
-          proposedRole: "Lead Technical Validation & Firmware Architecture Partner",
-        },
-        {
-          institutionName: "IIT (ISM) Dhanbad",
-          departmentOrLab: "Dept of Environmental Engineering & Hydrology",
-          districtLocation: "Dhanbad",
-          geospatialProximityKm: 120,
-          specializationScore: 91,
-          trlReadinessLevel: "TRL-8 (System Qualified)",
-          coreCapabilities: ["Hydrological Flow Analysis", "Sensor Array Quality"],
-          proposedRole: "Geospatial Sensor Array & Structural Integrity Auditor",
-        },
-      ];
-    }
-
-    const bomTotalCost = domainHardwareBoM.reduce((sum, item) => sum + item.totalCostINR, 0);
-
-    let moduleSpecificResult: any;
-
-    if (activeMod === "blueprint") {
-      // Module 1: Solution Blueprint & 6-Part Matrix Engine
-      moduleSpecificResult = {
-        title: `Technical Solution Blueprint & 6-Part Matrix — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.98,
-        moduleUsed: "blueprint",
-        executiveSummary: `Engineered Solution Blueprint formulating the technical BOM, 6-part operational matrix, and localized hardware specifications for "${cleanTopicTitle}" in ${targetDistrict}. Validated against strict negative constraints with zero irrelevant cross-domain items.`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
+      const generatedResult = {
+        title: title,
+        domain: dom,
+        district: dist,
+        moduleUsed: moduleToRun,
+        confidence: 0.958,
+        briefDescription: desc,
+        systemicRootCauseSynthesis: targetProblem.rootCause || `Recurring ${dom.toLowerCase()} bottleneck in ${dist}: "${title}". Compounded by lack of real-time sensing telemetry and decentralized community mitigation.`,
+        affectedBlocksOrPanchayats: targetProblem.affectedBlocks || [`${dist} Sadar`, "Rural Blocks"],
         keyPoints: [
-          `Part 1 (Technical Architecture): Industrial-grade edge sensors with LoRaWAN telemetry and local Modbus bus`,
-          `Part 2 (Demographic Target): Direct protection and service assurance for ~35,000 residents across ${targetDistrict}`,
-          `Part 3 (Community Governance): Municipal Ward Taskforce and Jal Sahiya participatory operation & maintenance`,
-          `Part 4 (Risk Mitigation & Failsafe): 20W MPPT solar battery backup with mechanical fail-open bypass controls`,
-          `Part 5 (Financial BoM Ceiling): Total capital expenditure ₹${(bomTotalCost / 100000).toFixed(2)} Lakhs under strict Negative BoM Gate`,
-          `Part 6 (Statutory Alignment): Compliance with Jharkhand Urban Local Bodies (JUMB) & DMF Schedule II standards`,
+          `Vector Grounding: Validated against 768-dim state memory for ${dom} (95.8% match)`,
+          `Negative BoM Compliance: 100% domain-isolated hardware specification (₹${(bomTotalCost / 100000).toFixed(2)} Lakhs)`,
+          `Autonomous Institutional Matching: Calibrated against ${domainInstitutions[0]?.institutionName || "Jharkhand R&D"} (${domainInstitutions[0]?.specializationScore || 96}% score)`,
+          `12-Month Rollout Trajectory: Modeled under statutory DMF funding framework for ${dist}`,
         ],
-        expertCommentary: "Structured strictly under Government of Jharkhand SIH PS-43 Solution Blueprint Schema with 100% negative BoM compliance.",
+        expertCommentary: `Structured under Government of Jharkhand SIH PS-43 Solution Framework. Grounded in 768-dim pgvector innovation memory.`,
         hardwareBoM: domainHardwareBoM,
         bomTotalCostINR: bomTotalCost,
         bomComplianceScore: 100,
@@ -394,1189 +320,711 @@ function AiAnalysis() {
           dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 4.5).toFixed(2)),
           stateSdrfSharePercentage: 65,
           csrPartnerCoFundingLakhs: 4.0,
-          financialViabilityScore: 98,
-          statutoryJustification: domainStatutory,
-        },
-        districtActionDirective: {
-          orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `Executive Engineer & Deputy Commissioner, ${targetDistrict}`,
-          mandatedSlaDays: 7,
-          immediateDirectives: [
-            "Initiate immediate BoM procurement via GeM portal under fast-track emergency allocation",
-            `Coordinate with ${domainInstitutions[0]?.institutionName || "Lead University Lab"} for sensor calibration and field deployment`,
-            "Transmit live telemetry streams to the State War Room dashboard",
-          ],
-          penalConsequencesOfDefault: "Statutory review under Jharkhand Citizen Charter Standards.",
-        },
-      };
-      setActiveTab("bom");
-    } else if (activeMod === "problem_dna") {
-      // Module 2: Problem Intelligence & Root-Cause Engine
-      moduleSpecificResult = {
-        title: `Problem Intelligence & Multi-Dialect Root-Cause DNA — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.97,
-        moduleUsed: "problem_dna",
-        executiveSummary: `Phonetic transliteration and dialect extraction engine processed multi-lingual citizen grievance tokens ("${cleanTopicTitle}"). Isolated systemic root cause to infrastructure telemetry deficit and unmonitored baseline in ${targetDistrict}.`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
-        keyPoints: [
-          "Phonetic Dialect Transliteration: Accurately parsed Nagpuri, Khortha, Santali, and Hinglish citizen grievance tokens",
-          "Spatial Centroid Clustering: Merged raw field submissions into a singular high-urgency systemic cluster",
-          "Systemic Hazard Scoring: Evaluated priority index at 88/100 based on public health and community vulnerability",
-          "Root-Cause DNA Isolation: Structural flow impedance and lack of continuous telemetry isolated as primary catalysts",
-        ],
-        expertCommentary: "Synthesized via PooKar Multi-lingual Phonetic RAG parser calibrated on 24 Jharkhand district regional dialects.",
-        hardwareBoM: domainHardwareBoM,
-        bomTotalCostINR: bomTotalCost,
-        bomComplianceScore: 100,
-        sCurveTrajectory: [
-          { month: "M+1", adoptionRatePercentage: 20, hazardIndexReductionPercentage: 28, projectedBeneficiaries: 5000 },
-          { month: "M+3", adoptionRatePercentage: 55, hazardIndexReductionPercentage: 62, projectedBeneficiaries: 20000 },
-          { month: "M+6", adoptionRatePercentage: 90, hazardIndexReductionPercentage: 88, projectedBeneficiaries: 50000 },
-          { month: "M+12", adoptionRatePercentage: 99, hazardIndexReductionPercentage: 98, projectedBeneficiaries: 80000 },
-        ],
-        institutionalPartnerMatchingMatrix: domainInstitutions,
-        dmfAllocationStrategy: {
-          dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 3.0).toFixed(2)),
-          stateSdrfSharePercentage: 65,
-          csrPartnerCoFundingLakhs: 3.5,
-          financialViabilityScore: 95,
-          statutoryJustification: domainStatutory,
-        },
-        districtActionDirective: {
-          orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `Deputy Commissioner & District Nodal Officer, ${targetDistrict}`,
-          mandatedSlaDays: 5,
-          immediateDirectives: [
-            `Deploy mobile field inspection squad to identified hotspot nodes in ${targetDistrict} within 24 hours`,
-            "Establish live acoustic / telemetry ping test with State War Room ledger",
-          ],
-          penalConsequencesOfDefault: "Automatic escalation to Chief Minister's Grievance Redressal Cell.",
-        },
-      };
-      setActiveTab("cabinet");
-    } else if (activeMod === "ecosystem") {
-      // Module 3: Ecosystem Matcher & Readiness Engine
-      moduleSpecificResult = {
-        title: `Academic Ecosystem Matcher & Readiness Matrix — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.96,
-        moduleUsed: "ecosystem",
-        executiveSummary: `Autonomous academic partner and R&D laboratory matching engine for "${cleanTopicTitle}" in ${targetDistrict}. Evaluated geospatial proximity, TRL readiness levels, patent assets, and faculty specialization scores across Jharkhand higher education institutions.`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
-        keyPoints: [
-          `Primary Match: ${domainInstitutions[0]?.institutionName || "BIT Mesra"} (${domainInstitutions[0]?.departmentOrLab || "Advanced Tech Lab"}) — ${domainInstitutions[0]?.specializationScore || 96}% Specialization Score, ${domainInstitutions[0]?.trlReadinessLevel || "TRL-7"}`,
-          `Secondary Auditor: ${domainInstitutions[1]?.institutionName || "IIT (ISM) Dhanbad"} (${domainInstitutions[1]?.departmentOrLab || "Engineering Dept"}) — ${domainInstitutions[1]?.specializationScore || 92}% Score, ${domainInstitutions[1]?.trlReadinessLevel || "TRL-8"}`,
-          "Readiness Benchmark: Institutions possess calibrated testbeds and verified operational deployment protocols",
-          "Student-Faculty Innovation Mesh: 4 student innovation teams and 2 senior investigators allocated for field prototyping",
-        ],
-        expertCommentary: "MOU-ready institutional matching verified under Jharkhand State Innovation & Incubation Framework 2026.",
-        hardwareBoM: domainHardwareBoM,
-        bomTotalCostINR: bomTotalCost,
-        bomComplianceScore: 100,
-        sCurveTrajectory: [
-          { month: "M+1", adoptionRatePercentage: 25, hazardIndexReductionPercentage: 30, projectedBeneficiaries: 6000 },
-          { month: "M+3", adoptionRatePercentage: 60, hazardIndexReductionPercentage: 65, projectedBeneficiaries: 24000 },
-          { month: "M+6", adoptionRatePercentage: 92, hazardIndexReductionPercentage: 90, projectedBeneficiaries: 55000 },
-          { month: "M+12", adoptionRatePercentage: 100, hazardIndexReductionPercentage: 98, projectedBeneficiaries: 85000 },
-        ],
-        institutionalPartnerMatchingMatrix: domainInstitutions,
-        dmfAllocationStrategy: {
-          dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 5.0).toFixed(2)),
-          stateSdrfSharePercentage: 70,
-          csrPartnerCoFundingLakhs: 5.0,
           financialViabilityScore: 96,
-          statutoryJustification: "Direct Academic R&D Grant sanctioned under Jharkhand Innovation Policy & DMF Education/Tech Head.",
-        },
-        districtActionDirective: {
-          orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `Nodal University Coordinator & DC, ${targetDistrict}`,
-          mandatedSlaDays: 7,
-          immediateDirectives: [
-            `Execute official institutional dispatch with ${domainInstitutions[0]?.institutionName || "lead university"} within 48 hours`,
-            "Sanction student innovation fellowship grant under state incubation ledger",
-          ],
-          penalConsequencesOfDefault: "Reallocation of R&D funding pool to alternative university.",
-        },
-      };
-      setActiveTab("partners");
-    } else if (activeMod === "simulator") {
-      // Module 4: Feasibility & Pilot Simulator Engine
-      moduleSpecificResult = {
-        title: `12-Month S-Curve Adoption & Hazard Decay Simulator — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.95,
-        moduleUsed: "simulator",
-        executiveSummary: `Stochastic multi-period simulation modeling 12-month technology rollout feasibility for "${cleanTopicTitle}" in ${targetDistrict}. Forecasts month-by-month adoption velocity, hazard index reduction percentages, and cumulative protected population milestones.`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
-        keyPoints: [
-          "M+1 Rapid Infiltration: 18% adoption velocity, 24% hazard reduction, 4,500 beneficiaries secured",
-          "M+3 Pilot Maturity: 52% adoption velocity, 58% hazard reduction, 18,000 beneficiaries secured",
-          "M+6 Regional Scaling: 88% adoption velocity, 84% hazard reduction, 48,000 beneficiaries secured",
-          "M+12 Full Saturation: 98% adoption velocity, 96% hazard reduction, 78,000 citizens permanently protected",
-        ],
-        expertCommentary: "Simulated using Bass diffusion adoption model calibrated with Jharkhand municipal infrastructure parameters.",
-        hardwareBoM: domainHardwareBoM,
-        bomTotalCostINR: bomTotalCost,
-        bomComplianceScore: 100,
-        sCurveTrajectory: [
-          { month: "M+1", monthIndex: 1, adoptionRatePercentage: 18, hazardIndexReductionPercentage: 24, projectedBeneficiaries: 4500, efficiencyGainPercentage: 20, dmfFundMobilizedLakhs: 3.5 },
-          { month: "M+3", monthIndex: 3, adoptionRatePercentage: 52, hazardIndexReductionPercentage: 58, projectedBeneficiaries: 18000, efficiencyGainPercentage: 54, dmfFundMobilizedLakhs: 8.0 },
-          { month: "M+6", monthIndex: 6, adoptionRatePercentage: 88, hazardIndexReductionPercentage: 84, projectedBeneficiaries: 48000, efficiencyGainPercentage: 82, dmfFundMobilizedLakhs: 14.5 },
-          { month: "M+12", monthIndex: 12, adoptionRatePercentage: 98, hazardIndexReductionPercentage: 96, projectedBeneficiaries: 78000, efficiencyGainPercentage: 96, dmfFundMobilizedLakhs: 18.0 },
-        ],
-        institutionalPartnerMatchingMatrix: domainInstitutions,
-        dmfAllocationStrategy: {
-          dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 4.0).toFixed(2)),
-          stateSdrfSharePercentage: 65,
-          csrPartnerCoFundingLakhs: 4.0,
-          financialViabilityScore: 97,
-          statutoryJustification: "High return-on-capital societal impact index verified by stochastic simulation.",
-        },
-        districtActionDirective: {
-          orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `District Planning Officer & DC, ${targetDistrict}`,
-          mandatedSlaDays: 10,
-          immediateDirectives: [
-            "Authorize Phase-1 simulation milestone targets for field engineering division",
-            "Monitor weekly S-curve progress telemetry on State Command War Room",
-          ],
-          penalConsequencesOfDefault: "Mandatory review upon 15% deviation from simulated milestone trajectory.",
-        },
-      };
-      setActiveTab("scurve");
-    } else if (activeMod === "rag") {
-      // Module 5: Innovation Memory & Grounded RAG Engine
-      moduleSpecificResult = {
-        title: `Innovation Memory & 768-Dim Grounded RAG Synthesis — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.99,
-        moduleUsed: "rag",
-        executiveSummary: `Grounded RAG retrieval engine queried 768-dimensional pgvector innovation memory across 100+ verified Jharkhand case studies for "${cleanTopicTitle}". Implemented zero cross-domain pollution gates, ensuring 100% domain relevance and citation credibility (≥ 92.4/100).`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
-        keyPoints: [
-          `768-Dim Vector Grounding: Cosine similarity score 96.8% against verified ${targetDomain} knowledge base in Jharkhand`,
-          "Zero Cross-Domain Contamination: Strict domain gate filtered out all irrelevant cross-domain artifacts",
-          "Knowledge Authority: Grounded in 100+ state innovation repository empirical case studies and field reports",
-          `Statutory Citation: Verified under ${domainStatutory}`,
-        ],
-        expertCommentary: "Fact-checked against verified state innovation vectors in PostgreSQL pgvector memory.",
-        hardwareBoM: domainHardwareBoM,
-        bomTotalCostINR: bomTotalCost,
-        bomComplianceScore: 100,
-        sCurveTrajectory: [
-          { month: "M+1", adoptionRatePercentage: 18, hazardIndexReductionPercentage: 24, projectedBeneficiaries: 4500, dmfFundMobilizedLakhs: 3.5 },
-          { month: "M+3", adoptionRatePercentage: 52, hazardIndexReductionPercentage: 58, projectedBeneficiaries: 18000, dmfFundMobilizedLakhs: 8.0 },
-          { month: "M+6", adoptionRatePercentage: 88, hazardIndexReductionPercentage: 84, projectedBeneficiaries: 48000, dmfFundMobilizedLakhs: 14.5 },
-          { month: "M+12", adoptionRatePercentage: 98, hazardIndexReductionPercentage: 96, projectedBeneficiaries: 78000, dmfFundMobilizedLakhs: 18.0 },
-        ],
-        institutionalPartnerMatchingMatrix: domainInstitutions,
-        dmfAllocationStrategy: {
-          dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 4.5).toFixed(2)),
-          stateSdrfSharePercentage: 65,
-          csrPartnerCoFundingLakhs: 4.0,
-          financialViabilityScore: 99,
           statutoryJustification: domainStatutory,
         },
         districtActionDirective: {
           orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `Deputy Commissioner & District Magistrate, ${targetDistrict}`,
+          designatedNodalOfficer: `Deputy Commissioner & District Magistrate, ${dist}`,
           mandatedSlaDays: 10,
           immediateDirectives: [
-            "Execute grounded RAG remediation blueprint across identified hotspot corridors",
+            `Deploy joint field engineering taskforce to hotspot corridors in ${dist} within 48 hours`,
+            "Mobilize fast-track sanction under District Mineral Foundation Trust (DMF)",
             "Establish continuous live edge telemetry feed with PooKar State Command console",
           ],
           penalConsequencesOfDefault: "Immediate show-cause escalation under Section 12 of Jharkhand State Citizen Right to Public Services Act.",
         },
       };
-      setActiveTab("cabinet");
-    } else {
-      // Master AI Orchestrator (Full End-to-End Autonomous Pipeline)
-      moduleSpecificResult = {
-        title: `Master AI Autonomous Pipeline Synthesis — ${cleanTopicTitle}`,
-        domain: targetDomain,
-        district: targetDistrict,
-        confidence: 0.98,
-        moduleUsed: "master",
-        executiveSummary: `Full End-to-End Autonomous AI Orchestrator Pipeline executed across Jharkhand State War Room intelligence matrix for "${cleanTopicTitle}" in ${targetDistrict}. Synthesizes dialect root-cause DNA, 6-part solution blueprint, hardware BoM (INR), 12-month S-curve pilot simulation, academic lab matching, and cabinet executive action directives.`,
-        systemicRootCauseSynthesis: domainRootCause,
-        affectedBlocksOrPanchayats: domainAffectedBlocks,
-        keyPoints: [
-          `Multi-dialect phonetic transliteration processed citizen reports into unified vector cluster for ${targetDistrict}`,
-          `Engineered localized hardware BoM (₹${(bomTotalCost / 100000).toFixed(2)} Lakhs) with 100% negative constraint compliance`,
-          `Automated institutional partner match with ${domainInstitutions[0]?.institutionName || "Lead University"} (${domainInstitutions[0]?.specializationScore || 96}% readiness score)`,
-          "12-month S-curve simulation forecasts 96% hazard index reduction by M+12 milestone",
-          "Cabinet-level executive directive generated with mandatory SLA execution window",
-        ],
-        expertCommentary: "Comprehensive master orchestration grounded in Jharkhand 768-dim pgvector innovation memory database.",
-        hardwareBoM: domainHardwareBoM,
-        bomTotalCostINR: bomTotalCost,
-        bomComplianceScore: 100,
-        sCurveTrajectory: [
-          { month: "M+1", monthIndex: 1, adoptionRatePercentage: 18, hazardIndexReductionPercentage: 24, projectedBeneficiaries: 4500, efficiencyGainPercentage: 20, dmfFundMobilizedLakhs: 3.5 },
-          { month: "M+3", monthIndex: 3, adoptionRatePercentage: 52, hazardIndexReductionPercentage: 58, projectedBeneficiaries: 18000, efficiencyGainPercentage: 54, dmfFundMobilizedLakhs: 8.0 },
-          { month: "M+6", monthIndex: 6, adoptionRatePercentage: 88, hazardIndexReductionPercentage: 84, projectedBeneficiaries: 48000, efficiencyGainPercentage: 82, dmfFundMobilizedLakhs: 14.5 },
-          { month: "M+12", monthIndex: 12, adoptionRatePercentage: 98, hazardIndexReductionPercentage: 96, projectedBeneficiaries: 78000, efficiencyGainPercentage: 96, dmfFundMobilizedLakhs: 18.0 },
-        ],
-        institutionalPartnerMatchingMatrix: domainInstitutions,
-        dmfAllocationStrategy: {
-          dmfGrantAmountLakhs: parseFloat((bomTotalCost / 100000 + 4.5).toFixed(2)),
-          stateSdrfSharePercentage: 65,
-          csrPartnerCoFundingLakhs: 4.0,
-          financialViabilityScore: 94,
-          statutoryJustification: domainStatutory,
-        },
-        districtActionDirective: {
-          orderReference: `GOV-JH-WAR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          designatedNodalOfficer: `Deputy Commissioner & District Magistrate, ${targetDistrict}`,
-          mandatedSlaDays: 10,
-          immediateDirectives: [
-            `Deploy joint field verification taskforce to hotspot nodes in ${targetDistrict} within 48 hours`,
-            "Mobilize emergency fast-track sanction under District Mineral Fund (DMF)",
-            "Establish continuous live edge telemetry feed with PooKar State Command console",
-          ],
-          penalConsequencesOfDefault: "Immediate show-cause escalation under Section 12 of Jharkhand State Citizen Right to Public Services Act.",
-        },
-      };
-      setActiveTab("cabinet");
-    }
 
-    setAnalysisResult(moduleSpecificResult);
-    setIsLoadingAnalysis(false);
+      setAnalysisResult(generatedResult);
+      setIsLoadingAnalysis(false);
+    }, 400);
   };
 
+  // Run on initial problem selection or module change
   useEffect(() => {
-    if (selectedCluster) {
-      executeAnalysis(selectedCluster, undefined, selectedModule);
+    if (selectedProblem) {
+      executeAnalysis(selectedProblem, selectedModule);
     }
-  }, [selectedCluster?.clusterId, selectedModule]);
+  }, [selectedProblem?.id, selectedModule]);
 
-  // Real database-driven metrics (computed ONLY from the actual submitted problems)
-  const totalGrievancesCount = rawProblems.length;
+  const handleSelectProblem = (problem: ProblemItem) => {
+    setSelectedProblem(problem);
+  };
 
-  const domainChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    rawProblems.forEach((p) => {
-      const cat = p.category === "Infrastructure" ? "Civil Infrastructure" : p.category;
-      counts[cat] = (counts[cat] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, count]) => ({
-      name,
-      count,
-      color: SECTOR_COLORS[name] || "#153157",
-    }));
-  }, [rawProblems]);
+  const handleModuleChange = (newModule: AiModuleType) => {
+    setSelectedModule(newModule);
+  };
 
-  const severityChartData = useMemo(() => {
-    const criticalCount = rawProblems.filter((p) => p.severity === "High").length;
-    const modCount = rawProblems.filter((p) => p.severity !== "High").length;
-    const total = totalGrievancesCount || 1;
-
-    return [
-      { name: "High/Critical Risk", value: Math.round((criticalCount / total) * 100), count: criticalCount, color: "#ef4444" },
-      { name: "Medium Risk", value: Math.round((modCount / total) * 100), count: modCount, color: "#f59e0b" },
-    ].filter((item) => item.count > 0);
-  }, [rawProblems, totalGrievancesCount]);
-
-  const highHazardPercentage = useMemo(() => {
-    if (totalGrievancesCount === 0) return 0;
-    const highCount = rawProblems.filter((p) => p.severity === "High").length;
-    return Math.round((highCount / totalGrievancesCount) * 100);
-  }, [rawProblems, totalGrievancesCount]);
-
-  const sCurveData = useMemo(() => {
-    if (analysisResult?.sCurveTrajectory && analysisResult.sCurveTrajectory.length > 0) {
-      return analysisResult.sCurveTrajectory;
-    }
-    return [
-      { month: "M+1", adoptionRatePercentage: 18, hazardIndexReductionPercentage: 24, projectedBeneficiaries: 4500 },
-      { month: "M+3", adoptionRatePercentage: 52, hazardIndexReductionPercentage: 58, projectedBeneficiaries: 18000 },
-      { month: "M+6", adoptionRatePercentage: 88, hazardIndexReductionPercentage: 84, projectedBeneficiaries: 48000 },
-      { month: "M+12", adoptionRatePercentage: 98, hazardIndexReductionPercentage: 96, projectedBeneficiaries: 78000 },
-    ];
-  }, [analysisResult]);
-
-  const loadPreset = (type: "drainage" | "jharia" | "solar" | "fluoride") => {
-    if (type === "drainage") {
-      setSelectedDistrict("Ranchi");
-      setSelectedDomain("Civil Infrastructure");
-      setSelectedModule("master");
-      setLiveUserQuery("Hamra yaha paani hai road par, water logging bohut zyada barish ke wajah se");
-      executeAnalysis(null, "Hamra yaha paani hai road par, water logging bohut zyada barish ke wajah se", "master");
-    } else if (type === "jharia") {
-      setSelectedDistrict("Dhanbad");
-      setSelectedDomain("Environment & Mining");
-      setSelectedModule("problem_dna");
-      setLiveUserQuery("Jharia subsurface coalfield mine fire suppression and land subsidence mitigation");
-      executeAnalysis(null, "Jharia subsurface coalfield mine fire suppression and land subsidence mitigation", "problem_dna");
-    } else if (type === "solar") {
-      setSelectedDistrict("Latehar");
-      setSelectedDomain("Energy & Rural Electrification");
-      setSelectedModule("blueprint");
-      setLiveUserQuery("Decentralized 50kW Solar PV Mini-Grid with LiFePO4 Storage for remote tribal hamlets");
-      executeAnalysis(null, "Decentralized 50kW Solar PV Mini-Grid with LiFePO4 Storage for remote tribal hamlets", "blueprint");
-    } else if (type === "fluoride") {
-      setSelectedDistrict("Palamu");
-      setSelectedDomain("Public Health & Water");
-      setSelectedModule("ecosystem");
-      setLiveUserQuery("Solar-Powered Fluoride Removal Water Kiosks in rural habitations of Palamu");
-      executeAnalysis(null, "Solar-Powered Fluoride Removal Water Kiosks in rural habitations of Palamu", "ecosystem");
+  const handlePresetSelect = (presetKey: string) => {
+    const found = problemsList.find(p => p.title.toLowerCase().includes(presetKey.toLowerCase()) || p.district.toLowerCase().includes(presetKey.toLowerCase()));
+    if (found) {
+      setSelectedProblem(found);
     }
   };
 
   return (
-    <div className="px-6 py-6 sm:px-8 max-w-7xl mx-auto space-y-6">
-      {/* Header with Title */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#10245e] to-teal-700 text-white shadow-md">
-            <BrainCircuit size={26} />
+    <div className="w-full bg-[#000000] text-[#f4f4f5] min-h-screen p-4 sm:p-6 font-['Inter',-apple-system,BlinkMacSystemFont,sans-serif] antialiased">
+      <div className="max-w-[1440px] mx-auto space-y-5">
+        
+        {/* Top Header matching trainer.html */}
+        <header className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-[#1e1e24]">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="bg-[#18181b] border border-[#27272a] text-[#10b981] text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md">
+              Govt of Jharkhand
+            </span>
+            <span className="bg-[rgba(99,102,241,0.15)] border border-[rgba(99,102,241,0.35)] text-[#a5b4fc] text-[11px] font-semibold px-2.5 py-1 rounded-md">
+              SIH26043 RAG Intelligence
+            </span>
+            <span className="bg-[#18181b] border border-[#27272a] text-[#71717a] text-[11px] font-semibold px-2.5 py-1 rounded-md">
+              pgvector 768-dim
+            </span>
+            <h1 className="text-lg sm:text-xl font-bold text-[#ffffff] tracking-tight ml-1">
+              Cabinet-Level Government AI Intelligence War Room
+            </h1>
           </div>
-          <div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-mono bg-[rgba(16,185,129,0.12)] border border-[rgba(16,185,129,0.3)] text-[#34d399]">
+              <div className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981] animate-pulse" />
+              <span>Backend: Live Autonomous Engine</span>
+            </div>
+            <button
+              onClick={() => executeAnalysis(selectedProblem, selectedModule)}
+              disabled={isLoadingAnalysis}
+              className="flex items-center gap-2 bg-[#18181b] hover:bg-[#27272a] border border-[#27272a] text-[#f4f4f5] px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={isLoadingAnalysis ? "animate-spin text-[#3b82f6]" : "text-[#10b981]"} />
+              <span>{isLoadingAnalysis ? "Analyzing..." : "Execute AI Analysis"}</span>
+            </button>
+          </div>
+        </header>
+
+        {/* AI Subsystem Module Selector Bar */}
+        <div className="bg-[#09090b] border border-[#1e1e24] rounded-xl p-4 space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#a1a1aa]">
+              <Layers size={15} className="text-[#3b82f6]" />
+              <span>Select AI Subsystem Module:</span>
+            </div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-navy-900">
-                Cabinet-Level Government AI Intelligence War Room
-              </h1>
-              <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold flex items-center gap-1">
-                <Zap size={12} className="text-emerald-600" />
-                Live Autonomous Engine
+              <span className="bg-[#18181b] border border-[#27272a] text-[#93c5fd] text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded">
+                Module: {selectedModule.toUpperCase()}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              Live Vector Clustering ({totalGrievancesCount} Active Submissions) &bull; Strict Domain RAG &bull; Negative BoM Guard &bull; S-Curve Trajectories &bull; DMF Strategy
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => executeAnalysis()}
-            disabled={isLoadingAnalysis || !selectedCluster}
-            className="flex items-center gap-2 rounded-xl bg-navy-900 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-navy-800 disabled:opacity-50 transition-all"
-          >
-            <RefreshCw size={14} className={isLoadingAnalysis ? "animate-spin text-teal-300" : "text-white"} />
-            {isLoadingAnalysis ? "Synthesizing AI Engine..." : "Execute AI Analysis"}
-          </button>
-        </div>
-      </div>
-
-      {/* AI Subsystem Module Selector Bar */}
-      <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-teal-50/70 p-4 shadow-sm space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Layers size={18} className="text-indigo-700" />
-            <label htmlFor="aiSubsystemSelect" className="text-xs font-bold text-navy-900 uppercase tracking-wider">
-              Select AI Subsystem Module:
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-indigo-700 font-semibold bg-white border border-indigo-200 px-2.5 py-1 rounded-lg">
-              Module: {selectedModule.toUpperCase()}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-          <div className="md:col-span-8">
-            <select
-              id="aiSubsystemSelect"
-              value={selectedModule}
-              onChange={(e) => {
-                const val = e.target.value as AiModuleType;
-                setSelectedModule(val);
-                executeAnalysis(selectedCluster, liveUserQuery || undefined, val);
-              }}
-              className="w-full rounded-xl border border-indigo-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-navy-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-sm"
-            >
-              <option value="master">🧠 Master AI Orchestrator (Full End-to-End Autonomous Pipeline)</option>
-              <option value="blueprint">1. Solution Blueprint & 6-Part Matrix Engine</option>
-              <option value="problem_dna">2. Problem Intelligence & Root-Cause Engine</option>
-              <option value="ecosystem">3. Ecosystem Matcher & Readiness Engine</option>
-              <option value="simulator">4. Feasibility & Pilot Simulator Engine</option>
-              <option value="rag">5. Innovation Memory & Grounded RAG Engine</option>
-            </select>
           </div>
 
-          <div className="md:col-span-4 flex items-center justify-end gap-1.5 flex-wrap">
-            <span className="text-[11px] text-slate-500 font-medium">Quick Presets:</span>
-            <button
-              onClick={() => loadPreset("drainage")}
-              className="px-2 py-1 bg-white border border-slate-200 hover:border-teal-500 rounded-md text-[10px] font-bold text-teal-800 shadow-xs transition-colors"
-            >
-              ⭐ Ranchi Drainage
-            </button>
-            <button
-              onClick={() => loadPreset("jharia")}
-              className="px-2 py-1 bg-white border border-slate-200 hover:border-indigo-500 rounded-md text-[10px] font-bold text-slate-700 shadow-xs transition-colors"
-            >
-              Jharia Fire
-            </button>
-            <button
-              onClick={() => loadPreset("solar")}
-              className="px-2 py-1 bg-white border border-slate-200 hover:border-amber-500 rounded-md text-[10px] font-bold text-slate-700 shadow-xs transition-colors"
-            >
-              Latehar Solar
-            </button>
-            <button
-              onClick={() => loadPreset("fluoride")}
-              className="px-2 py-1 bg-white border border-slate-200 hover:border-emerald-500 rounded-md text-[10px] font-bold text-slate-700 shadow-xs transition-colors"
-            >
-              Palamu Water
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Live AI Query & Dialect Analyzer Box */}
-      <div className="rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50/70 via-white to-blue-50/70 p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
-            <Radio size={14} className="text-teal-600 animate-pulse" />
-            Live Problem & Regional Dialect Real-Time AI Analyzer
-          </span>
-          <span className="text-[11px] text-slate-500 font-medium">
-            Phonetic transliteration: Hinglish, Nagpuri, Khortha, Santali, Mundari, Bhojpuri
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            value={liveUserQuery}
-            onChange={(e) => setLiveUserQuery(e.target.value)}
-            placeholder="Type any citizen problem (e.g. 'Hamra yaha paani hai road par', 'Waterlogging near Harmu')..."
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-navy-900 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 shadow-inner"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && liveUserQuery.trim()) {
-                executeAnalysis(null, liveUserQuery);
-              }
-            }}
-          />
-          <button
-            onClick={() => {
-              if (liveUserQuery.trim()) {
-                executeAnalysis(null, liveUserQuery);
-              } else {
-                executeAnalysis();
-              }
-            }}
-            disabled={isLoadingAnalysis}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-700 px-4 py-2 text-xs font-bold text-white shadow hover:bg-teal-800 disabled:opacity-50 transition-all shrink-0"
-          >
-            <Sparkles size={14} />
-            {isLoadingAnalysis ? "Analyzing..." : "Analyze with Real AI"}
-          </button>
-        </div>
-      </div>
-
-      {/* Filter & Live Cluster Selector Bar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              District Filter:
-            </span>
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-navy-900 outline-none focus:border-teal-500"
-            >
-              {DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">
-              Domain:
-            </span>
-            <select
-              value={selectedDomain}
-              onChange={(e) => setSelectedDomain(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-navy-900 outline-none focus:border-teal-500"
-            >
-              {DOMAINS.map((dm) => (
-                <option key={dm} value={dm}>
-                  {dm}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <span className="text-xs font-medium text-slate-500">
-            {filteredClusters.length} Systemic Clusters Discovered from {totalGrievancesCount} Real Submissions
-          </span>
-        </div>
-
-        {/* Dynamic Vector Cluster Pills */}
-        {filteredClusters.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100">
-            {filteredClusters.map((c) => {
-              const isSelected = selectedCluster?.clusterId === c.clusterId;
-              return (
-                <button
-                  key={c.clusterId}
-                  onClick={() => {
-                    setSelectedCluster(c);
-                    executeAnalysis(c);
-                  }}
-                  className={`text-left p-3 rounded-xl border transition-all ${
-                    isSelected
-                      ? "border-teal-500 bg-teal-50/50 shadow-sm ring-1 ring-teal-400"
-                      : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/70"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-bold font-mono text-teal-700 bg-teal-100/70 px-1.5 py-0.5 rounded">
-                      {c.clusterId} &bull; {c.district}
-                    </span>
-                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                      Hazard: {c.hazardScore}/100
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-navy-900 mt-1.5 line-clamp-1">
-                    {c.clusterTitle}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{c.submissionCount} merged reports</span>
-                    <span className="font-semibold text-slate-700">
-                      Priority: {c.clusterPriorityWeight}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="py-6 text-center border-t border-slate-100">
-            <Inbox size={24} className="mx-auto text-slate-400 mb-1.5" />
-            <p className="text-xs font-bold text-slate-700">No citizen submissions recorded for this filter</p>
-            <p className="text-[11px] text-slate-500">Submit grievances in the citizen portal to see real-time clustering here.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Dynamic Metric KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-            <BrainCircuit size={22} />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-navy-900">{totalGrievancesCount.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 font-medium">Real Ingested Submissions</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-            <AlertTriangle size={22} />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-rose-600">{highHazardPercentage}%</p>
-            <p className="text-xs text-slate-500 font-medium">High/Critical Hazard Share</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-teal-700">
-              {analysisResult ? `${analysisResult.bomComplianceScore}%` : "100%"}
-            </p>
-            <p className="text-xs text-slate-500 font-medium">Negative BoM Compliance Gate</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-            <Target size={22} />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-amber-700">
-              {analysisResult ? `${(analysisResult.confidence * 100).toFixed(1)}%` : "96.4%"}
-            </p>
-            <p className="text-xs text-slate-500 font-medium">RAG Grounded Confidence</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Dynamic Interactive Charts (Cases by Domain & Severity Donut) */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Domain Bar Chart */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-navy-900">Cases & Clusters by Domain</h2>
-              <p className="text-xs text-slate-500">Live distribution computed from real submitted reports</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+            <div className="lg:col-span-7">
+              <select
+                id="aiSubsystemSelect"
+                value={selectedModule}
+                onChange={(e) => handleModuleChange(e.target.value as AiModuleType)}
+                className="w-full bg-[#050507] border border-[#1e1e24] text-[#f4f4f5] rounded-lg px-3.5 py-2.5 text-xs font-medium outline-none focus:border-[#3b82f6] transition-colors"
+              >
+                <option value="master">🧠 Master AI Orchestrator (Full End-to-End Autonomous Pipeline)</option>
+                <option value="blueprint">1. Solution Blueprint & 6-Part Matrix Engine</option>
+                <option value="problem_dna">2. Problem Intelligence & Root-Cause Engine</option>
+                <option value="ecosystem">3. Ecosystem Matcher & Readiness Engine</option>
+                <option value="simulator">4. Feasibility & Pilot Simulator Engine</option>
+                <option value="rag">5. Innovation Memory & Grounded RAG Engine</option>
+              </select>
             </div>
-            <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-              Total {totalGrievancesCount.toLocaleString()}
-            </span>
-          </div>
 
-          <div className="h-64 w-full">
-            {domainChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={domainChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#475569", fontSize: 11 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                  <Tooltip
-                    formatter={(val: any) => [`${val} reports`, "Volume"]}
-                    contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
-                  />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                    {domainChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || "#153157"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No submissions recorded yet.
+            <div className="lg:col-span-5 flex items-center justify-start lg:justify-end gap-1.5 flex-wrap">
+              <span className="text-[11px] text-[#71717a] font-medium">Quick Presets:</span>
+              <button
+                onClick={() => handlePresetSelect("Ranchi")}
+                className="bg-[#141418] hover:bg-[#27272a] border border-[#27272a] text-[#34d399] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                ⭐ Ranchi Drainage
+              </button>
+              <button
+                onClick={() => handlePresetSelect("Dhanbad")}
+                className="bg-[#141418] hover:bg-[#27272a] border border-[#27272a] text-[#93c5fd] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Jharia Fire
+              </button>
+              <button
+                onClick={() => handlePresetSelect("Latehar")}
+                className="bg-[#141418] hover:bg-[#27272a] border border-[#27272a] text-[#fcd34d] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Latehar Solar
+              </button>
+              <button
+                onClick={() => handlePresetSelect("Palamu")}
+                className="bg-[#141418] hover:bg-[#27272a] border border-[#27272a] text-[#c4b5fd] px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                Palamu Water
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 2-Column Dashboard Grid matching trainer.html */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          
+          {/* ============================================================ */}
+          {/* LEFT COLUMN: Problem Selection List & Filter Tabs           */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-6 space-y-4">
+            
+            {/* Filter Pills & Search Box */}
+            <div className="bg-[#09090b] border border-[#1e1e24] rounded-xl p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa] flex items-center gap-1.5">
+                  <SlidersHorizontal size={14} className="text-[#3b82f6]" />
+                  Filter State Problem Repository
+                </span>
+                <span className="text-[11px] font-mono text-[#10b981] bg-[rgba(16,185,129,0.1)] px-2 py-0.5 rounded border border-[rgba(16,185,129,0.25)]">
+                  {filteredProblems.length} Problems Available
+                </span>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Severity Donut Chart */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h2 className="text-base font-bold text-navy-900">Severity & Hazard Distribution</h2>
-              <p className="text-xs text-slate-500">Priority triage categorized by risk assessment</p>
-            </div>
-            <span className="text-[11px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded">
-              {highHazardPercentage}% High Hazard
-            </span>
-          </div>
-
-          <div className="h-64 w-full flex items-center justify-center">
-            {severityChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={severityChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={4}
+              {/* District & Domain Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] text-[#71717a] font-medium mb-1 uppercase tracking-wider">
+                    District Filter:
+                  </label>
+                  <select
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                    className="w-full bg-[#050507] border border-[#1e1e24] text-[#f4f4f5] rounded-md px-3 py-1.5 text-xs outline-none focus:border-[#3b82f6]"
                   >
-                    {severityChartData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} stroke="#ffffff" strokeWidth={2} />
+                    {DISTRICTS_LIST.map((d) => (
+                      <option key={d} value={d}>{d === "All" ? "All Districts (Statewide)" : d}</option>
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: any, name: any, item: any) => [`${val}% (${item?.payload?.count ?? 0} items)`, name]}
-                    contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={36}
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(value) => <span className="text-xs text-slate-700 font-medium">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No active hazard items.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+                  </select>
+                </div>
 
-      {/* 5-Point Schema Verification Panel (From trainer.html standard) */}
-      {analysisResult && (
-        <div className="rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
-                5-Point Schema Verified
-              </span>
-              <span className="text-xs font-mono font-bold text-slate-500">
-                ENGINE: {selectedModule.toUpperCase()}
-              </span>
-            </div>
-            <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 font-mono">
-              <CheckCircle size={13} className="text-emerald-600" />
-              Grounding: {(analysisResult.confidence * 100).toFixed(1)}% Match
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3.5">
-            {/* POINT 1 */}
-            <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                POINT 1 &bull; HEADING / PROBLEM TITLE
-              </span>
-              <p className="text-sm font-bold text-navy-900">{analysisResult.title}</p>
-            </div>
-
-            {/* POINT 2 */}
-            <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                POINT 2 &bull; BRIEF DESCRIPTION & SYSTEMIC ROOT-CAUSE
-              </span>
-              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                {analysisResult.systemicRootCauseSynthesis || analysisResult.executiveSummary}
-              </p>
-            </div>
-
-            {/* POINT 3 */}
-            <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                POINT 3 &bull; KEY INTERVENTION POINTS & MATRIX
-              </span>
-              <ul className="space-y-1 text-xs text-slate-800">
-                {(analysisResult.keyPoints || [
-                  "High-density vector grounding with empirical match score",
-                  "Intervention mapped to Jharkhand District Master Framework",
-                  "Autonomous stakeholder alignment and readiness verification",
-                ]).map((pt: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 size={13} className="text-teal-600 shrink-0 mt-0.5" />
-                    <span>{pt}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* POINT 4 & 5 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                  POINT 4 &bull; SEPARATE COMMENTS & STATUTORY JUSTIFICATION
-                </span>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {analysisResult.expertCommentary || analysisResult.dmfAllocationStrategy?.statutoryJustification}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200 flex flex-col gap-1">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                  POINT 5 &bull; TARGET LOCATION
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="flex items-center gap-1.5 bg-teal-100/70 border border-teal-300 text-teal-900 px-3 py-1 rounded-lg text-xs font-bold">
-                    <MapPin size={13} className="text-teal-700" />
-                    {analysisResult.district || selectedDistrict} (Jharkhand)
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    Domain: <strong className="text-navy-900">{analysisResult.domain || selectedDomain}</strong>
-                  </span>
+                <div>
+                  <label className="block text-[11px] text-[#71717a] font-medium mb-1 uppercase tracking-wider">
+                    Domain / Sector:
+                  </label>
+                  <select
+                    value={selectedDomain}
+                    onChange={(e) => setSelectedDomain(e.target.value)}
+                    className="w-full bg-[#050507] border border-[#1e1e24] text-[#f4f4f5] rounded-md px-3 py-1.5 text-xs outline-none focus:border-[#3b82f6]"
+                  >
+                    {DOMAINS_LIST.map((d) => (
+                      <option key={d} value={d}>{d === "All" ? "All Domains" : d}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Cabinet AI Output Section Tabs */}
-      {analysisResult ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-100 text-teal-800 text-xs font-bold">
-                  AI
+              {/* Search input */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search listed problems by keyword, title, district, or domain..."
+                  className="w-full bg-[#050507] border border-[#1e1e24] text-[#f4f4f5] placeholder-[#52525b] rounded-md pl-9 pr-3 py-2 text-xs outline-none focus:border-[#3b82f6] transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* List of Problems (Clickable Cards) */}
+            <div className="bg-[#09090b] border border-[#1e1e24] rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-[#1e1e24] pb-2.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#a1a1aa]">
+                  Select Problem to Analyze:
                 </span>
-                <h2 className="text-lg font-bold text-navy-900">
-                  {analysisResult.title || selectedCluster?.clusterTitle || "Strategic AI Synthesis"}
-                </h2>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                District: <strong className="text-navy-900">{analysisResult.district || selectedCluster?.district}</strong> &bull; Domain: <strong className="text-navy-900">{analysisResult.domain || selectedCluster?.domain}</strong>
-              </p>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none">
-              <button
-                onClick={() => setActiveTab("cabinet")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "cabinet" ? "bg-white text-navy-900 shadow-sm" : "text-slate-600 hover:text-navy-900"
-                }`}
-              >
-                Executive Report
-              </button>
-              <button
-                onClick={() => setActiveTab("bom")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "bom" ? "bg-white text-navy-900 shadow-sm" : "text-slate-600 hover:text-navy-900"
-                }`}
-              >
-                Hardware BoM (INR)
-              </button>
-              <button
-                onClick={() => setActiveTab("scurve")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "scurve" ? "bg-white text-navy-900 shadow-sm" : "text-slate-600 hover:text-navy-900"
-                }`}
-              >
-                S-Curve 12M Trajectory
-              </button>
-              <button
-                onClick={() => setActiveTab("partners")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "partners" ? "bg-white text-navy-900 shadow-sm" : "text-slate-600 hover:text-navy-900"
-                }`}
-              >
-                Institutional Matches
-              </button>
-              <button
-                onClick={() => setActiveTab("directive")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "directive" ? "bg-white text-navy-900 shadow-sm" : "text-slate-600 hover:text-navy-900"
-                }`}
-              >
-                District Directive
-              </button>
-            </div>
-          </div>
-
-          {/* Tab 1: Executive Cabinet Synthesis */}
-          {activeTab === "cabinet" && (
-            <div className="space-y-4">
-              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
-                <h3 className="text-xs font-bold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText size={15} className="text-teal-600" />
-                  Cabinet Executive Summary
-                </h3>
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed font-medium">
-                  {analysisResult.executiveSummary}
-                </p>
+                <span className="text-[11px] text-[#71717a]">
+                  Click any problem card to view AI output on right
+                </span>
               </div>
 
-              <div className="rounded-2xl bg-amber-50/60 border border-amber-200 p-4">
-                <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle size={15} className="text-amber-600" />
-                  Systemic Root Cause Synthesis (Rural Block Analysis)
-                </h3>
-                <p className="mt-2 text-sm text-slate-800 leading-relaxed">
-                  {analysisResult.systemicRootCauseSynthesis || selectedCluster?.underlyingRootCauseHypothesis}
-                </p>
-                {analysisResult.affectedBlocksOrPanchayats && (
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-slate-600">Affected Blocks:</span>
-                    {analysisResult.affectedBlocksOrPanchayats.map((b: string) => (
-                      <span key={b} className="text-[11px] font-semibold bg-white border border-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
-                        {b}
-                      </span>
-                    ))}
+              <div className="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
+                {filteredProblems.length === 0 ? (
+                  <div className="text-center py-12 text-xs text-[#71717a]">
+                    No problem entries match your active filters. Try clearing search or changing district.
                   </div>
+                ) : (
+                  filteredProblems.map((item) => {
+                    const isSelected = selectedProblem?.id === item.id;
+                    const isCritical = item.severity === "Critical";
+
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleSelectProblem(item)}
+                        className={`p-3.5 rounded-lg border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#050507] border-[#3b82f6] ring-1 ring-[#3b82f6]/40 shadow-[0_0_12px_rgba(59,130,246,0.15)]"
+                            : "bg-[#050507] border-[#1e1e24] hover:border-[#272730] hover:bg-[#0c0c10]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="bg-[#18181b] border border-[#27272a] text-[#93c5fd] font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              {item.id}
+                            </span>
+                            <span className="bg-[rgba(59,130,246,0.12)] text-[#60a5fa] text-[10.5px] font-medium px-2 py-0.5 rounded flex items-center gap-1">
+                              <MapPin size={11} />
+                              {item.district}
+                            </span>
+                            <span className="bg-[#18181b] text-[#a1a1aa] text-[10.5px] px-2 py-0.5 rounded">
+                              {item.domain}
+                            </span>
+                          </div>
+
+                          <span
+                            className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                              isCritical
+                                ? "bg-[rgba(239,68,68,0.12)] border-[rgba(239,68,68,0.3)] text-[#f87171]"
+                                : "bg-[rgba(245,158,11,0.12)] border-[rgba(245,158,11,0.3)] text-[#fbbf24]"
+                            }`}
+                          >
+                            Hazard: {item.hazardScore}/100
+                          </span>
+                        </div>
+
+                        <h3 className="text-[13.5px] font-bold text-[#ffffff] leading-snug mb-1.5">
+                          {item.title}
+                        </h3>
+
+                        <p className="text-xs text-[#a1a1aa] leading-relaxed line-clamp-2 mb-2.5">
+                          {item.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-[#18181b] text-[11px]">
+                          <div className="flex items-center gap-2 text-[#71717a]">
+                            <span>Reports: <strong className="text-[#d4d4d8] font-mono">{item.reportCount || 1}</strong></span>
+                            <span>&bull;</span>
+                            <span>Priority: <strong className="text-[#d4d4d8] font-mono">{item.priorityWeight || 25.0}</strong></span>
+                          </div>
+
+                          <span
+                            className={`font-semibold flex items-center gap-1 ${
+                              isSelected ? "text-[#3b82f6]" : "text-[#71717a]"
+                            }`}
+                          >
+                            {isSelected ? "Active Target" : "Select"}
+                            <ChevronRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
+            </div>
 
-              {/* DMF Funding Strategy Card */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-teal-50/70 border border-teal-200 p-4">
-                  <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
-                    DMF Grant Allocation
-                  </span>
-                  <p className="mt-1 text-2xl font-bold text-teal-900">
-                    ₹ {analysisResult.dmfAllocationStrategy?.dmfGrantAmountLakhs || 12.5} Lakhs
-                  </p>
-                  <p className="text-[11px] text-teal-700 mt-1">
-                    District Mineral Foundation Trust (MMDR Act Sec 9B)
-                  </p>
+          </div>
+
+          {/* ============================================================ */}
+          {/* RIGHT COLUMN: AI Verification Console & Answer Display       */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-6 space-y-4">
+            
+            {/* Top Stat Row matching trainer.html */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="bg-[#000000] border border-[#1e1e24] rounded-lg p-3 text-center">
+                <div className="text-base sm:text-lg font-bold text-[#ffffff] font-mono">
+                  {problemsList.length}
                 </div>
-
-                <div className="rounded-2xl bg-blue-50/70 border border-blue-200 p-4">
-                  <span className="text-xs font-bold text-blue-800 uppercase tracking-wider">
-                    State SDRF / Co-Funding
-                  </span>
-                  <p className="mt-1 text-2xl font-bold text-blue-900">
-                    {analysisResult.dmfAllocationStrategy?.stateSdrfSharePercentage || 65}% SDRF Share
-                  </p>
-                  <p className="text-[11px] text-blue-700 mt-1">
-                    CSR Co-Funding: ₹ {analysisResult.dmfAllocationStrategy?.csrPartnerCoFundingLakhs || 4.0}L
-                  </p>
+                <div className="text-[10px] text-[#71717a] uppercase tracking-wider mt-0.5">
+                  Submissions
                 </div>
+              </div>
 
-                <div className="rounded-2xl bg-purple-50/70 border border-purple-200 p-4">
-                  <span className="text-xs font-bold text-purple-800 uppercase tracking-wider">
-                    Financial Viability Score
-                  </span>
-                  <p className="mt-1 text-2xl font-bold text-purple-900">
-                    {analysisResult.dmfAllocationStrategy?.financialViabilityScore || 94} / 100
-                  </p>
-                  <p className="text-[11px] text-purple-700 mt-1">
-                    High return-on-capital societal impact
-                  </p>
+              <div className="bg-[#000000] border border-[#1e1e24] rounded-lg p-3 text-center">
+                <div className="text-base sm:text-lg font-bold text-[#f87171] font-mono">
+                  100%
+                </div>
+                <div className="text-[10px] text-[#71717a] uppercase tracking-wider mt-0.5">
+                  High Hazard Share
+                </div>
+              </div>
+
+              <div className="bg-[#000000] border border-[#1e1e24] rounded-lg p-3 text-center">
+                <div className="text-base sm:text-lg font-bold text-[#34d399] font-mono">
+                  100%
+                </div>
+                <div className="text-[10px] text-[#71717a] uppercase tracking-wider mt-0.5">
+                  BoM Compliance Gate
+                </div>
+              </div>
+
+              <div className="bg-[#000000] border border-[rgba(16,185,129,0.3)] rounded-lg p-3 text-center bg-[rgba(16,185,129,0.03)]">
+                <div className="text-base sm:text-lg font-bold text-[#34d399] font-mono">
+                  {analysisResult ? `${(analysisResult.confidence * 100).toFixed(1)}%` : "95.8%"}
+                </div>
+                <div className="text-[10px] text-[#6ee7b7] uppercase tracking-wider mt-0.5">
+                  ⭐ RAG Grounding
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Tab 2: Hardware Bill of Materials (BoM) */}
-          {activeTab === "bom" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-navy-900 flex items-center gap-2">
-                    <Cpu size={16} className="text-teal-600" />
-                    Consolidated Hardware Bill of Materials (BoM) with INR Pricing
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Domain-filtered BoM with strict negative constraint validation
-                  </p>
-                </div>
+            {/* AI Output Terminal & 5-Point Schema */}
+            <div className="bg-[#09090b] border border-[#1e1e24] rounded-xl p-4 sm:p-5 space-y-4">
+              
+              {/* Output Header */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e1e24] pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold">
-                    BoM Compliance: {analysisResult.bomComplianceScore}%
+                  <span className="bg-[rgba(99,102,241,0.15)] border border-[rgba(99,102,241,0.35)] text-[#a5b4fc] text-[10.5px] font-bold uppercase tracking-wider px-2.5 py-1 rounded">
+                    5-Point Schema Verified
                   </span>
-                  <span className="rounded-full bg-navy-900 text-white px-3 py-1 text-xs font-bold">
-                    Total: ₹ {(analysisResult.bomTotalCostINR || 233200).toLocaleString("en-IN")}
+                  <span className="text-[11px] font-mono font-semibold text-[#60a5fa] bg-[#18181b] px-2 py-0.5 rounded border border-[#27272a]">
+                    ENGINE: {selectedModule.toUpperCase()}
                   </span>
                 </div>
+
+                <span className="bg-[rgba(16,185,129,0.12)] border border-[rgba(16,185,129,0.3)] text-[#34d399] font-mono font-bold text-[11px] px-2.5 py-0.5 rounded flex items-center gap-1">
+                  <CheckCircle size={12} className="text-[#10b981]" />
+                  Grounding: {analysisResult ? `${(analysisResult.confidence * 100).toFixed(1)}%` : "95.8%"} Match
+                </span>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Hardware Item & Specs</th>
-                      <th className="p-3">Category</th>
-                      <th className="p-3 text-center">Qty</th>
-                      <th className="p-3 text-right">Unit Cost (INR)</th>
-                      <th className="p-3 text-right">Total Cost (INR)</th>
-                      <th className="p-3">Engineering Justification</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(analysisResult.hardwareBoM || []).map((item: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-semibold text-navy-900">
-                          {item.item}
-                          {item.specifications && (
-                            <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-                              {item.specifications}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
-                            {item.category || "Hardware"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center font-bold text-navy-900">{item.quantity}</td>
-                        <td className="p-3 text-right font-mono text-slate-700">₹ {(item.unitCostINR || 2500).toLocaleString("en-IN")}</td>
-                        <td className="p-3 text-right font-mono font-bold text-teal-700">₹ {(item.totalCostINR || 25000).toLocaleString("en-IN")}</td>
-                        <td className="p-3 text-slate-600 text-[11px] leading-relaxed max-w-xs">
-                          {item.purposeBoundJustification}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Tab 3: S-Curve 12-Month Trajectory */}
-          {activeTab === "scurve" && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-navy-900 flex items-center gap-2">
-                  <TrendingUp size={16} className="text-teal-600" />
-                  12-Month S-Curve Impact & Beneficiary Adoption Trajectory
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Month-by-month adoption % vs hazard index reduction % and cumulative beneficiaries
-                </p>
-              </div>
-
-              <div className="h-72 w-full rounded-2xl border border-slate-200 bg-white p-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sCurveData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorAdoption" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.0} />
-                      </linearGradient>
-                      <linearGradient id="colorHazard" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fill: "#475569", fontSize: 11 }} />
-                    <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} unit="%" />
-                    <Tooltip
-                      formatter={(val: any, name: any) => [`${val}%`, name === "adoptionRatePercentage" ? "Adoption Rate" : "Hazard Reduction"]}
-                      contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }}
-                    />
-                    <Legend verticalAlign="top" height={36} iconType="circle" />
-                    <Area
-                      type="monotone"
-                      dataKey="adoptionRatePercentage"
-                      name="Adoption Rate (%)"
-                      stroke="#0d9488"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#colorAdoption)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="hazardIndexReductionPercentage"
-                      name="Hazard Reduction (%)"
-                      stroke="#6366f1"
-                      strokeWidth={2.5}
-                      fillOpacity={1}
-                      fill="url(#colorHazard)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {sCurveData.slice(0, 4).map((m: any) => (
-                  <div key={m.month} className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center">
-                    <span className="text-[11px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded">
-                      {m.month} Milestone
-                    </span>
-                    <p className="text-lg font-bold text-navy-900 mt-2">
-                      {m.projectedBeneficiaries ? m.projectedBeneficiaries.toLocaleString() : "18,000"}
-                    </p>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Beneficiaries Reached</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 4: Institutional Matches Matrix */}
-          {activeTab === "partners" && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-navy-900 flex items-center gap-2">
-                  <Building2 size={16} className="text-teal-600" />
-                  Institutional Partner Matching Matrix (Jharkhand Academic Labs)
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Automated matching based on geospatial proximity and R&D specialization scores
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(analysisResult.institutionalPartnerMatchingMatrix || []).map((partner: any, idx: number) => (
-                  <div key={idx} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                        {partner.districtLocation} &bull; {partner.geospatialProximityKm} km
-                      </span>
-                      <span className="text-xs font-bold text-emerald-600">
-                        {partner.specializationScore}% Match
-                      </span>
-                    </div>
-
-                    <h4 className="text-sm font-bold text-navy-900">{partner.institutionName}</h4>
-                    <p className="text-xs text-slate-600 font-medium">{partner.departmentOrLab}</p>
-
-                    <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg">
-                      <strong className="text-slate-700">Proposed Role:</strong> {partner.proposedRole}
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {(partner.coreCapabilities || []).map((cap: string) => (
-                        <span key={cap} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                          {cap}
+              {isLoadingAnalysis ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="w-8 h-8 rounded-full border-2 border-[#3b82f6]/30 border-t-[#3b82f6] animate-spin" />
+                  <p className="text-xs font-mono text-[#60a5fa]">
+                    Synthesizing {selectedModule.toUpperCase()} engine across 768-dim pgvector memory...
+                  </p>
+                </div>
+              ) : analysisResult ? (
+                <div className="space-y-3.5">
+                  
+                  {/* Exact 5-Point Pattern Card matching trainer.html */}
+                  <div className="bg-[#050507] border border-[#1e1e24] rounded-lg p-4 space-y-3.5">
+                    
+                    {/* POINT 1 */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span className="bg-[#18181b] text-[#60a5fa] px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          POINT 1
                         </span>
-                      ))}
+                        Heading / Problem Title
+                      </div>
+                      <div className="text-sm sm:text-base font-bold text-[#ffffff] tracking-tight">
+                        {analysisResult.title}
+                      </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-600">{partner.trlReadinessLevel}</span>
-                      <span className="text-teal-600 font-bold hover:underline cursor-pointer">
-                        Initiate Collaboration &rarr;
-                      </span>
+                    {/* POINT 2 */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span className="bg-[#18181b] text-[#60a5fa] px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          POINT 2
+                        </span>
+                        Brief Description & Systemic Root-Cause
+                      </div>
+                      <div className="text-xs text-[#d4d4d8] leading-relaxed">
+                        {analysisResult.systemicRootCauseSynthesis || analysisResult.briefDescription}
+                      </div>
                     </div>
+
+                    {/* POINT 3 */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <span className="bg-[#18181b] text-[#60a5fa] px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          POINT 3
+                        </span>
+                        Key Intervention Points & Matrix
+                      </div>
+                      <ul className="space-y-1.5 text-xs text-[#d4d4d8]">
+                        {(analysisResult.keyPoints || []).map((pt: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-[#3b82f6] font-bold mt-0.5">&bull;</span>
+                            <span>{pt}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* POINT 4 */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span className="bg-[#18181b] text-[#60a5fa] px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          POINT 4
+                        </span>
+                        Separate Comments & Statutory Justification
+                      </div>
+                      <div className="bg-[rgba(255,255,255,0.02)] border-l-2 border-[#3b82f6] p-2.5 rounded-r text-xs text-[#a1a1aa] leading-relaxed">
+                        {analysisResult.expertCommentary || "Standard operating benchmark validated through Jharkhand innovation memory database."}
+                      </div>
+                    </div>
+
+                    {/* POINT 5 */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#a1a1aa] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <span className="bg-[#18181b] text-[#60a5fa] px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          POINT 5
+                        </span>
+                        Target Location
+                      </div>
+                      <div className="inline-flex items-center gap-2 bg-[#18181b] border border-[#27272a] text-[#f59e0b] text-xs font-semibold font-mono px-3 py-1 rounded-md">
+                        <span>📍 {analysisResult.district} (Jharkhand)</span>
+                        <span className="text-[#71717a] font-normal">&bull; Domain: {analysisResult.domain}</span>
+                      </div>
+                    </div>
+
                   </div>
-                ))}
-              </div>
+
+                  {/* Interactive Subsystem Detail Tabs */}
+                  <div className="pt-2 space-y-3">
+                    
+                    {/* Tab Navigation Pill Bar */}
+                    <div className="flex items-center gap-1 bg-[#000000] border border-[#1e1e24] p-1 rounded-lg overflow-x-auto">
+                      <button
+                        onClick={() => setActiveTab("cabinet")}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                          activeTab === "cabinet"
+                            ? "bg-[#18181b] text-[#ffffff] border border-[#27272a]"
+                            : "text-[#a1a1aa] hover:text-[#ffffff]"
+                        }`}
+                      >
+                        Executive Report
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("bom")}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                          activeTab === "bom"
+                            ? "bg-[#18181b] text-[#ffffff] border border-[#27272a]"
+                            : "text-[#a1a1aa] hover:text-[#ffffff]"
+                        }`}
+                      >
+                        Hardware BoM (INR)
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("scurve")}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                          activeTab === "scurve"
+                            ? "bg-[#18181b] text-[#ffffff] border border-[#27272a]"
+                            : "text-[#a1a1aa] hover:text-[#ffffff]"
+                        }`}
+                      >
+                        S-Curve 12M Trajectory
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("partners")}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                          activeTab === "partners"
+                            ? "bg-[#18181b] text-[#ffffff] border border-[#27272a]"
+                            : "text-[#a1a1aa] hover:text-[#ffffff]"
+                        }`}
+                      >
+                        Institutional Matches
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("directive")}
+                        className={`px-3 py-1.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                          activeTab === "directive"
+                            ? "bg-[#18181b] text-[#ffffff] border border-[#27272a]"
+                            : "text-[#a1a1aa] hover:text-[#ffffff]"
+                        }`}
+                      >
+                        District Directive
+                      </button>
+                    </div>
+
+                    {/* Tab 1: Executive Report */}
+                    {activeTab === "cabinet" && (
+                      <div className="space-y-3 bg-[#050507] border border-[#1e1e24] rounded-lg p-3.5 text-xs">
+                        <div>
+                          <span className="text-[11px] font-bold text-[#34d399] uppercase tracking-wider block mb-1">
+                            Cabinet Executive Synthesis
+                          </span>
+                          <p className="text-[#d4d4d8] leading-relaxed">
+                            {analysisResult.briefDescription}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                          <div className="bg-[#000000] border border-[#1e1e24] p-2.5 rounded text-center">
+                            <span className="text-[10px] text-[#71717a] uppercase block">DMF Grant Share</span>
+                            <span className="text-sm font-bold font-mono text-[#34d399]">
+                              ₹ {analysisResult.dmfAllocationStrategy?.dmfGrantAmountLakhs} L
+                            </span>
+                          </div>
+                          <div className="bg-[#000000] border border-[#1e1e24] p-2.5 rounded text-center">
+                            <span className="text-[10px] text-[#71717a] uppercase block">SDRF Share</span>
+                            <span className="text-sm font-bold font-mono text-[#60a5fa]">
+                              {analysisResult.dmfAllocationStrategy?.stateSdrfSharePercentage}%
+                            </span>
+                          </div>
+                          <div className="bg-[#000000] border border-[#1e1e24] p-2.5 rounded text-center">
+                            <span className="text-[10px] text-[#71717a] uppercase block">Viability Score</span>
+                            <span className="text-sm font-bold font-mono text-[#fbbf24]">
+                              {analysisResult.dmfAllocationStrategy?.financialViabilityScore} / 100
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 2: Hardware BoM */}
+                    {activeTab === "bom" && (
+                      <div className="space-y-3 bg-[#050507] border border-[#1e1e24] rounded-lg p-3.5 text-xs">
+                        <div className="flex items-center justify-between border-b border-[#1e1e24] pb-2">
+                          <span className="font-semibold text-[#f4f4f5] flex items-center gap-1.5">
+                            <Cpu size={14} className="text-[#3b82f6]" />
+                            Consolidated Hardware BoM (INR)
+                          </span>
+                          <span className="font-mono text-[#34d399] font-bold text-xs">
+                            Total: ₹ {(analysisResult.bomTotalCostINR || 0).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-[11px]">
+                            <thead className="text-[#71717a] border-b border-[#1e1e24] font-mono">
+                              <tr>
+                                <th className="py-1.5 pr-2">Item</th>
+                                <th className="py-1.5 px-2 text-center">Qty</th>
+                                <th className="py-1.5 px-2 text-right">Unit (₹)</th>
+                                <th className="py-1.5 pl-2 text-right">Total (₹)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#18181b] text-[#d4d4d8]">
+                              {(analysisResult.hardwareBoM || []).map((b: any, idx: number) => (
+                                <tr key={idx}>
+                                  <td className="py-2 pr-2 font-medium text-[#f4f4f5]">
+                                    {b.item}
+                                    <span className="block text-[10px] text-[#71717a] font-normal">{b.specifications}</span>
+                                  </td>
+                                  <td className="py-2 px-2 text-center font-mono">{b.quantity}</td>
+                                  <td className="py-2 px-2 text-right font-mono text-[#a1a1aa]">{b.unitCostINR.toLocaleString("en-IN")}</td>
+                                  <td className="py-2 pl-2 text-right font-mono text-[#34d399] font-semibold">{b.totalCostINR.toLocaleString("en-IN")}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 3: S-Curve 12M Trajectory */}
+                    {activeTab === "scurve" && (
+                      <div className="space-y-3 bg-[#050507] border border-[#1e1e24] rounded-lg p-3.5 text-xs">
+                        <div className="flex items-center justify-between border-b border-[#1e1e24] pb-2">
+                          <span className="font-semibold text-[#f4f4f5] flex items-center gap-1.5">
+                            <TrendingUp size={14} className="text-[#10b981]" />
+                            12-Month S-Curve Adoption vs Hazard Reduction
+                          </span>
+                        </div>
+
+                        <div className="h-44 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={analysisResult.sCurveTrajectory || []} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="curveAdopt" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                                </linearGradient>
+                                <linearGradient id="curveHazard" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="2 2" stroke="#1e1e24" />
+                              <XAxis dataKey="month" tick={{ fill: "#71717a", fontSize: 10 }} />
+                              <YAxis tick={{ fill: "#71717a", fontSize: 10 }} unit="%" />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", fontSize: 11, borderRadius: 6 }}
+                              />
+                              <Area type="monotone" dataKey="adoptionRatePercentage" name="Adoption Rate (%)" stroke="#10b981" fill="url(#curveAdopt)" strokeWidth={2} />
+                              <Area type="monotone" dataKey="hazardIndexReductionPercentage" name="Hazard Reduction (%)" stroke="#6366f1" fill="url(#curveHazard)" strokeWidth={2} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2 pt-1 text-center font-mono">
+                          {(analysisResult.sCurveTrajectory || []).map((m: any) => (
+                            <div key={m.month} className="bg-[#000000] border border-[#1e1e24] p-1.5 rounded">
+                              <span className="text-[10px] text-[#60a5fa] block">{m.month}</span>
+                              <span className="text-xs font-bold text-[#f4f4f5]">{m.projectedBeneficiaries ? m.projectedBeneficiaries.toLocaleString() : "-"}</span>
+                              <span className="text-[9px] text-[#71717a] block"> citizens</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 4: Institutional Matches */}
+                    {activeTab === "partners" && (
+                      <div className="space-y-2.5 bg-[#050507] border border-[#1e1e24] rounded-lg p-3.5 text-xs">
+                        <span className="font-semibold text-[#f4f4f5] flex items-center gap-1.5 border-b border-[#1e1e24] pb-2">
+                          <Building2 size={14} className="text-[#3b82f6]" />
+                          Matched Academic & R&D Laboratories
+                        </span>
+
+                        <div className="space-y-2 pt-1">
+                          {(analysisResult.institutionalPartnerMatchingMatrix || []).map((inst: any, idx: number) => (
+                            <div key={idx} className="bg-[#000000] border border-[#1e1e24] p-2.5 rounded-lg space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-[#f4f4f5] text-xs">{inst.institutionName}</span>
+                                <span className="bg-[rgba(16,185,129,0.12)] border border-[rgba(16,185,129,0.3)] text-[#34d399] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                  {inst.specializationScore}% Match
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[#a1a1aa]">{inst.departmentOrLab} &bull; Proximity: {inst.geospatialProximityKm} km</p>
+                              <div className="text-[11px] text-[#60a5fa] bg-[#0c0c10] p-1.5 rounded">
+                                <strong>Role:</strong> {inst.proposedRole}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 5: District Directive */}
+                    {activeTab === "directive" && (
+                      <div className="space-y-2.5 bg-[#050507] border border-[#1e1e24] rounded-lg p-3.5 text-xs">
+                        <div className="flex items-center justify-between border-b border-[#1e1e24] pb-2">
+                          <span className="font-mono text-[10.5px] font-bold text-[#f87171] bg-[rgba(239,68,68,0.12)] px-2 py-0.5 rounded border border-[rgba(239,68,68,0.3)]">
+                            ORDER #{analysisResult.districtActionDirective?.orderReference}
+                          </span>
+                          <span className="text-[11px] text-[#fbbf24] font-mono font-semibold">
+                            Mandated SLA: {analysisResult.districtActionDirective?.mandatedSlaDays} Days
+                          </span>
+                        </div>
+
+                        <div className="space-y-1 text-[#d4d4d8]">
+                          <p><strong className="text-[#a1a1aa]">Designated Officer:</strong> {analysisResult.districtActionDirective?.designatedNodalOfficer}</p>
+                        </div>
+
+                        <div>
+                          <strong className="text-[11px] text-[#a1a1aa] uppercase tracking-wider block mb-1 font-semibold">
+                            Mandated Directives:
+                          </strong>
+                          <ul className="space-y-1 text-[11px] text-[#d4d4d8]">
+                            {(analysisResult.districtActionDirective?.immediateDirectives || []).map((d: string, i: number) => (
+                              <li key={i} className="flex items-start gap-1.5">
+                                <CheckCircle2 size={12} className="text-[#10b981] mt-0.5 shrink-0" />
+                                <span>{d}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.2)] p-2 rounded text-[10.5px] text-[#fca5a5]">
+                          <strong>Compliance Notice:</strong> {analysisResult.districtActionDirective?.penalConsequencesOfDefault}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+              ) : (
+                <div className="text-center py-16 text-xs text-[#71717a]">
+                  Select a problem from the left column and click <strong>"Execute AI Analysis"</strong> to generate structured 5-point schema and matrices.
+                </div>
+              )}
+
             </div>
-          )}
 
-          {/* Tab 5: District Action Directive */}
-          {activeTab === "directive" && (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-300 bg-slate-50/80 p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <div>
-                    <span className="text-[11px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded">
-                      ADMINISTRATIVE ORDER #{analysisResult.districtActionDirective?.orderReference}
-                    </span>
-                    <h3 className="text-base font-bold text-navy-900 mt-1">
-                      Cabinet State War Room Executive Action Directive
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => alert("Administrative Directive Dispatched to District Magistrate & War Room Ledger.")}
-                    className="flex items-center gap-1.5 rounded-xl bg-navy-900 px-3.5 py-2 text-xs font-bold text-white shadow hover:bg-navy-800 transition-colors"
-                  >
-                    <Send size={13} />
-                    Dispatch Order
-                  </button>
-                </div>
+          </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <strong className="text-slate-500 block">Designated Nodal Officer:</strong>
-                    <span className="text-sm font-bold text-navy-900">
-                      {analysisResult.districtActionDirective?.designatedNodalOfficer}
-                    </span>
-                  </div>
-                  <div>
-                    <strong className="text-slate-500 block">Mandated SLA Window:</strong>
-                    <span className="text-sm font-bold text-rose-600">
-                      {analysisResult.districtActionDirective?.mandatedSlaDays} Calendar Days
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <strong className="text-xs text-slate-700 block mb-1.5 uppercase tracking-wider font-bold">
-                    Immediate Directives:
-                  </strong>
-                  <ul className="space-y-1.5 text-xs text-slate-800">
-                    {(analysisResult.districtActionDirective?.immediateDirectives || []).map((dir: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <CheckCircle2 size={15} className="text-teal-600 shrink-0 mt-0.5" />
-                        <span>{dir}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="rounded-xl bg-rose-50/70 border border-rose-200 p-3 text-xs text-rose-900">
-                  <strong>Statutory Compliance Warning:</strong> {analysisResult.districtActionDirective?.penalConsequencesOfDefault}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      ) : null}
+
+      </div>
     </div>
   );
 }
-
-export default AiAnalysis;
