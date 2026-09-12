@@ -226,44 +226,108 @@ function generateFallbackGrouping(rawText: string, districtContext?: string): Pr
     };
   }
 
-  // 5. Infrastructure & Renewable Energy
+  // 5. Roads, Pavements & Bridge Infrastructure
+  if (
+    lower.includes('raaste') ||
+    lower.includes('rasta') ||
+    lower.includes('sadak') ||
+    lower.includes('gaddha') ||
+    lower.includes('gaddhe') ||
+    lower.includes('pothole') ||
+    lower.includes('road') ||
+    lower.includes('bridge') ||
+    lower.includes('pul') ||
+    lower.includes('pavement') ||
+    rawText.includes('सड़क') ||
+    rawText.includes('रास्ते') ||
+    rawText.includes('रास्ता') ||
+    rawText.includes('गड्ढा') ||
+    rawText.includes('पुल')
+  ) {
+    return {
+      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'Hinglish / Nagpuri Dialect',
+      translatedEnglishText: `Severe road surface degradation, hazardous pothole clusters, and compromised commuter transit infrastructure in ${districtContext || 'the locality'} requiring immediate PWD resurfacing.`,
+      classifiedDomain: 'Infrastructure & Renewable Energy',
+      rootCauseSummary: 'Pavement wear and lack of bitumen quality control under seasonal heavy monsoon transit.',
+    };
+  }
+
+  // 6. Urban Drainage, Sewage & Sanitation
+  if (
+    lower.includes('nala') ||
+    lower.includes('nale') ||
+    lower.includes('drain') ||
+    lower.includes('drainage') ||
+    lower.includes('kachra') ||
+    lower.includes('kooda') ||
+    lower.includes('sewage') ||
+    lower.includes('waterlog') ||
+    rawText.includes('नाली') ||
+    rawText.includes('नाला') ||
+    rawText.includes('कचरा') ||
+    rawText.includes('जलभराव')
+  ) {
+    return {
+      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'Hinglish / Regional Dialect',
+      translatedEnglishText: `Choked stormwater drainage network and unmanaged municipal solid waste causing severe localized waterlogging in ${districtContext || 'the urban ward'}.`,
+      classifiedDomain: 'Public Health & Sanitation',
+      rootCauseSummary: 'Solid waste blockage in arterial drainage channels and lack of mechanized silt desilting.',
+    };
+  }
+
+  // 7. Power & Microgrids
   if (
     lower.includes('solar') ||
     lower.includes('microgrid') ||
     lower.includes('electricity') ||
     lower.includes('power') ||
-    lower.includes('road') ||
-    lower.includes('bridge')
+    lower.includes('bijli') ||
+    lower.includes('transformer') ||
+    rawText.includes('बिजली') ||
+    rawText.includes('ट्रांसफार्मर')
   ) {
     return {
-      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'English',
+      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'Hinglish / Regional Dialect',
       translatedEnglishText: `Lack of reliable rural power grid infrastructure and energy access for remote habitations in ${districtContext || 'the region'}.`,
       classifiedDomain: 'Infrastructure & Renewable Energy',
       rootCauseSummary: 'Grid isolation and transmission deficits requiring decentralized off-grid renewable microgrids.',
     };
   }
 
-  // 6. Public Health & Sanitation
+  // 8. Public Health & Sanitation
   if (
     lower.includes('malaria') ||
     lower.includes('hospital') ||
     lower.includes('clinic') ||
     lower.includes('sanitation') ||
     lower.includes('disease') ||
-    lower.includes('pathogen')
+    lower.includes('aspataal') ||
+    lower.includes('dawai') ||
+    lower.includes('doctor') ||
+    rawText.includes('अस्पताल') ||
+    rawText.includes('दवाई') ||
+    rawText.includes('डॉक्टर')
   ) {
     return {
-      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'English',
-      translatedEnglishText: `Primary healthcare delivery deficits and vector-borne illness risks in rural habitations of ${districtContext || 'the region'}.`,
+      detectedLanguage: isDevanagari ? 'Hindi / Regional Dialect' : 'Hinglish / Regional Dialect',
+      translatedEnglishText: `Primary healthcare delivery deficits and medical supply shortages in habitations of ${districtContext || 'the region'}.`,
       classifiedDomain: 'Public Health & Sanitation',
-      rootCauseSummary: 'Inadequate primary diagnostic facilities and delayed epidemiological vector reporting.',
+      rootCauseSummary: 'Inadequate primary diagnostic facilities and shortage of essential medical supplies.',
     };
   }
+
+  // Hinglish detection
+  const hinglishMarkers = [
+    'hamre', 'humare', 'humara', 'hamara', 'mera', 'meri', 'mere', 'sabka', 'bohut', 'bahut', 'bohot',
+    'saare', 'sare', 'yahan', 'yaha', 'wahan', 'waha', 'hai', 'hain', 'ho', 'raha', 'rahi', 'rahe',
+    'gaya', 'gayi', 'gaye', 'kuch', 'koi', 'kripya', 'samasya', 'dikkat', 'pareshani'
+  ];
+  const isHinglish = hinglishMarkers.some(marker => lower.split(/\s+/).includes(marker));
 
   // Default: Governance & Public Delivery
   const isAscii = /^[\x00-\x7F]*$/.test(rawText);
   return {
-    detectedLanguage: isAscii ? 'English' : (isBengali ? 'Bengali / Bangla' : (isDevanagari ? 'Hindi / Regional Dialect' : 'Regional Dialect')),
+    detectedLanguage: isHinglish ? 'Hinglish / Nagpuri Dialect' : (isAscii ? 'English' : (isBengali ? 'Bengali / Bangla' : (isDevanagari ? 'Hindi / Regional Dialect' : 'Regional Dialect'))),
     translatedEnglishText: rawText,
     classifiedDomain: 'Governance & Public Delivery',
     rootCauseSummary: `Societal grievance reported from ${districtContext || 'Jharkhand'} requiring multi-departmental administrative intervention.`,

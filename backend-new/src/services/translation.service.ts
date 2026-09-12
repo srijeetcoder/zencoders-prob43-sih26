@@ -192,10 +192,133 @@ function generateFallbackTranslation(rawText: string, districtContext?: string):
         rawText.includes('तसर') ||
         rawText.includes('रेशम')
     ) {
+    // 6. Roads, Potholes, Pavements & Bridge Infrastructure (Hinglish & Vernacular)
+    if (
+        lower.includes('raaste') ||
+        lower.includes('rasta') ||
+        lower.includes('sadak') ||
+        lower.includes('gaddha') ||
+        lower.includes('gaddhe') ||
+        lower.includes('pothole') ||
+        lower.includes('road') ||
+        lower.includes('bridge') ||
+        lower.includes('pul') ||
+        lower.includes('highway') ||
+        lower.includes('pavement') ||
+        rawText.includes('सड़क') ||
+        rawText.includes('रास्ते') ||
+        rawText.includes('रास्ता') ||
+        rawText.includes('गड्ढा') ||
+        rawText.includes('गड्ढे') ||
+        rawText.includes('पुल') ||
+        rawText.includes('खराब सड़क')
+    ) {
         return {
-            detectedLanguage: "Santali / Mundari Regional Dialect",
+            detectedLanguage: isDevanagari ? "Hindi / Regional Dialect" : "Hinglish / Nagpuri Dialect",
             isAlreadyEnglish: false,
-            translatedText: `Post-harvest perishability and lack of processing infrastructure for tribal minor forest produce in ${districtContext || 'the region'}.`
+            translatedText: `Severe road surface degradation, hazardous pothole clusters, and compromised commuter transit infrastructure in ${districtContext || 'the locality'} requiring immediate PWD resurfacing and structural telemetry.`
+        };
+    }
+
+    // 7. Urban Drainage, Sewage & Waterlogging / Nala Choking
+    if (
+        lower.includes('nala') ||
+        lower.includes('nale') ||
+        lower.includes('drain') ||
+        lower.includes('drainage') ||
+        lower.includes('kachra') ||
+        lower.includes('kooda') ||
+        lower.includes('sewage') ||
+        lower.includes('waterlog') ||
+        lower.includes('overflow') ||
+        rawText.includes('नाली') ||
+        rawText.includes('नाला') ||
+        rawText.includes('कचरा') ||
+        rawText.includes('जलभराव') ||
+        rawText.includes('गंदगी')
+    ) {
+        return {
+            detectedLanguage: isDevanagari ? "Hindi / Regional Dialect" : "Hinglish / Regional Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Choked stormwater drainage network and unmanaged municipal solid waste causing severe localized waterlogging and hygiene risks in ${districtContext || 'the urban ward'}.`
+        };
+    }
+
+    // 8. Electricity, Rural Microgrid, Power Outages & Transformers
+    if (
+        lower.includes('bijli') ||
+        lower.includes('current') ||
+        lower.includes('power cut') ||
+        lower.includes('transformer') ||
+        lower.includes('light nahi') ||
+        lower.includes('solar') ||
+        rawText.includes('बिजली') ||
+        rawText.includes('ट्रांसफार्मर') ||
+        rawText.includes('अंधेरा') ||
+        rawText.includes('विद्युत')
+    ) {
+        return {
+            detectedLanguage: isDevanagari ? "Hindi / Regional Dialect" : "Hinglish / Regional Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Persistent electrical grid power outages, damaged transformer infrastructure, and inadequate decentralized power backup affecting habitations in ${districtContext || 'the region'}.`
+        };
+    }
+
+    // 9. Healthcare, Primary Health Centers, Medicines & Hospitals
+    if (
+        lower.includes('aspataal') ||
+        lower.includes('hospital') ||
+        lower.includes('dawai') ||
+        lower.includes('doctor') ||
+        lower.includes('bimaari') ||
+        lower.includes('swasthya') ||
+        rawText.includes('अस्पताल') ||
+        rawText.includes('दवाई') ||
+        rawText.includes('डॉक्टर') ||
+        rawText.includes('बीमारी') ||
+        rawText.includes('स्वास्थ्य')
+    ) {
+        return {
+            detectedLanguage: isDevanagari ? "Hindi / Regional Dialect" : "Hinglish / Regional Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Deficiencies in primary healthcare facilities, lack of essential medicines, and absent medical staff at local health centers in ${districtContext || 'the area'}.`
+        };
+    }
+
+    // 10. Education, Schools, Classrooms & Teachers
+    if (
+        lower.includes('school') ||
+        lower.includes('padhai') ||
+        lower.includes('teacher') ||
+        lower.includes('masterji') ||
+        lower.includes('classroom') ||
+        lower.includes('vidyalaya') ||
+        rawText.includes('स्कूल') ||
+        rawText.includes('विद्यालय') ||
+        rawText.includes('शिक्षक') ||
+        rawText.includes('पढ़ाई')
+    ) {
+        return {
+            detectedLanguage: isDevanagari ? "Hindi / Regional Dialect" : "Hinglish / Regional Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Inadequate educational infrastructure, shortage of teaching faculty, and dilapidated classroom conditions in ${districtContext || 'the locality'}.`
+        };
+    }
+
+    // Check for common Hinglish / Romanized Hindi indicator words
+    const hinglishMarkers = [
+        'hamre', 'humare', 'humara', 'hamara', 'mera', 'meri', 'mere', 'sabka', 'bohut', 'bahut', 'bohot',
+        'saare', 'sare', 'yahan', 'yaha', 'wahan', 'waha', 'kaha', 'kahan', 'hai', 'hain', 'ho', 'hona',
+        'raha', 'rahi', 'rahe', 'gaya', 'gayi', 'gaye', 'kuch', 'koi', 'kripya', 'samasya', 'dikkat',
+        'pareshani', 'log', 'gaon', 'mohalla', 'ward', 'jaldi', 'theek', 'karo', 'kijiye'
+    ];
+    const isHinglish = hinglishMarkers.some(marker => lower.split(/\s+/).includes(marker));
+
+    if (isHinglish) {
+        return {
+            detectedLanguage: "Hinglish / Nagpuri Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Civic infrastructure and public service delivery bottleneck reported from ${districtContext || 'Jharkhand'}: ${rawText.replace(/[^\w\s.,-]/g, '').trim()} requiring administrative redressal.`
         };
     }
 
