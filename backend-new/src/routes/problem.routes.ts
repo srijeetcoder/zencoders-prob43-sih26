@@ -9,8 +9,9 @@ const router = Router();
 router.get('/public', getPublicProblems);
 router.get('/public/:id', getProblemDetail);
 
-// POST /api/v1/problems/process - Full Master Orchestrator Pipeline
+// POST /api/v1/problems/process & /api/v1/problems/solve - Full Master Orchestrator Pipeline
 router.post('/process', validateBody(ProcessProblemInputSchema), processProblem);
+router.post('/solve', validateBody(ProcessProblemInputSchema), processProblem);
 
 export default router;
 
