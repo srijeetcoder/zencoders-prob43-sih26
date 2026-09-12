@@ -137,10 +137,30 @@ const BENCHMARK_TEMPLATES_2000 = [
   }
 ];
 
-function generateFull2000Dataset() {
-  const records = [];
+interface DatasetItem {
+  id: number;
+  title: string;
+  problem: string;
+  solution: string;
+  outcome: string;
+  domain: string;
+  district: string;
+  source_url: string;
+  credibility: number;
+  year: number;
+}
+
+interface VariationItem {
+  suffix: string;
+  mod: string;
+  yr: number;
+  dCred: number;
+}
+
+function generateFull2000Dataset(): DatasetItem[] {
+  const records: DatasetItem[] = [];
   let counter = 1;
-  const variations = [
+  const variations: VariationItem[] = [
     { suffix: 'Primary Field Deployment Phase-I', mod: 'Demonstrated initial baseline validation and ground testing.', yr: 2024, dCred: 0 },
     { suffix: 'Scale-Out & IoT Telemetry Phase-II', mod: 'Expanded across rural blocks with automated telemetry and community governance.', yr: 2025, dCred: 2 },
     { suffix: 'Statewide Master Benchmark Standard', mod: 'Validated under state administrative policy framework.', yr: 2026, dCred: 3 },
@@ -154,7 +174,7 @@ function generateFull2000Dataset() {
     for (const dist of JHARKHAND_24_DISTRICTS) {
       for (const item of BENCHMARK_TEMPLATES_2000) {
         if (records.length >= 2000) break;
-        const v = variations[records.length % variations.length];
+        const v: VariationItem = variations[records.length % variations.length];
         const cleanD = dist.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
         records.push({
