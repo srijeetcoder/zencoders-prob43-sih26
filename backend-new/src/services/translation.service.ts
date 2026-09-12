@@ -192,6 +192,13 @@ function generateFallbackTranslation(rawText: string, districtContext?: string):
         rawText.includes('तसर') ||
         rawText.includes('रेशम')
     ) {
+        return {
+            detectedLanguage: "Santali / Mundari Regional Dialect",
+            isAlreadyEnglish: false,
+            translatedText: `Post-harvest perishability and lack of processing infrastructure for tribal minor forest produce in ${districtContext || 'the region'}.`
+        };
+    }
+
     // 6. Roads, Potholes, Pavements & Bridge Infrastructure (Hinglish & Vernacular)
     if (
         lower.includes('raaste') ||
