@@ -5,6 +5,8 @@ import { SUBMISSIONS, CATEGORY_META, STATUS_META, getCategoryMeta, getStatusMeta
 import { citizenApi } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 
+import { realtimeService } from "../../services/realtimeService";
+
 const FILTER_TABS: { key: "all" | Status; label: string }[] = [
   { key: "all", label: "All" },
   { key: "submitted", label: "Submitted" },
@@ -75,13 +77,54 @@ export default function MySubmissionsList() {
       }
 
       if (isMounted) {
-        setAllSubmissions(merged);
+        setAllSubmissions(merged.length > 0 ? merged : SUBMISSIONS);
       }
     };
 
     loadLiveSubmissions();
+
+    // Subscribe to live SSE problem submission and status events
+    const unsubSub = realtimeService.onProblemSubmitted((p) => {
+      if (isMounted) {
+        setAllSubmissions((prev) => [
+          {
+            id: p.ticketId || p.id,
+            psCode: p.ticketId || "JS-2026-LIVE",
+            title: p.title,
+            category: "drainage",
+            status: "submitted",
+            submittedOn: "Just now",
+            location: `${p.district || "Ranchi"}, Jharkhand`,
+            description: p.description,
+            progressPercent: 25,
+            team: "Triage & Lab Matching Queue",
+          },
+          ...prev,
+        ]);
+      }
+    });
+
+    const unsubStat = realtimeService.onStatusUpdated((update) => {
+      if (isMounted) {
+        setAllSubmissions((prev) =>
+          prev.map((s) => {
+            if (s.psCode === update.ticketId || s.id === update.ticketId) {
+              return {
+                ...s,
+                status: (update.status === "RESOLVED" ? "resolved" : update.status === "LAB_MATCHED" ? "matched" : "solution_development") as Status,
+                progressPercent: update.progressPercent || s.progressPercent,
+              };
+            }
+            return s;
+          })
+        );
+      }
+    });
+
     return () => {
       isMounted = false;
+      unsubSub();
+      unsubStat();
     };
   }, [token]);
 

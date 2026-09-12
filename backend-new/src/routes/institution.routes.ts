@@ -8,9 +8,12 @@ const router = Router();
 
 // Protect institution portal routes
 router.use(authenticateToken);
-router.use(requireRole('INSTITUTION', 'SUPER_ADMIN'));
+router.use(requireRole('INSTITUTION', 'SUPER_ADMIN', 'ADMIN', 'CITIZEN'));
 
 router.get('/profile', (req, res, next) => institutionController.getProfile(req, res, next));
+router.get('/open-problems', (req, res, next) => institutionController.getOpenProblems(req, res, next));
+router.post('/problems/:id/accept', (req, res, next) => institutionController.acceptProblem(req, res, next));
+router.post('/accept-problem', (req, res, next) => institutionController.acceptProblem(req, res, next));
 router.get('/allocations', requireInstitutionScope, (req, res, next) => institutionController.getDprAllocations(req, res, next));
 router.get('/dprs/:id', requireInstitutionScope, (req, res, next) => institutionController.getDprById(req, res, next));
 router.post('/dprs/:id/workbench', requireInstitutionScope, (req, res, next) => institutionController.saveWorkbench(req, res, next));

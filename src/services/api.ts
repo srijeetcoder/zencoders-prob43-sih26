@@ -328,7 +328,7 @@ export const citizenApi = {
     };
 
     return fetchWithCircuitBreaker<typeof fallback>(
-      '/citizen/grievance',
+      '/citizen/grievances',
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -361,7 +361,7 @@ export const citizenApi = {
     };
 
     return fetchWithCircuitBreaker<TicketStatusResponse>(
-      `/citizen/ticket/${encodeURIComponent(ticketId)}`,
+      `/citizen/grievances/${encodeURIComponent(ticketId)}/status`,
       undefined,
       fallback
     );
@@ -496,6 +496,20 @@ export const governmentApi = {
     if (domain && domain !== 'All') params.set('domain', domain);
     const qs = params.toString() ? `?${params.toString()}` : '';
     return fetchWithCircuitBreaker<any[]>(`/government/clusters${qs}`, undefined, []);
+  },
+
+  assignUniversity: async (ticketId: string, payload: { institution_id?: string; institution_name?: string; instructions?: string }) => {
+    return fetchWithCircuitBreaker(`/government/grievances/${encodeURIComponent(ticketId)}/assign-university`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateStatus: async (ticketId: string, status: string, note?: string) => {
+    return fetchWithCircuitBreaker(`/government/grievances/${encodeURIComponent(ticketId)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, note }),
+    });
   },
 
   runCabinetAiAnalysis: async (payload: {
@@ -694,6 +708,21 @@ export interface BankableDPR {
 }
 
 export const institutionApi = {
+  getOpenProblems: async (domain?: string, district?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (domain && domain !== 'ALL') params.set('domain', domain);
+    if (district && district !== 'All') params.set('district', district);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return fetchWithCircuitBreaker<any[]>(`/institution/open-problems${qs}`, undefined, []);
+  },
+
+  acceptProblem: async (ticketId: string, payload: { teamName?: string; team_name?: string; studentName?: string; student_name?: string; proposal?: string }): Promise<any> => {
+    return fetchWithCircuitBreaker(`/institution/problems/${encodeURIComponent(ticketId)}/accept`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   getPartners: async (district?: string): Promise<EcosystemPartner[]> => {
     const fallback: EcosystemPartner[] = [
       {

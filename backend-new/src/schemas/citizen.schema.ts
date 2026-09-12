@@ -13,12 +13,15 @@ export const CreateGrievanceSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   anonymous_session_id: z.string().optional(),
-  photos: z.array(z.string()).max(3, 'Maximum 3 photos allowed').optional(),
+  photos: z.array(z.string()).max(5).optional(),
   video: z.string().optional(),
-  attachments: z.object({
-    photos: z.array(z.string()).max(3).optional(),
-    video: z.string().optional(),
-  }).optional(),
+  attachments: z.union([
+    z.object({
+      photos: z.array(z.string()).optional(),
+      video: z.string().optional().nullable(),
+    }),
+    z.array(z.any()),
+  ]).optional(),
 }).refine(
   (data) => !!(data.raw_text || data.text || data.rawDescription || data.description || data.title),
   { message: 'Problem description text is required' }

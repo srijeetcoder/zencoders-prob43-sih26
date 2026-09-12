@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { citizenApi, type ProblemAttachment } from "../services/api";
+import { realtimeService } from "../services/realtimeService";
 
 function ReportProblemPage() {
   const { user, token, isAuthenticated } = useAuth();
@@ -390,6 +391,24 @@ function ReportProblemPage() {
         });
         localStorage.setItem("pookar_user_submissions", JSON.stringify(existing));
       } catch {}
+
+      // Broadcast real-time problem submission to Government War Room and University Portal
+      realtimeService.emitLocalEvent("problem_submitted", {
+        id: ticketId,
+        ticketId: ticketId,
+        ticket_id: ticketId,
+        title: resolvedTitle,
+        description: res.normalizedText || fullText,
+        district: location || user?.district || "Ranchi",
+        domain: "Civic Infrastructure",
+        domainTags: ["Civic Infrastructure", "Public Grievance"],
+        severity: "HIGH",
+        priority: "HIGH",
+        status: "Under Analysis",
+        attachments: attachmentsPayload,
+        photos: attachmentsPayload.filter((a) => a.type === "photo").map((a) => a.url),
+        createdAt: new Date().toISOString(),
+      });
 
       setSubmittedTicket({
         ticketId,

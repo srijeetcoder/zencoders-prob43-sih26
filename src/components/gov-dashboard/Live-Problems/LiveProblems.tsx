@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, MapPin, MessageCircle, ArrowUp, Radio, Sparkles, Filter, RefreshCw, Inbox } from "lucide-react";
 import type { Category, Severity, ProblemDetail } from "../types/problem";
 import { fetchAllRealSubmissions } from "../../../services/realSubmissions";
+import { realtimeService } from "../../../services/realtimeService";
 
 const CATEGORY_TABS: Array<Category | "All"> = [
   "All",
@@ -48,6 +49,7 @@ function LiveProblems() {
   const [activeCategory, setActiveCategory] = useState<Category | "All">("All");
   const [query, setQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [liveToast, setLiveToast] = useState<string | null>(null);
 
   const fetchLiveGrievances = async () => {
     setIsRefreshing(true);
@@ -62,7 +64,85 @@ function LiveProblems() {
   };
 
   useEffect(() => {
+    let isMounted = true;
     fetchLiveGrievances();
+
+    // 1. Listen to real-time incoming citizen submissions
+    const unsubSub = realtimeService.onProblemSubmitted((p) => {
+      if (!isMounted) return;
+
+      const photos = Array.isArray(p.photos) && p.photos.length > 0
+        ? p.photos
+        : [
+            "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
+            "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+          ];
+
+      const newProblem: ProblemDetail = {
+        id: p.ticketId || p.id,
+        referenceId: `#${p.ticketId || p.id}`,
+        title: p.title,
+        category: (p.domain?.includes("Water") ? "Infrastructure" : p.domain?.includes("Mine") ? "Environment" : "Infrastructure") as any,
+        status: "Under Analysis",
+        severity: (p.priority === "CRITICAL" ? "High" : p.priority === "HIGH" ? "High" : "Medium") as Severity,
+        location: {
+          area: `${p.district || "Ranchi"} Sadar`,
+          city: p.district || "Ranchi",
+          state: "Jharkhand",
+          distanceKm: 1.0,
+        },
+        submittedAt: p.createdAt || new Date().toISOString(),
+        thumbnailUrl: photos[0],
+        upvotes: 1,
+        commentsCount: 0,
+        description: p.description,
+        tags: p.domainTags || ["Citizen Bottleneck", "Live Report"],
+        photos,
+      };
+
+      setProblemsList((prev) => [newProblem, ...prev.filter((item) => item.id !== newProblem.id && item.referenceId !== newProblem.referenceId)]);
+      setLiveToast(`⚡ Live Citizen Ingestion: #${newProblem.referenceId} - ${newProblem.location.city} (${p.title.slice(0, 60)})`);
+      setTimeout(() => setLiveToast(null), 8000);
+    });
+
+    // 2. Listen to status updates in real-time
+    const unsubStatus = realtimeService.onStatusUpdated((update) => {
+      if (!isMounted) return;
+      setProblemsList((prev) =>
+        prev.map((item) => {
+          if (item.id === update.ticketId || item.referenceId === `#${update.ticketId}`) {
+            const mappedStatus =
+              update.status === "RESOLVED" || update.status === "VERIFIED" ? "Resolved" :
+              update.status === "IN_PROGRESS" ? "In Progress" :
+              update.status === "LAB_MATCHED" ? "Matching Teams" : "Under Analysis";
+            return { ...item, status: mappedStatus };
+          }
+          return item;
+        })
+      );
+    });
+
+    // 3. Listen to university accepted events
+    const unsubUniv = realtimeService.onUniversityAccepted((univEvent) => {
+      if (!isMounted) return;
+      setProblemsList((prev) =>
+        prev.map((item) => {
+          if (item.id === univEvent.ticketId || item.referenceId === `#${univEvent.ticketId}`) {
+            return { ...item, status: "Matching Teams" };
+          }
+          return item;
+        })
+      );
+      setLiveToast(`🏛️ University Synced: ${univEvent.institutionName} accepted Challenge #${univEvent.ticketId}!`);
+      setTimeout(() => setLiveToast(null), 8000);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubSub();
+      unsubStatus();
+      unsubUniv();
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -82,6 +162,19 @@ function LiveProblems() {
 
   return (
     <div className="px-6 py-6 sm:px-8 max-w-7xl mx-auto">
+      {/* Real-time Alert Toast Notification */}
+      {liveToast && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-teal-300 bg-navy-900 text-white p-4 shadow-xl backdrop-blur-md animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-teal-500"></span>
+            </span>
+            <span className="text-sm font-semibold">{liveToast}</span>
+          </div>
+          <span className="rounded-full bg-teal-500/20 px-2.5 py-0.5 text-xs font-mono text-teal-300 border border-teal-500/30">REAL-TIME</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">

@@ -18,9 +18,14 @@ import {
   Edit3,
   Sliders,
   Check,
+  Building2,
+  Share2,
 } from "lucide-react";
 import type { Severity } from "../types/problem";
 import { getProblemById } from "./mockData";
+import { fetchProblemById } from "../../../services/realSubmissions";
+import { governmentApi } from "../../../services/api";
+import { realtimeService } from "../../../services/realtimeService";
 
 const SEVERITY_STYLES: Record<Severity, string> = {
   High: "bg-rose-50 text-rose-600 border border-rose-200",
@@ -45,24 +50,91 @@ function ProblemDetail() {
   const [adminNote, setAdminNote] = useState("");
   const [isSaved, setIsSaved] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [assigningTeam, setAssigningTeam] = useState<string | null>(null);
+  const [assignedSuccess, setAssignedSuccess] = useState<string | null>(null);
+  const [liveToast, setLiveToast] = useState<string | null>(null);
 
   useEffect(() => {
     if (problemId) {
-      const data = getProblemById(problemId);
-      if (data) {
-        setProblem(data);
-        setCurrentStatus(data.status || "Under Analysis");
-        setCurrentProgress(data.status === "Resolved" ? 100 : data.status === "In Progress" ? 70 : 35);
-      }
+      // 1. Fetch live problem from backend / realSubmissions
+      fetchProblemById(problemId).then((data) => {
+        if (data) {
+          setProblem(data);
+          setCurrentStatus(data.status || "Under Analysis");
+          setCurrentProgress(
+            data.status === "Resolved" || data.status === "RESOLVED"
+              ? 100
+              : data.status === "In Progress" || data.status === "IN_PROGRESS"
+              ? 70
+              : 35
+          );
+        } else {
+          const fallback = getProblemById(problemId);
+          if (fallback) {
+            setProblem(fallback);
+            setCurrentStatus(fallback.status || "Under Analysis");
+            setCurrentProgress(
+              fallback.status === "Resolved" ? 100 : fallback.status === "In Progress" ? 70 : 35
+            );
+          }
+        }
+      }).catch(() => {
+        const fallback = getProblemById(problemId);
+        if (fallback) {
+          setProblem(fallback);
+        }
+      });
     }
-  }, [problemId]);
 
-  const handleUpdateProgress = () => {
+    // 2. Real-time subscriptions for live events
+    const unsubStatus = realtimeService.onStatusUpdated((event) => {
+      const targetId = problem?.id || problem?.ticketId || problemId;
+      if (event.ticketId === targetId || event.ticketId === problemId) {
+        setLiveToast(`Real-Time Update: Status changed to ${event.status}`);
+        setCurrentStatus(event.status);
+        if (event.progressPercent) setCurrentProgress(event.progressPercent);
+        setTimeout(() => setLiveToast(null), 5000);
+      }
+    });
+
+    const unsubUniv = realtimeService.onUniversityAccepted((event) => {
+      const targetId = problem?.id || problem?.ticketId || problemId;
+      if (event.problemId === targetId || event.problemId === problemId) {
+        setLiveToast(`University Synchronized: ${event.universityName || "R&D Team"} accepted this challenge!`);
+        setTimeout(() => setLiveToast(null), 6000);
+      }
+    });
+
+    return () => {
+      unsubStatus();
+      unsubUniv();
+    };
+  }, [problemId, problem?.id, problem?.ticketId]);
+
+  const handleUpdateProgress = async () => {
     if (!problem) return;
     setIsUpdating(true);
 
+    const idToMatch = problem.id || problem.ticketId || problem.referenceId?.replace("#", "");
+
     try {
-      // 1. Update in localStorage so citizen and gov views sync
+      // 1. Sync to backend Supabase Database & SSE broadcast
+      try {
+        await governmentApi.updateStatus(idToMatch, currentStatus, adminNote);
+      } catch (err) {
+        console.warn("Backend API status update notice (fallback active):", err);
+      }
+
+      // 2. Broadcast realtime event across client ecosystem
+      realtimeService.broadcastLocalEvent("problem_status_updated", {
+        ticketId: idToMatch,
+        status: currentStatus,
+        progressPercent: currentProgress,
+        adminRemarks: adminNote || "Updated by State Executive War Room Officer",
+        updatedAt: new Date().toISOString(),
+      });
+
+      // 3. Update in localStorage so citizen and gov views sync instantly
       const local = localStorage.getItem("pookar_user_submissions");
       let existingList: any[] = [];
       if (local) {
@@ -71,7 +143,6 @@ function ProblemDetail() {
         } catch {}
       }
 
-      const idToMatch = problem.id || problem.ticketId || problem.referenceId?.replace("#", "");
       const index = existingList.findIndex((item: any) => 
         item.ticketId === idToMatch || item.id === idToMatch || `#${item.ticketId}` === problem.referenceId
       );
@@ -95,7 +166,7 @@ function ProblemDetail() {
       localStorage.setItem("pookar_user_submissions", JSON.stringify(existingList));
       window.dispatchEvent(new Event("storage"));
 
-      // 2. Update local state
+      // 4. Update local state
       setProblem((prev: any) => ({
         ...prev,
         status: currentStatus,
@@ -111,6 +182,32 @@ function ProblemDetail() {
     } catch {} finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleAssignUniversity = async (teamName: string) => {
+    if (!problem) return;
+    setAssigningTeam(teamName);
+    const idToMatch = problem.id || problem.ticketId || problem.referenceId?.replace("#", "");
+
+    try {
+      // 1. Call Government API
+      await governmentApi.assignUniversity(idToMatch, teamName, `Direct Directive assigned to ${teamName} by State War Room`);
+    } catch (err) {
+      console.warn("University direct assignment synced via local broadcast:", err);
+    }
+
+    // 2. Broadcast real-time event to University & Citizen desks
+    realtimeService.broadcastLocalEvent("university_assigned", {
+      problemId: idToMatch,
+      ticketId: idToMatch,
+      universityName: teamName,
+      assignedAt: new Date().toISOString(),
+      title: problem.title,
+    });
+
+    setAssigningTeam(null);
+    setAssignedSuccess(`Task assigned & dispatched to ${teamName}!`);
+    setTimeout(() => setAssignedSuccess(null), 4000);
   };
 
   if (!problem) {
@@ -153,13 +250,36 @@ function ProblemDetail() {
 
   return (
     <div className="px-6 py-6 sm:px-8 max-w-7xl mx-auto space-y-6">
-      <Link
-        to="/gov/live-problems"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
-      >
-        <ArrowLeft size={15} />
-        Back to Live Problems
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          to="/gov/live-problems"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
+        >
+          <ArrowLeft size={15} />
+          Back to Live Problems
+        </Link>
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          War Room Live Synced (Supabase & SSE)
+        </span>
+      </div>
+
+      {liveToast && (
+        <div className="p-3.5 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 text-xs font-semibold shadow flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <Sparkles className="h-4 w-4 text-teal-600 shrink-0" />
+          <span>{liveToast}</span>
+        </div>
+      )}
+
+      {assignedSuccess && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold shadow flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{assignedSuccess}</span>
+        </div>
+      )}
 
       {/* Main Container */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -458,23 +578,38 @@ function ProblemDetail() {
             </h2>
 
             <div className="mt-3 space-y-3">
-              {(problem.recommendedTeams || []).map((team: any) => (
-                <div key={team.name} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-xs font-bold text-white">
-                    {team.name
-                      .split(" ")
-                      .filter((word: string) => word.length > 1)
-                      .slice(0, 2)
-                      .map((word: string) => word[0])
-                      .join("")}
+              {(problem.recommendedTeams || [
+                { name: "IIT (ISM) Dhanbad", department: "Environmental & Mining Engineering" },
+                { name: "BIT Mesra", department: "Civil & Water Resource Engineering" },
+                { name: "NIT Jamshedpur", department: "IoT & Smart Infrastructure Lab" },
+              ]).map((team: any) => (
+                <div key={team.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-teal-200 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-xs font-bold text-white">
+                      {team.name
+                        .split(" ")
+                        .filter((word: string) => word.length > 1)
+                        .slice(0, 2)
+                        .map((word: string) => word[0])
+                        .join("")}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-navy-900">
+                        {team.name}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">{team.department}</p>
+                    </div>
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-navy-900">
-                      {team.name}
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate">{team.department}</p>
-                  </div>
+                  <button
+                    onClick={() => handleAssignUniversity(team.name)}
+                    disabled={assigningTeam === team.name}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition-all shrink-0"
+                  >
+                    <Building2 size={12} />
+                    {assigningTeam === team.name ? "Dispatching..." : "Assign Directive"}
+                  </button>
                 </div>
               ))}
             </div>

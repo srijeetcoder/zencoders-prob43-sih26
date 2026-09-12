@@ -257,13 +257,17 @@ export class GrievanceRepository {
     note?: string
   ): Promise<GrievanceRecord> {
     return withTransaction(async (client) => {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
       const existing = await client.query<GrievanceRecord>(
-        `SELECT * FROM grievances WHERE id = $1 FOR UPDATE;`,
+        isUuid
+          ? `SELECT * FROM grievances WHERE id = $1 FOR UPDATE;`
+          : `SELECT * FROM grievances WHERE ticket_id = $1 FOR UPDATE;`,
         [id]
       );
-      if (!existing.rows[0]) throw new NotFoundError('Grievance not found');
+      if (!existing.rows[0]) throw new NotFoundError(`Grievance ${id} not found`);
 
       const current = existing.rows[0];
+      const actualId = current.id;
       const resolvedAt = newStatus === 'RESOLVED' || newStatus === 'VERIFIED' ? 'NOW()' : 'NULL';
 
       const updateRes = await client.query<GrievanceRecord>(
@@ -271,13 +275,13 @@ export class GrievanceRepository {
          SET status = $1, updated_at = NOW(), resolved_at = ${resolvedAt === 'NOW()' ? 'NOW()' : 'resolved_at'}
          WHERE id = $2
          RETURNING *;`,
-        [newStatus, id]
+        [newStatus, actualId]
       );
 
       await client.query(
         `INSERT INTO grievance_events (grievance_id, from_status, to_status, actor_id, actor_role, note)
          VALUES ($1, $2, $3, $4, $5, $6);`,
-        [id, current.status, newStatus, actorId || null, actorRole, note || `Status transitioned to ${newStatus}`]
+        [actualId, current.status, newStatus, actorId || null, actorRole, note || `Status transitioned to ${newStatus}`]
       );
 
       return updateRes.rows[0];

@@ -104,13 +104,17 @@ function YourActions() {
   );
 }
 
+import { realtimeService } from "../../services/realtimeService";
+
 export default function SubmissionDetail() {
   const { id } = useParams<{ id: string }>();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveNotice, setLiveNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+    const cleanId = id?.replace("#", "") || "";
 
     function mapGovStatus(govStatus?: string): any {
       if (!govStatus) return "submitted";
@@ -125,12 +129,46 @@ export default function SubmissionDetail() {
     }
 
     async function resolveSubmission() {
-      // 1. Check local user submissions in localStorage first (priority for live admin edits)
+      // 1. Fetch live backend status inquiry first (Supabase / Postgres source of truth)
+      try {
+        const apiStatus: TicketStatusResponse = await citizenApi.getTicketStatus(cleanId || "JS-2026-LIVE");
+        if (apiStatus && (apiStatus.ticketId || apiStatus.text)) {
+          const mappedStatus = mapGovStatus(apiStatus.currentStage || apiStatus.stages?.[apiStatus.stages.length - 1]?.status);
+          const formatted: Submission = {
+            id: apiStatus.ticketId || id || "JS-2026-0001",
+            psCode: apiStatus.ticketId || "JS-2026-LIVE",
+            title: apiStatus.translatedProblem || apiStatus.text?.slice(0, 80) || "Citizen Problem Redressal",
+            category: "drainage",
+            status: mappedStatus,
+            submittedOn: "Recent",
+            location: `${apiStatus.district || "Ranchi"}, Jharkhand`,
+            description: apiStatus.text || "Problem under active redressal.",
+            progressPercent: apiStatus.slaDaysRemaining ? Math.max(25, 100 - apiStatus.slaDaysRemaining * 5) : 55,
+            team: apiStatus.allocatedCenter || "CSIR-CIMFR / BIT Mesra R&D Desk",
+            teamExpertise: "Automated hardware BoM and sensor telemetry engineering.",
+            updates: (apiStatus.stages || []).map((stage, idx) => ({
+              id: `stage-${idx}`,
+              title: stage.name,
+              date: stage.date || "Recent",
+              author: "State Nodal Authority",
+              summary: `Status: ${stage.status}`,
+              type: "official" as const,
+            })),
+          };
+
+          if (isMounted) {
+            setSubmission(formatted);
+            setLoading(false);
+          }
+          return;
+        }
+      } catch {}
+
+      // 2. Check local user submissions in localStorage (client session fallback)
       try {
         const local = localStorage.getItem("pookar_user_submissions");
         if (local) {
           const parsed = JSON.parse(local);
-          const cleanId = id?.replace("#", "");
           const found = parsed.find(
             (item: any) =>
               item.id === id ||
@@ -201,7 +239,7 @@ export default function SubmissionDetail() {
         }
       } catch {}
 
-      // 2. Check static SUBMISSIONS list
+      // 3. Check static SUBMISSIONS list
       const staticMatch = SUBMISSIONS.find((s) => s.id === id || s.psCode === id);
       if (staticMatch) {
         if (isMounted) {
@@ -210,40 +248,6 @@ export default function SubmissionDetail() {
         }
         return;
       }
-
-      // 3. Fallback to API status inquiry
-      try {
-        const apiStatus: TicketStatusResponse = await citizenApi.getTicketStatus(id || "JS-2026-LIVE");
-        if (apiStatus) {
-          const formatted: Submission = {
-            id: apiStatus.ticketId || id || "JS-2026-0001",
-            psCode: apiStatus.ticketId || "JS-2026-LIVE",
-            title: apiStatus.translatedProblem || apiStatus.text || "Citizen Problem Redressal",
-            category: "drainage",
-            status: "solution_development",
-            submittedOn: "Recent",
-            location: `${apiStatus.district || "Ranchi"}, Jharkhand`,
-            description: apiStatus.text || "Problem under active redressal.",
-            progressPercent: 55,
-            team: apiStatus.allocatedCenter || "CSIR-CIMFR / BIT Mesra R&D Desk",
-            teamExpertise: "Automated hardware BoM and sensor telemetry engineering.",
-            updates: (apiStatus.stages || []).map((stage, idx) => ({
-              id: `stage-${idx}`,
-              title: stage.name,
-              date: stage.date || "Recent",
-              author: "Nodal Authority",
-              summary: `Status: ${stage.status}`,
-              type: "official" as const,
-            })),
-          };
-
-          if (isMounted) {
-            setSubmission(formatted);
-            setLoading(false);
-          }
-          return;
-        }
-      } catch {}
 
       // 4. Guaranteed defensive fallback object if all lookups miss
       if (isMounted) {
@@ -276,6 +280,78 @@ export default function SubmissionDetail() {
 
     resolveSubmission();
 
+    // 5. Subscribe to real-time SSE updates for Status changes
+    const unsubStatus = realtimeService.onStatusUpdated((update) => {
+      const match =
+        update.ticketId === cleanId ||
+        update.ticket_id === cleanId ||
+        update.id === cleanId ||
+        update.ticketId === id ||
+        update.ticket_id === id;
+
+      if (match && isMounted) {
+        const mapped = mapGovStatus(update.status);
+        setSubmission((prev) => {
+          if (!prev) return prev;
+          const newUpdates = [...(prev.updates || [])];
+          if (update.note) {
+            newUpdates.unshift({
+              id: `up-${Date.now()}`,
+              title: `Directive: ${update.status}`,
+              date: "Just now",
+              author: update.actor || "Government War Room",
+              summary: update.note,
+              type: "official",
+            });
+          }
+          return {
+            ...prev,
+            status: mapped,
+            progressPercent: update.progressPercent ?? (mapped === "resolved" ? 100 : 75),
+            updates: newUpdates,
+          };
+        });
+
+        setLiveNotice(`⚡ Real-Time Update: Status updated to "${update.status}" by ${update.actor || "Authority"}`);
+        setTimeout(() => setLiveNotice(null), 6000);
+      }
+    });
+
+    // 6. Subscribe to real-time SSE updates for University Matching
+    const unsubUniv = realtimeService.onUniversityAccepted((univEvent) => {
+      const match =
+        univEvent.ticketId === cleanId ||
+        univEvent.ticket_id === cleanId ||
+        univEvent.id === cleanId ||
+        univEvent.ticketId === id ||
+        univEvent.ticket_id === id;
+
+      if (match && isMounted) {
+        setSubmission((prev) => {
+          if (!prev) return prev;
+          const newUpdates = [...(prev.updates || [])];
+          newUpdates.unshift({
+            id: `up-univ-${Date.now()}`,
+            title: `Challenge Accepted: ${univEvent.institutionName}`,
+            date: "Just now",
+            author: `${univEvent.institutionName} (${univEvent.teamName})`,
+            summary: univEvent.proposal || "Prototyping team assigned. Field evaluation initiated.",
+            type: "official",
+          });
+          return {
+            ...prev,
+            status: "solution_development",
+            progressPercent: Math.max(prev.progressPercent, 60),
+            team: `${univEvent.institutionName} - ${univEvent.teamName}`,
+            updates: newUpdates,
+          };
+        });
+
+        setLiveNotice(`🏛️ Academic Lab Matched: ${univEvent.institutionName} accepted this challenge for R&D!`);
+        setTimeout(() => setLiveNotice(null), 6000);
+      }
+    });
+
     const handleStorageUpdate = () => {
       resolveSubmission();
     };
@@ -284,6 +360,8 @@ export default function SubmissionDetail() {
 
     return () => {
       isMounted = false;
+      unsubStatus();
+      unsubUniv();
       window.removeEventListener("storage", handleStorageUpdate);
     };
   }, [id]);
@@ -314,6 +392,26 @@ export default function SubmissionDetail() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Live Real-Time Telemetry Toast Alert */}
+      {liveNotice && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-3 rounded-2xl border border-emerald-300 bg-emerald-900/90 text-white px-5 py-3 shadow-2xl backdrop-blur-md animate-bounce">
+          <Sparkles className="h-5 w-5 text-emerald-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold">{liveNotice}</span>
+        </div>
+      )}
+
+      {/* Live SSE Connected Status Strip */}
+      <div className="bg-slate-900 text-slate-300 text-[11px] px-4 py-1.5 flex items-center justify-between border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>Live Nodal Telemetry Active · Real-time sync with Jharkhand State Command War Room & University Network</span>
+        </div>
+        <span className="font-mono text-slate-400 text-[10px]">TICKET #{submission.psCode || submission.id}</span>
+      </div>
+
       <SubmissionHeader submission={submission} />
 
       <div className="w-full px-4 sm:px-8 py-6">

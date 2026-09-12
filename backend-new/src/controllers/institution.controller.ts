@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { institutionRepo } from '../repositories/institution.repo';
+import { grievanceRepo } from '../repositories/grievance.repo';
 import { auditRepo } from '../repositories/audit.repo';
 import { aiAnalysisService } from '../services/aiAnalysis.service';
 import { bomGuard } from '../services/bomGuard.service';
 import { DprWorkbenchUpdateSchema, BomCheckSchema, CalibrationRequestSchema } from '../schemas/institution.schema';
+import { NotificationController } from './notification.controller';
 import { sendSuccess } from '../utils/apiResponse';
 import { AuthenticationError, AuthorizationError, NotFoundError } from '../utils/errors';
 import { query } from '../config/database';
@@ -199,6 +201,137 @@ export class InstitutionController {
 
       const resDb = await query(sql, params);
       sendSuccess(res, resDb.rows);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getOpenProblems(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const domain = req.query.domain as string;
+      const district = req.query.district as string;
+
+      const result = await grievanceRepo.findPaginated({
+        page: 1,
+        limit: 50,
+        domain: domain && domain !== 'ALL' ? domain : undefined,
+        district: district && district !== 'All' ? district : undefined,
+      });
+
+      const mapped = result.items.map((item) => ({
+        id: item.id,
+        ticketId: item.ticket_id,
+        ticket_id: item.ticket_id,
+        title: `${item.domain} in ${item.district}`,
+        description: item.normalized_text || item.raw_text,
+        domain: item.domain,
+        district: item.district,
+        urgency: item.priority === 'CRITICAL' ? 'CRITICAL' : item.priority === 'HIGH' ? 'HIGH' : 'MEDIUM',
+        department: 'State Innovation & Redressal Desk',
+        status: item.status,
+        createdAt: item.created_at,
+      }));
+
+      sendSuccess(res, mapped);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async acceptProblem(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id;
+      const { team_name, teamName, student_name, studentName, proposal } = req.body;
+      const tName = team_name || teamName || (req.user?.name ? `Team ${req.user.name}` : 'Student Innovation Team');
+      const sName = student_name || studentName || req.user?.name || 'Academic Innovator';
+
+      // Find grievance
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const grievance = isUuid ? await grievanceRepo.findById(id) : await grievanceRepo.findByTicketId(id);
+      if (!grievance) throw new NotFoundError(`Problem ${id} not found`);
+
+      // Determine institution name
+      let instName = 'Birsa Institute of Technology (BIT Mesra)';
+      let instId = req.user?.institution_id;
+      if (instId) {
+        const inst = await institutionRepo.findById(instId);
+        if (inst) instName = inst.name;
+      }
+
+      // Transition grievance status to LAB_MATCHED
+      const updated = await grievanceRepo.updateStatus(
+        grievance.id,
+        'LAB_MATCHED',
+        req.user?.id,
+        req.user?.role || 'INSTITUTION',
+        `Accepted by ${instName} (${tName}): ${proposal || 'Prototyping plan registered'}`
+      );
+
+      // Create DPR allocation if not existing
+      try {
+        await query(
+          `INSERT INTO dpr_allocations (title, description, domain, district, institution_id, status, allocated_budget)
+           VALUES ($1, $2, $3, $4, $5, 'MATCHED', 180000)
+           ON CONFLICT DO NOTHING;`,
+          [
+            `${grievance.domain} Solution Prototype`,
+            proposal || `Academic response to ${grievance.normalized_text.slice(0, 100)}`,
+            grievance.domain,
+            grievance.district,
+            instId || '00000000-0000-0000-0000-000000000001'
+          ]
+        );
+      } catch {}
+
+      // Broadcast real-time event to Government and Citizen Track Progress
+      NotificationController.broadcastRealtimeEvent('university_accepted', {
+        id: updated.id,
+        ticketId: updated.ticket_id,
+        ticket_id: updated.ticket_id,
+        institutionName: instName,
+        teamName: tName,
+        studentName: sName,
+        status: 'LAB_MATCHED',
+        proposal,
+        updatedAt: new Date().toISOString(),
+      });
+
+      NotificationController.broadcastRealtimeEvent('problem_status_updated', {
+        id: updated.id,
+        ticketId: updated.ticket_id,
+        ticket_id: updated.ticket_id,
+        status: 'LAB_MATCHED',
+        matchedTeam: `${instName} (${tName})`,
+        progressPercent: 50,
+        note: `Accepted by ${instName} (${tName})`,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Notification to Government War Room
+      await NotificationController.pushNotification({
+        role: 'GOVERNMENT',
+        title: `🤝 Challenge Accepted #${updated.ticket_id}`,
+        message: `${instName} (${tName}) accepted challenge for ${updated.district} (${updated.domain}).`,
+        type: 'match',
+        link: `/gov/live-problems/${updated.ticket_id}`,
+      });
+
+      // Notification to Citizen
+      if (updated.citizen_id) {
+        await NotificationController.pushNotification({
+          userId: updated.citizen_id,
+          title: `Lab Matched for Grievance #${updated.ticket_id}`,
+          message: `${instName} (${tName}) has accepted your problem for field engineering.`,
+          type: 'status_update',
+          link: `/trackprogress/${updated.ticket_id}`,
+        });
+      }
+
+      sendSuccess(res, {
+        message: `Challenge #${updated.ticket_id} accepted successfully. Synchronized across state ledger.`,
+        grievance: updated,
+        matchedTeam: `${instName} (${tName})`,
+      });
     } catch (err) {
       next(err);
     }

@@ -14,13 +14,15 @@ import {
   AlertTriangle,
   FileText,
   Sparkles,
+  Radio,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getStoredProblems, saveProblems, INITIAL_LIVE_PROBLEMS } from "../../data/mockData";
 import type { LiveProblem } from "../../types";
 import { useAuth, type AcademicRole } from "../../../../context/AuthContext";
-import { citizenApi } from "../../../../services/api";
+import { citizenApi, institutionApi } from "../../../../services/api";
 import { fetchAllRealSubmissions } from "../../../../services/realSubmissions";
+import { realtimeService } from "../../../../services/realtimeService";
 
 export default function LiveProblemsPage() {
   const { user } = useAuth();
@@ -34,18 +36,22 @@ export default function LiveProblemsPage() {
   const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [acceptedToast, setAcceptedToast] = useState<string | null>(null);
+  const [liveStreamToast, setLiveStreamToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    // 1. Fetch real citizen ground submissions
-    fetchAllRealSubmissions().then((realSubs) => {
+  const loadAllProblems = async () => {
+    try {
+      // 1. Fetch real citizen ground submissions + backend open problems
+      const realSubs = await fetchAllRealSubmissions();
       const currentStored = getStoredProblems();
       const baseList = currentStored.length > 0 ? currentStored : INITIAL_LIVE_PROBLEMS;
-      
+
       if (realSubs && realSubs.length > 0) {
         const mappedFromReal: LiveProblem[] = realSubs.map((item) => {
-          const matched = baseList.find((s) => s.id === item.id || s.ticketId === item.referenceId?.replace("#", ""));
+          const matched = baseList.find(
+            (s) => s.id === item.id || s.ticketId === item.referenceId?.replace("#", "") || s.ticketId === item.ticketId
+          );
           let domainCategory: LiveProblem["domain"] = "Infrastructure";
-          const dText = `${item.title} ${item.description || ""} ${item.category}`.toLowerCase();
+          const dText = `${item.title} ${item.description || ""} ${item.category || ""}`.toLowerCase();
           if (dText.includes("water") || dText.includes("fluoride") || dText.includes("drainage")) domainCategory = "Water & Sanitation";
           else if (dText.includes("solar") || dText.includes("pv") || dText.includes("energy")) domainCategory = "Renewable Energy";
           else if (dText.includes("fire") || dText.includes("mine") || dText.includes("mining")) domainCategory = "Mining & Geology";
@@ -53,12 +59,12 @@ export default function LiveProblemsPage() {
 
           return {
             id: item.id,
-            ticketId: item.referenceId?.replace("#", "") || item.id,
+            ticketId: item.referenceId?.replace("#", "") || item.ticketId || item.id,
             title: item.title,
             description: item.description || "Citizen reported bottleneck requiring university R&D prototype intervention.",
             domain: domainCategory,
             urgency: item.severity === "High" ? "CRITICAL" : "HIGH",
-            district: item.location?.city || "Ranchi",
+            district: item.location?.city || item.location?.area || "Ranchi",
             department: "District Innovation & Redressal Authority",
             affectedPopulation: "30,000+ Local Residents",
             estimatedBudget: "₹ 1.80 Lakhs (DMF Sanctioned)",
@@ -84,24 +90,75 @@ export default function LiveProblemsPage() {
       } else {
         setProblems(baseList);
       }
-    }).catch(() => {
+    } catch {
       const stored = getStoredProblems();
       setProblems(stored.length > 0 ? stored : INITIAL_LIVE_PROBLEMS);
+    }
+  };
+
+  useEffect(() => {
+    loadAllProblems();
+
+    // Real-time SSE listeners
+    const unsubNew = realtimeService.onProblemSubmitted((event) => {
+      setLiveStreamToast(`New Citizen Problem Streamed: "${event.title || 'Civic Issue'}" (#${event.ticketId || 'New'})`);
+      setTimeout(() => setLiveStreamToast(null), 6000);
+      loadAllProblems();
     });
+
+    const unsubAssigned = realtimeService.onUniversityAssigned((event) => {
+      setLiveStreamToast(`Direct Directive from War Room: Assigned to ${event.universityName || 'University Lab'}!`);
+      setTimeout(() => setLiveStreamToast(null), 6000);
+      loadAllProblems();
+    });
+
+    const unsubStatus = realtimeService.onStatusUpdated(() => {
+      loadAllProblems();
+    });
+
+    return () => {
+      unsubNew();
+      unsubAssigned();
+      unsubStatus();
+    };
   }, []);
 
-  const handleAcceptProblem = (problemId: string, title: string) => {
+  const handleAcceptProblem = async (problemId: string, title: string) => {
+    const teamName = user?.name ? `Team ${user.name}` : "Student Innovation Team";
+    const studentName = user?.name || "Student Innovator";
+
+    // 1. Sync to backend API if problemId is valid UUID or ticket
+    try {
+      await institutionApi.acceptProblem(problemId, {
+        teamName,
+        proposal: "Interdisciplinary student prototype planned under DMF Grant",
+      });
+    } catch (err) {
+      console.warn("Backend accept problem notice (local broadcast active):", err);
+    }
+
+    // 2. Broadcast real-time SSE event to Government and Citizen
+    realtimeService.broadcastLocalEvent("university_accepted", {
+      problemId,
+      ticketId: problemId,
+      universityName: teamName,
+      acceptedAt: new Date().toISOString(),
+      title,
+    });
+
+    // 3. Update local state and storage
     const updated = problems.map((p) => {
       if (p.id === problemId || p.ticketId === problemId) {
         return {
           ...p,
           status: "ACCEPTED" as const,
-          acceptedByTeam: user?.name ? `Team ${user.name}` : "Student Innovation Team",
-          acceptedByStudent: user?.name || "Student Innovator",
+          acceptedByTeam: teamName,
+          acceptedByStudent: studentName,
         };
       }
       return p;
     });
+
     setProblems(updated);
     saveProblems(updated);
     setAcceptedToast(`Problem "${title}" accepted! Proceed to Form a Team or Submit Plan.`);
@@ -146,6 +203,19 @@ export default function LiveProblemsPage() {
           >
             Go to Form Team &rarr;
           </Link>
+        </div>
+      )}
+
+      {/* Real-time Stream Banner */}
+      {liveStreamToast && (
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold shadow-md animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <Radio className="h-4 w-4 text-indigo-600 animate-pulse shrink-0" />
+            <span>{liveStreamToast}</span>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-200/70 text-indigo-800 px-2 py-0.5 rounded-md">
+            Live SSE Stream
+          </span>
         </div>
       )}
 
