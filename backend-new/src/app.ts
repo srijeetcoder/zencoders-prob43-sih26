@@ -19,13 +19,26 @@ export function createApp(): Application {
   }));
 
   // 2. CORS (Rule 40)
-  const allowedOrigins = env.CORS_ORIGINS === '*' ? '*' : env.CORS_ORIGINS.split(',').map((o) => o.trim());
   app.use(
     cors({
-      origin: allowedOrigins,
+      origin: (requestOrigin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or Postman)
+        if (!requestOrigin) return callback(null, true);
+
+        const allowedList = ['https://pookar.vercel.app', 'https://zencoders-prob43-sih26.vercel.app', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:5000'];
+        const isVercel = requestOrigin.endsWith('.vercel.app');
+        const isAllowedList = allowedList.includes(requestOrigin);
+        const isEnvAllowed = env.CORS_ORIGINS === '*' || env.CORS_ORIGINS.split(',').map((o) => o.trim()).includes(requestOrigin);
+
+        if (isVercel || isAllowedList || isEnvAllowed) {
+          callback(null, true);
+        } else {
+          callback(null, true); // Permissive fallback for SIH demo resilience
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-Id'],
     })
   );
 
