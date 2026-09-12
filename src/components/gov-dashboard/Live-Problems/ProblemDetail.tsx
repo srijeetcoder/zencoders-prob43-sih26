@@ -117,60 +117,70 @@ function ProblemDetail() {
     };
   }, [problemId, problem?.id, problem?.ticketId]);
 
-  const handleUpdateProgress = async () => {
+  const handleUpdateProgress = () => {
     if (!problem) return;
     setIsUpdating(true);
+    setIsSaved(true);
 
     const idToMatch = problem.id || problem.ticketId || problem.referenceId?.replace("#", "");
 
+    // 1. Map UI Status to Valid Backend DB Enum
+    const apiStatus = currentStatus === "Resolved"
+      ? "RESOLVED"
+      : currentStatus === "In Progress"
+      ? "IN_PROGRESS"
+      : currentStatus === "Matching Teams" || currentStatus === "Solution Planned"
+      ? "ASSIGNED"
+      : "TRIAGED";
+
+    // 2. Immediate Optimistic Local State Update
+    setProblem((prev: any) => ({
+      ...prev,
+      status: currentStatus,
+      timeline: (prev?.timeline || []).map((t: any) => {
+        if (currentStatus === "Resolved") return { ...t, status: "done" };
+        if (currentStatus === "In Progress" && (t.stage.includes("AI") || t.stage.includes("Matching"))) return { ...t, status: "done" };
+        return t;
+      }),
+    }));
+
+    setLiveToast(`Status successfully updated to "${currentStatus}" (${currentProgress}%)`);
+    setTimeout(() => setLiveToast(null), 4000);
+    setTimeout(() => setIsSaved(false), 3000);
+    setTimeout(() => setIsUpdating(false), 400);
+
+    const notificationPayload = {
+      id: `notif-${Date.now()}`,
+      ticketId: idToMatch,
+      title: `Case Progress Updated: #${idToMatch}`,
+      message: `Status moved to ${currentStatus} (${currentProgress}% completed). Official Note: ${adminNote || "Direct action dispatched by Executive War Room"}`,
+      type: "status_update",
+      status: currentStatus,
+      progressPercent: currentProgress,
+      read: false,
+      timestamp: new Date().toISOString(),
+    };
+
+    // 3. Store in persistent notification store for navbar notification bell
     try {
-      // 1. Map UI Status to Valid Backend DB Enum
-      const apiStatus = currentStatus === "Resolved"
-        ? "RESOLVED"
-        : currentStatus === "In Progress"
-        ? "IN_PROGRESS"
-        : currentStatus === "Matching Teams" || currentStatus === "Solution Planned"
-        ? "ASSIGNED"
-        : "TRIAGED";
+      const storedNotifs = JSON.parse(localStorage.getItem("pookar_notifications") || "[]");
+      storedNotifs.unshift(notificationPayload);
+      localStorage.setItem("pookar_notifications", JSON.stringify(storedNotifs.slice(0, 50)));
+    } catch {}
 
-      // 2. Sync to backend Supabase Database & SSE broadcast
-      try {
-        await governmentApi.updateStatus(idToMatch, apiStatus, adminNote);
-      } catch (err) {
-        console.warn("Backend API status update notice (fallback active):", err);
-      }
+    // 4. Broadcast realtime event across client ecosystem
+    realtimeService.broadcastLocalEvent("problem_status_updated", {
+      ticketId: idToMatch,
+      status: currentStatus,
+      progressPercent: currentProgress,
+      adminRemarks: adminNote || "Updated by State Executive War Room Officer",
+      updatedAt: new Date().toISOString(),
+    });
 
-      const notificationPayload = {
-        id: `notif-${Date.now()}`,
-        ticketId: idToMatch,
-        title: `Resolution Progress Update: ${problem.title}`,
-        message: `Case #${idToMatch} status progressed to ${currentStatus} (${currentProgress}% completed). Note: ${adminNote || "Action dispatched by Executive War Room"}`,
-        type: "status_update",
-        status: currentStatus,
-        progressPercent: currentProgress,
-        read: false,
-        timestamp: new Date().toISOString(),
-      };
+    realtimeService.broadcastLocalEvent("notification", notificationPayload);
 
-      // 3. Store in persistent notification store for navbar notification bell
-      try {
-        const storedNotifs = JSON.parse(localStorage.getItem("pookar_notifications") || "[]");
-        storedNotifs.unshift(notificationPayload);
-        localStorage.setItem("pookar_notifications", JSON.stringify(storedNotifs.slice(0, 50)));
-      } catch {}
-
-      // 4. Broadcast realtime event across client ecosystem
-      realtimeService.broadcastLocalEvent("problem_status_updated", {
-        ticketId: idToMatch,
-        status: currentStatus,
-        progressPercent: currentProgress,
-        adminRemarks: adminNote || "Updated by State Executive War Room Officer",
-        updatedAt: new Date().toISOString(),
-      });
-
-      realtimeService.broadcastLocalEvent("notification", notificationPayload);
-
-      // 5. Update in localStorage so citizen and gov views sync instantly
+    // 5. Update in localStorage so citizen and gov views sync instantly
+    try {
       const local = localStorage.getItem("pookar_user_submissions");
       let existingList: any[] = [];
       if (local) {
@@ -201,23 +211,12 @@ function ProblemDetail() {
 
       localStorage.setItem("pookar_user_submissions", JSON.stringify(existingList));
       window.dispatchEvent(new Event("storage"));
+    } catch {}
 
-      // 6. Update local state
-      setProblem((prev: any) => ({
-        ...prev,
-        status: currentStatus,
-        timeline: (prev?.timeline || []).map((t: any) => {
-          if (currentStatus === "Resolved") return { ...t, status: "done" };
-          if (currentStatus === "In Progress" && (t.stage.includes("AI") || t.stage.includes("Matching"))) return { ...t, status: "done" };
-          return t;
-        }),
-      }));
-
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 3000);
-    } catch {} finally {
-      setIsUpdating(false);
-    }
+    // 6. Non-blocking Background sync to backend Supabase Database & SSE
+    governmentApi.updateStatus(idToMatch, apiStatus, adminNote).catch((err) => {
+      console.warn("Backend API status update notice (local broadcast saved):", err);
+    });
   };
 
   const handleAssignUniversity = async (teamName: string) => {
@@ -641,21 +640,21 @@ function ProblemDetail() {
             </div>
 
             <button
+              type="button"
               onClick={handleUpdateProgress}
-              disabled={isUpdating}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all shadow ${
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer ${
                 isSaved
-                  ? "bg-emerald-600 text-white"
-                  : "bg-[#10245e] hover:bg-navy-800 text-white"
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-700/20"
+                  : "bg-[#10245e] hover:bg-[#0a1840] text-white"
               }`}
             >
               {isSaved ? (
                 <>
-                  <Check size={14} /> Case Progress Updated!
+                  <Check size={15} className="text-white" /> Case Progress Updated!
                 </>
               ) : (
                 <>
-                  <Send size={14} /> Save & Dispatch Status
+                  <Send size={15} /> Save & Dispatch Status
                 </>
               )}
             </button>

@@ -19,6 +19,7 @@ router.post('/dispatch', (req, res, next) => governmentController.createDispatch
 router.post('/escalate', (req, res, next) => governmentController.createEscalation(req, res, next));
 router.get('/escalations', (req, res, next) => governmentController.getEscalations(req, res, next));
 router.patch('/grievances/:id/status', (req, res, next) => governmentController.updateGrievanceStatus(req, res, next));
+router.post('/grievances/:id/status', (req, res, next) => governmentController.updateGrievanceStatus(req, res, next));
 router.post('/grievances/:id/assign-university', (req, res, next) => governmentController.assignUniversity(req, res, next));
 router.post('/assign-university', (req, res, next) => governmentController.assignUniversity(req, res, next));
 router.post('/ai-analysis', aiLimiter, (req, res, next) => governmentController.triggerAIAnalysis(req, res, next));
