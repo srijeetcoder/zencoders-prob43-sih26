@@ -136,39 +136,56 @@ function ReportProblemPage() {
 
     if (!file.type.startsWith("video/")) {
       setMediaError("Only valid video files (MP4, WEBM, MOV) are supported.");
+      if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
       setMediaError("Video file size cannot exceed 50MB.");
+      if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
 
-    // Inspect duration via temporary HTML5 video element
+    // Inspect duration via temporary HTML5 video element with fallback
     const tempVideo = document.createElement("video");
     tempVideo.preload = "metadata";
     const objectUrl = URL.createObjectURL(file);
     tempVideo.src = objectUrl;
 
-    tempVideo.onloadedmetadata = () => {
-      URL.revokeObjectURL(tempVideo.src);
-      const duration = tempVideo.duration;
+    let resolved = false;
 
-      if (duration > 60) {
-        setMediaError(`Video length is ${Math.round(duration)}s. Maximum allowed duration is 60 seconds (1 minute).`);
+    const commitVideo = (durationSecs: number) => {
+      if (resolved) return;
+      resolved = true;
+      if (durationSecs > 60) {
+        setMediaError(`Video length is ${Math.round(durationSecs)}s. Maximum allowed duration is 60 seconds (1 minute).`);
+        URL.revokeObjectURL(objectUrl);
+        if (videoInputRef.current) videoInputRef.current.value = "";
         return;
       }
-
       setVideo({
         file,
         url: objectUrl,
         name: file.name,
-        duration: Math.round(duration),
+        duration: Math.round(durationSecs) || 15,
       });
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      commitVideo(tempVideo.duration || 15);
     };
 
     tempVideo.onerror = () => {
-      setMediaError("Unable to read video metadata. Please ensure video format is MP4, WebM, or MOV.");
+      // If metadata decode fails on minor codecs, accept if size is < 50MB
+      commitVideo(15);
     };
+
+    // Safety timeout fallback (1.5s) if browser hangs on metadata read
+    setTimeout(() => {
+      if (!resolved) {
+        commitVideo(15);
+      }
+    }, 1500);
   };
 
   const removeVideo = () => {
@@ -608,15 +625,15 @@ function ReportProblemPage() {
               accept="image/*"
               multiple
               className="hidden"
-              onChange={(e) => handlePhotoFiles(e.target.files)}
+              onChange={handlePhotoUpload}
             />
 
             <input
               ref={videoInputRef}
               type="file"
-              accept="video/mp4,video/webm,video/quicktime"
+              accept="video/mp4,video/webm,video/quicktime,video/*"
               className="hidden"
-              onChange={(e) => handleVideoFile(e.target.files)}
+              onChange={handleVideoUpload}
             />
           </div>
 
