@@ -16,7 +16,22 @@ export const EscalationSchema = z.object({
 });
 
 export const UpdateStatusSchema = z.object({
-  status: z.enum(['OPEN', 'TRIAGED', 'ASSIGNED', 'DISPATCHED', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED']),
+  status: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      const s = val.trim();
+      const upper = s.toUpperCase().replace(/\s+/g, '_');
+      if (upper === 'UNDER_ANALYSIS' || upper === 'MATCHING_TEAMS' || upper === 'SOLUTION_PLANNED' || upper === 'OPEN' || upper === 'PENDING') return 'OPEN';
+      if (upper === 'IN_PROGRESS') return 'IN_PROGRESS';
+      if (upper === 'RESOLVED') return 'RESOLVED';
+      if (upper === 'VERIFIED') return 'VERIFIED';
+      if (upper === 'ASSIGNED') return 'ASSIGNED';
+      if (upper === 'DISPATCHED') return 'DISPATCHED';
+      if (upper === 'TRIAGED') return 'TRIAGED';
+      if (upper === 'REJECTED') return 'REJECTED';
+      return upper;
+    }
+    return val;
+  }, z.enum(['OPEN', 'TRIAGED', 'ASSIGNED', 'DISPATCHED', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED', 'REJECTED'])),
   note: z.string().optional(),
 });
 

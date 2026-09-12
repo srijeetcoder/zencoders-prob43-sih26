@@ -93,8 +93,17 @@ function ReportProblemPage() {
     );
   }
 
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Handle Photo Files Selection (Max 3)
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setMediaError("");
 
@@ -113,11 +122,21 @@ function ReportProblemPage() {
         setMediaError(`Photo "${file.name}" exceeds the 10MB size limit.`);
         continue;
       }
-      validPhotos.push({
-        file,
-        url: URL.createObjectURL(file),
-        name: file.name,
-      });
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        validPhotos.push({
+          file,
+          url: dataUrl,
+          name: file.name,
+        });
+      } catch {
+        validPhotos.push({
+          file,
+          url: URL.createObjectURL(file),
+          name: file.name,
+        });
+      }
     }
 
     setPhotos((prev) => [...prev, ...validPhotos].slice(0, 3));

@@ -486,7 +486,69 @@ export class AuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = LoginSchema.parse(req.body);
-      const user = await authRepo.findByEmail(data.email);
+      let user = await authRepo.findByEmail(data.email);
+
+      // Auto-activation on login: Check if identifier matches a valid government or university invite key
+      if (!user) {
+        const cleanIdent = data.email.trim();
+        try {
+          // Check Government Invite Codes
+          const govRes = await query<{
+            id: string;
+            code: string;
+            department: string;
+            district: string;
+            designation: string;
+            allocated_to_email: string | null;
+            is_used: boolean;
+            expires_at: Date;
+          }>(
+            `SELECT id, code, department, district, designation, allocated_to_email, is_used, expires_at
+             FROM government_invite_codes
+             WHERE (LOWER(allocated_to_email) = LOWER($1) OR UPPER(code) = UPPER($1))
+               AND is_used = FALSE 
+               AND expires_at > NOW()
+             LIMIT 1;`,
+            [cleanIdent]
+          );
+
+          if (govRes.rows.length > 0) {
+            const invite = govRes.rows[0];
+            const officerEmail = (invite.allocated_to_email || cleanIdent).toLowerCase();
+            const passwordHash = await bcrypt.hash(data.password, 10);
+            
+            // Resolve district ID
+            let districtId: string | undefined;
+            try {
+              const dRes = await query<{ id: string }>(
+                `SELECT id FROM districts WHERE name ILIKE $1 LIMIT 1;`,
+                [invite.district || 'Ranchi']
+              );
+              if (dRes.rows[0]) districtId = dRes.rows[0].id;
+            } catch {}
+
+            user = await authRepo.createUser({
+              name: `${invite.designation} (${invite.district || 'Ranchi'})`,
+              email: officerEmail,
+              government_id: invite.code,
+              password_hash: passwordHash,
+              role: 'GOVERNMENT',
+              district_id: districtId,
+              is_email_verified: true,
+            });
+
+            // Mark invite code claimed
+            await query(
+              `UPDATE government_invite_codes
+               SET is_used = TRUE, used_by_user_id = $1, used_at = NOW()
+               WHERE id = $2;`,
+              [user.id, invite.id]
+            );
+          }
+        } catch (autoErr) {
+          console.warn('[Auto-activation Gov Notice]:', autoErr);
+        }
+      }
 
       if (!user) {
         throw new AuthenticationError('Invalid email or password credentials');

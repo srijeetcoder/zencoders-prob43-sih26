@@ -118,14 +118,42 @@ function ProblemDetail() {
     const idToMatch = problem.id || problem.ticketId || problem.referenceId?.replace("#", "");
 
     try {
-      // 1. Sync to backend Supabase Database & SSE broadcast
+      // 1. Map UI Status to Valid Backend DB Enum
+      const apiStatus = currentStatus === "Resolved"
+        ? "RESOLVED"
+        : currentStatus === "In Progress"
+        ? "IN_PROGRESS"
+        : currentStatus === "Matching Teams" || currentStatus === "Solution Planned"
+        ? "ASSIGNED"
+        : "TRIAGED";
+
+      // 2. Sync to backend Supabase Database & SSE broadcast
       try {
-        await governmentApi.updateStatus(idToMatch, currentStatus, adminNote);
+        await governmentApi.updateStatus(idToMatch, apiStatus, adminNote);
       } catch (err) {
         console.warn("Backend API status update notice (fallback active):", err);
       }
 
-      // 2. Broadcast realtime event across client ecosystem
+      const notificationPayload = {
+        id: `notif-${Date.now()}`,
+        ticketId: idToMatch,
+        title: `Resolution Progress Update: ${problem.title}`,
+        message: `Case #${idToMatch} status progressed to ${currentStatus} (${currentProgress}% completed). Note: ${adminNote || "Action dispatched by Executive War Room"}`,
+        type: "status_update",
+        status: currentStatus,
+        progressPercent: currentProgress,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      // 3. Store in persistent notification store for navbar notification bell
+      try {
+        const storedNotifs = JSON.parse(localStorage.getItem("pookar_notifications") || "[]");
+        storedNotifs.unshift(notificationPayload);
+        localStorage.setItem("pookar_notifications", JSON.stringify(storedNotifs.slice(0, 50)));
+      } catch {}
+
+      // 4. Broadcast realtime event across client ecosystem
       realtimeService.broadcastLocalEvent("problem_status_updated", {
         ticketId: idToMatch,
         status: currentStatus,
@@ -134,7 +162,9 @@ function ProblemDetail() {
         updatedAt: new Date().toISOString(),
       });
 
-      // 3. Update in localStorage so citizen and gov views sync instantly
+      realtimeService.broadcastLocalEvent("notification", notificationPayload);
+
+      // 5. Update in localStorage so citizen and gov views sync instantly
       const local = localStorage.getItem("pookar_user_submissions");
       let existingList: any[] = [];
       if (local) {
@@ -166,7 +196,7 @@ function ProblemDetail() {
       localStorage.setItem("pookar_user_submissions", JSON.stringify(existingList));
       window.dispatchEvent(new Event("storage"));
 
-      // 4. Update local state
+      // 6. Update local state
       setProblem((prev: any) => ({
         ...prev,
         status: currentStatus,
@@ -230,26 +260,85 @@ function ProblemDetail() {
     );
   }
 
-  const rawPhotos = [
-    ...(Array.isArray(problem.photos) ? problem.photos : []),
-    ...(Array.isArray(problem.attachments) ? problem.attachments : []),
-    problem.thumbnailUrl,
-    problem.image,
-  ];
+  const rawPhotos: string[] = [];
+  let videoEvidence: any = null;
 
-  const validPhotos = rawPhotos.filter(
-    (p: any) => typeof p === "string" && p.trim().length > 5 && !p.startsWith("blob:null")
-  );
+  if (Array.isArray(problem.photos)) {
+    problem.photos.forEach((p: any) => {
+      if (typeof p === "string" && p.trim().length > 5 && !p.startsWith("blob:null")) {
+        rawPhotos.push(p);
+      } else if (p && typeof p.url === "string") {
+        rawPhotos.push(p.url);
+      }
+    });
+  }
 
-  const photosList = validPhotos.length > 0
-    ? Array.from(new Set(validPhotos))
+  if (Array.isArray(problem.attachments)) {
+    problem.attachments.forEach((a: any) => {
+      if (typeof a === "string" && a.trim().length > 5 && !a.startsWith("blob:null")) {
+        rawPhotos.push(a);
+      } else if (a && typeof a.url === "string") {
+        if (a.type === "video" || a.url.includes("video") || a.name?.endsWith(".mp4")) {
+          videoEvidence = a;
+        } else {
+          rawPhotos.push(a.url);
+        }
+      }
+    });
+  }
+
+  if (typeof problem.thumbnailUrl === "string" && problem.thumbnailUrl.length > 5) {
+    rawPhotos.push(problem.thumbnailUrl);
+  }
+  if (typeof problem.image === "string" && problem.image.length > 5) {
+    rawPhotos.push(problem.image);
+  }
+
+  const photosList = Array.from(new Set(rawPhotos)).filter(Boolean);
+  const displayPhotos = photosList.length > 0 
+    ? photosList 
     : [
         "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80",
         "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
       ];
 
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   return (
     <div className="px-6 py-6 sm:px-8 max-w-7xl mx-auto space-y-6">
+      {/* Evidence Fullscreen Zoom Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl p-2 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between px-4 py-2 border-b border-slate-800 text-white text-xs font-semibold">
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                Verified Ground Telemetry Capture
+              </span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className="p-4 flex items-center justify-center max-h-[75vh] w-full">
+              <img
+                src={previewImage}
+                alt="Enlarged Evidence"
+                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <Link
           to="/gov/live-problems"
@@ -323,23 +412,24 @@ function ProblemDetail() {
             </div>
           </div>
 
-          {/* Citizen Photographic Evidence Gallery */}
+          {/* Citizen Photographic & Video Evidence Vault */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-navy-900 flex items-center gap-2">
                 <ImageIcon size={16} className="text-teal-600" />
-                Citizen Uploaded Photographic Evidence
+                Citizen Evidence Vault & Field Documentation
               </h2>
-              <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-                Verified Ingestion
+              <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                {displayPhotos.length} Captured File{displayPhotos.length > 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              {photosList.map((url: string, idx: number) => (
+              {displayPhotos.map((url: string, idx: number) => (
                 <div
                   key={idx}
-                  className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 group aspect-video shadow-inner"
+                  onClick={() => setPreviewImage(url)}
+                  className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 group aspect-video shadow-inner cursor-pointer"
                 >
                   <img
                     src={url}
@@ -349,12 +439,28 @@ function ProblemDetail() {
                       e.target.src = "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=80";
                     }}
                   />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white text-xs px-3 py-1.5 rounded-xl font-bold backdrop-blur-sm">
+                      🔍 Click to Expand
+                    </span>
+                  </div>
                   <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded">
                     Field Evidence Capture #{idx + 1}
                   </div>
                 </div>
               ))}
             </div>
+
+            {videoEvidence && (
+              <div className="mt-3 p-3 rounded-2xl border border-slate-200 bg-slate-50">
+                <p className="text-xs font-bold text-slate-700 mb-2">Video Evidence Attachment:</p>
+                <video
+                  src={videoEvidence.url}
+                  controls
+                  className="w-full max-h-60 rounded-xl bg-black"
+                />
+              </div>
+            )}
           </div>
 
           {/* Description */}

@@ -27,13 +27,14 @@ export interface UserRecord {
 export class AuthRepository {
   async findByEmail(email: string): Promise<UserRecord | null> {
     try {
+      const cleanIdentifier = email.trim();
       const res = await query<UserRecord>(
         `SELECT u.*, d.name AS district_name, dept.name AS department_name
          FROM users u
          LEFT JOIN districts d ON u.district_id = d.id
          LEFT JOIN departments dept ON u.department_id = dept.id
-         WHERE u.email = $1 LIMIT 1;`,
-        [email.toLowerCase().trim()]
+         WHERE LOWER(u.email) = LOWER($1) OR UPPER(COALESCE(u.government_id, '')) = UPPER($1) LIMIT 1;`,
+        [cleanIdentifier]
       );
       return res.rows[0] || null;
     } catch (err: any) {
