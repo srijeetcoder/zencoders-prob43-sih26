@@ -37,7 +37,7 @@ import { fetchAllRealSubmissions } from "../../../services/realSubmissions";
 
 type AiModuleType = "master" | "blueprint" | "problem_dna" | "ecosystem" | "simulator" | "rag";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "/api/v1" : "http://localhost:5000/api")).replace(/\/$/, "");
 
 interface ProblemItem {
   id: string;
